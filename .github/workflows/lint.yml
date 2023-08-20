@@ -3,8 +3,12 @@ name: Lint
 on:
     pull_request:
         branches: [master]
+        paths:
+            - 'lua/'
     push:
         branches: [master]
+        paths:
+            - 'lua/'
 
 jobs:
     build:
@@ -13,6 +17,7 @@ jobs:
         steps:
             - name: Install libffi7
               run: sudo apt-get install libffi7
+
             - name: Checkout
               uses: actions/checkout@v3
 
