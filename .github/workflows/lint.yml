@@ -1,0 +1,30 @@
+name: Lint
+
+on:
+    pull_request:
+        branches: [master]
+    push:
+        branches: [master]
+
+jobs:
+    build:
+        runs-on: self-hosted
+
+        steps:
+            - name: Install libffi7
+              run: sudo apt-get install libffi7
+            - name: Checkout
+              uses: actions/checkout@v3
+
+            - name: Remove blacklisted
+              run: rm -r lua/entities/gmod_wire_expression2/ lua/data lua/wire/gates lua/entities/arthur_mantle/cl_data.lua lua/cap_res_req.lua lua/cap_ver.lua
+
+            - name: GLua Linter
+              uses: TASSIA710/action-glua-lint@v1.1.4
+              with:
+                  lint_maxScopeDepth: 99
+                  lint_deprecated: false
+                  lint_emptyBlocks: false
+                  lint_unusedParameters: false
+                  lint_unusedLoopVars: false
+                  lint_shadowing: false
