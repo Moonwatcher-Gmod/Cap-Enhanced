@@ -260,7 +260,7 @@ function EFFECT:Render(draw_anyway)
 	-- Must be calced everytime (gay server->client delay)
 	local color = self.Parent:GetNWVector("cloak_color",Vector(255,255,255));
 	local alpha = self.Parent:GetNWInt("alpha",255);
-	self.Color = Color(color.x,color.y,color.z,alpha);
+	self.Color = Color(color.x-80,color.y-40,color.z,alpha)
 	local multiply = (self.Created + self.LifeTime - CurTime())/self.LifeTime;
 	local refract = 0; -- Dummy
 	--################### Lifetime <= 1 means: do a sinus fade effec instead of a linear 255->0 or 0->255

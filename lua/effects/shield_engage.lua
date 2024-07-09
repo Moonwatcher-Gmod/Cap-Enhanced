@@ -16,12 +16,29 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-EFFECT.Materiala = Material("effects/shielda");
-EFFECT.Materialb = Material("effects/shieldb");
+EFFECT.Materiala = Material("effects/shielda_v2");
 
+--EFFECT.Materiala = Material("effects/atlantisa");
+
+EFFECT.Materialb = Material("effects/shieldb_v2");
+
+--EFFECT.Materialc = Material("effects/atlantisb");
+
+
+--EFFECT.Materialb = Material("effects/atlantisb");
 --################# Init @aVoN
 function EFFECT:Init(data)
 	if(not StarGate.VisualsMisc("cl_shield_bubble")) then return end;
+
+	if (StarGate.VisualsMisc("cl_shield_design")) then
+		self.Materiala = Material("effects/shielda_v2");
+		self.Materialb = Material("effects/shieldb_v2");
+	else
+		self.Materiala = Material("effects/shielda");
+		self.Materialb = Material("effects/shieldb");
+	end
+
+
 	self.Radius = data:GetScale();
 	self.Alpha = 0;
 	local e = data:GetEntity();
@@ -60,7 +77,7 @@ function EFFECT:Init(data)
 	self.Entity:SetRenderMode( RENDERMODE_TRANSALPHA );
 	self.Draw = true;
 	self.Created = CurTime();
-	self.LifeTime = 1;
+	self.LifeTime = 1.8;
 	self.Parent = e;
 	local OldSize = self.Entity:OBBMaxs().z;
 	-- This was the old method to do a resize withing a cam.3DStart();
@@ -90,9 +107,9 @@ function EFFECT:Render()
 	local multiply = (CurTime()-self.Created)/self.LifeTime;
 	if(multiply >= 0) then
 		if(self.StartWithFullAlpha and multiply < 0.5) then
-			multiply = 0.5;
+			multiply = 8.5;
 		end
-		local alpha = math.Clamp(math.Clamp(math.sin(multiply*math.pi)*1.3,0,1)*70,1,70);
+		local alpha = math.Clamp(math.Clamp(math.sin(multiply*math.pi)*1.3,0,1)*170,1,170);
 		local size = self.SizeMultiplier;
 		if(self.TurnOff) then
 			-- When the shield collapes, we will add a shrinking effect
@@ -101,6 +118,7 @@ function EFFECT:Render()
 		end
 		self.Entity:SetColor(Color(self.Color.r*255,self.Color.g*255,self.Color.b*255,alpha));
 		render.MaterialOverride(self.Materiala);
+
 		-- Thanks to catdaemon telling me the existance about this function. Makes everything easier compared with difficult cam3D and normal resize
 		local mat = Matrix()
 		mat:Scale(Vector(1,1,1)*size)
@@ -108,6 +126,7 @@ function EFFECT:Render()
 		self.Entity:DrawModel();
 		-- Turn off or fail effect
 		render.MaterialOverride(self.Materialb);
+
 		local mat = Matrix()
 		mat:Scale(Vector(1,1,1)*size)
 		self.Entity:EnableMatrix( "RenderMultiply", mat )

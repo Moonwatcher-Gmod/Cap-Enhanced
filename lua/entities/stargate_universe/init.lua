@@ -13,8 +13,10 @@ include("modules/wire_dial.lua");
 
 ENT.Models = {
 	Base="models/The_Sniper_9/Universe/Stargate/universegate.mdl",
+	--Base="models/kripalida/sg_hd/universegatehd.mdl",
 	Ring="models/Iziraider/ring/ring.mdl",
     Chevrons="models/The_Sniper_9/Universe/Stargate/universechevrons.mdl",
+    --Chevrons="models/kripalida/sg_hd/universechevronshd.mdl",
 	Symbol="models/The_Sniper_9/Universe/Stargate/symbolon.mdl",
 }
 ENT.Sounds = {
@@ -27,7 +29,9 @@ ENT.Sounds = {
 	LockDHD=Sound("stargate/universe/chevron.mp3"),
 	Chevron=Sound("stargate/universe/chevlocked.wav"),
 	Fail=Sound("stargate/universe/fail3.wav"),
+	--Fail=Sound("kripalida/sgu_hd/fail.wav"),
 	Activate=Sound("stargate/universe/Stargate Begin Roll.mp3"),
+	--Activate=Sound("kripalida/sgu_hd/begin_roll.wav"),
 	GateRoll=Sound("stargate/universe/Long_Gate_Roll.wav"),
 	StopRoll=Sound("stargate/universe/Chevron2.mp3"),
     EndRoll=Sound("stargate/universe/endroll.mp3"),
@@ -257,11 +261,12 @@ function ENT:ChangeSystemType(groupsystem,reload)
 end
 
 function ENT:GateWireInputs(groupsystem)
-	self:CreateWireInputs("Dial Address","Dial String [STRING]","Dial Mode","Start String Dial","Close","Disable Autoclose","Transmit [STRING]","Rotate Ring","Ring Speed Mode","Encode Symbol","Symbols Lock","Force Encode Symbol [STRING]","Force Lock Symbol [STRING]","Inbound Symbols","Activate Chevrons","Activate All Symbols","Activate Symbols [STRING]","Activate Symbols Sound","Disable Menu","Event Horizon Type [STRING]","Event Horizon Color [VECTOR]");
+	self:CreateWireInputs("Dial Address","Dial String [STRING]","Dial Mode","Start String Dial","Close","Disable Autoclose","Transmit [STRING]","Rotate Ring","Ring Speed Mode","Encode Symbol","Symbols Lock","Force Encode Symbol [STRING]","Force Lock Symbol [STRING]","Inbound Symbols","Activate Chevrons","Activate All Symbols","Activate Symbols [STRING]","Activate Symbols Sound","Disable Menu","Event Horizon Type [STRING]","Event Horizon Color [VECTOR]","TargetGate [ENTITY]","Switch Gate");
+	--self:CreateWireInputs("Dial Address","Dial String [STRING]","Dial Mode","Start String Dial","Close","Disable Autoclose","Transmit [STRING]","Rotate Ring","Ring Speed Mode","Encode Symbol","Symbols Lock","Force Encode Symbol [STRING]","Force Lock Symbol [STRING]","Inbound Symbols","Activate Chevrons","Activate All Symbols","Activate Symbols [STRING]","Activate Symbols Sound","Disable Menu","Event Horizon Type [STRING]","Event Horizon Color [VECTOR]","TargetGate [ENTITY]","Switch Gate","Pause Routing","Resume Routing");
 end
 
 function ENT:GateWireOutputs(groupsystem)
-	self:CreateWireOutputs("Active","Open","Inbound","Chevron","Chevron Locked","Ring Symbol [STRING]","Ring Rotation","Dialing Address [STRING]","Dialing Mode","Dialing Symbol [STRING]","Dialed Symbol [STRING]","Received [STRING]");
+	self:CreateWireOutputs("Active","Open","Inbound","Chevron","Chevron Locked","Ring Symbol [STRING]","Ring Rotation","Dialing Address [STRING]","Dialing Mode","Dialing Symbol [STRING]","Dialed Symbol [STRING]","Received [STRING]","Entities On Route");
 end
 
 function ENT:SpawnFunction(p,t)
@@ -628,6 +633,7 @@ function ENT:RingTickUniverse()
 				if (self.WireSpinSpeed or not self.WireSpin) then
 					s1,s2,s3,s4 = self.tickWireSlowerDial[1],self.tickWireSlowerDial[2],self.tickWireSlowDial[1],self.tickWireSlowDial[2]
 				end
+
 				for k, v in pairs(symbols) do
 					local symbol = self:StopFormula(y,tonumber(self.SymbolsLock[tonumber(k) or k][1]),s1,s2);
 					if (symbol) then
@@ -726,7 +732,7 @@ function ENT:ActivateLights(active)
         if(active) then
 	        for i=1,18 do
 		        self.Entity:SetNetworkedEntity( "GateLights", self.Gate );
-		        self.Entity:SetNetworkedBool("chevron"..i,true);
+		        self.Entity:SetNWBool("chevron"..i,true);
 	        end
 	    else
 	       for i=1,18 do
@@ -935,6 +941,27 @@ function ENT:TriggerInput(k,v,mobile,mdhd,ignore)
 				self:TriggerInput("Rotate Ring",1,mobile,mdhd);
 				self.WireEncodeSymbol = v;
 				self.Entity:SetWire("Dialing Symbol",v);
+			end
+		end
+	-- elseif(k == "Pause Routing" and self.Active and IsValid(self.EventHorizon)) then
+	-- 	if (v >= 1) then
+	-- 		self.EventHorizon:PauseAllRouting()
+	-- 	end
+	-- elseif(k == "Resume Routing" and self.Active and IsValid(self.EventHorizon)) then
+	-- 	if (v >= 1) then
+	-- 		self.EventHorizon:ResumeAllRouting()
+	-- 	end
+	elseif (k == "TargetGate") then
+
+			if (IsValid(v)) then
+				self.TargetGate = v
+			else
+				self.TargetGate = nil
+			end
+	elseif (k == "Switch Gate") then
+		if (v == 42) then
+			if (IsValid(self.TargetGate)) then
+				self:ControlledJump(self.TargetGate)
 			end
 		end
 	end

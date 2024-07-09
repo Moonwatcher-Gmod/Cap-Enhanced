@@ -50,104 +50,152 @@ util.PrecacheSound("dagger/knife_hit3.wav")
 util.PrecacheSound("dagger/knife_hit4.wav")
 util.PrecacheSound("dagger/knife_slash1.wav")
 
+
 -- Lol, without this we can't use this weapon in mp on gmod13...
 if SERVER then
-	AddCSLuaFile();
+   
+    AddCSLuaFile()
+
+
 end
 
 function SWEP:Initialize()
-	self:SetWeaponHoldType( "knife" )
+    self:SetWeaponHoldType("knife")
+    self.Hit = Sound("dagger/knife_hitwall1.wav")
+    self.Slash = Sound("dagger/knife_slash1.wav")
 
-	self.Hit = Sound( "dagger/knife_hitwall1.wav" );
-	self.Slash = Sound( "dagger/knife_slash1.wav" );
-	self.FleshHit = {
-		[1] = Sound( "dagger/knife_hit1.wav" ),
-		[2] = Sound( "dagger/knife_hit2.wav" ),
-		[3] = Sound( "dagger/knife_hit3.wav" ),
-		[4] = Sound( "dagger/knife_hit4.wav" )
-	};
+    self.FleshHit = {
+        [1] = Sound("dagger/knife_hit1.wav"),
+        [2] = Sound("dagger/knife_hit2.wav"),
+        [3] = Sound("dagger/knife_hit3.wav"),
+        [4] = Sound("dagger/knife_hit4.wav")
+    }
 
-	self.NextHit = 0;
-
+    self.NextHit = 0
 end
 
 function SWEP:PrimaryAttack()
-	if( CurTime() < self.NextHit ) then return end
-	self.NextHit = ( CurTime() + 0.5 );
+    if (CurTime() < self.NextHit) then return end
+    self.NextHit = (CurTime() + 0.5)
+    self.Owner:SetAnimation(PLAYER_ATTACK1)
+    self:SendWeaponAnim(ACT_VM_HITCENTER)
+    local tr = self.Owner:GetEyeTrace()
 
-	self.Owner:SetAnimation( PLAYER_ATTACK1 );
-	self.Weapon:SendWeaponAnim( ACT_VM_HITCENTER );
+    if tr.HitPos:Distance(self.Owner:GetShootPos()) <= 75 then
+        if (SERVER) then
+            local ent = tr.Entity
 
- 	local tr = self.Owner:GetEyeTrace();
-	if tr.HitPos:Distance(self.Owner:GetShootPos()) <= 75 then
+            if (ent:IsPlayer() or ent:IsNPC() or ent:GetClass() == "prop_ragdoll") then
+                self.Owner:EmitSound(self.FleshHit[math.random(1, 4)])
+            else
+                self.Owner:EmitSound(self.Hit)
+            end
+        end
+-- Wire experiments
+        -- if SERVER then
+        --     local inputs = WireLib.GetPorts( tr.Entity )
+        --     for i=1,#inputs do
+        --     end
+        --     --print(self:GetPorts(tr.Entity))
+        --     tr.Entity:TriggerInput(inputs[1][1],1)
+        -- end
 
-		if (SERVER) then
-			local ent = tr.Entity
-			if( ent:IsPlayer() or ent:IsNPC() or ent:GetClass()=="prop_ragdoll" ) then
-				self.Owner:EmitSound(self.FleshHit[math.random(1,4)]);
-			else
-				self.Owner:EmitSound(self.Hit);
-			end
-		end
-		self.Weapon:Hurt(5);
-
-	elseif SERVER then self.Weapon:EmitSound(self.Slash) end
-
+        self:Hurt(5)
+    elseif SERVER then
+        self:EmitSound(self.Slash)
+    end
+    
 end
 
 function SWEP:SecondaryAttack()
-	if( CurTime() < self.NextHit ) then return end
-	self.NextHit = ( CurTime() + 1 );
+    if (CurTime() < self.NextHit) then return end
+    self.NextHit = (CurTime() + 1)
+    self.Owner:SetAnimation(PLAYER_ATTACK1)
+    self:SendWeaponAnim(ACT_VM_HITCENTER)
+    local tr = self.Owner:GetEyeTrace()
 
-	self.Owner:SetAnimation( PLAYER_ATTACK1 );
-	self.Weapon:SendWeaponAnim( ACT_VM_HITCENTER );
+    if tr.HitPos:Distance(self.Owner:GetShootPos()) <= 75 then
+        if (SERVER) then
+            local ent = tr.Entity
 
- 	local tr = self.Owner:GetEyeTrace();
-	if tr.HitPos:Distance(self.Owner:GetShootPos()) <= 75 then
+            if (ent:IsPlayer() or ent:IsNPC() or ent:GetClass() == "prop_ragdoll") then
+                self.Owner:EmitSound(self.FleshHit[math.random(1, 4)])
+            else
+                self.Owner:EmitSound(self.Hit)
+            end
+        end
 
-		if (SERVER) then
-			local ent = tr.Entity
-			if( ent:IsPlayer() or ent:IsNPC() or ent:GetClass()=="prop_ragdoll" ) then
-				self.Owner:EmitSound(self.FleshHit[math.random(1,4)]);
-			else
-				self.Owner:EmitSound(self.Hit);
-			end
-		end
-		self.Weapon:Hurt(10);
-
-	elseif SERVER then self.Weapon:EmitSound(self.Slash) end
-
-
+        self:Hurt(10)
+    elseif SERVER then
+        self:EmitSound(self.Slash)
+    end
 end
 
 function SWEP:Hurt(damage)
-	bullet = {}
-	bullet.Num    = 1
-	bullet.Src    = self.Owner:GetShootPos()
-	bullet.Dir    = self.Owner:GetAimVector()
-	bullet.Spread = Vector(0.1, 0.1, 0)
-	bullet.Tracer = 0
-	bullet.Force  = 10
-	bullet.Damage = damage
-	self.Owner:FireBullets(bullet)
+    bullet = {}
+    bullet.Num = 1
+    bullet.Src = self.Owner:GetShootPos()
+    bullet.Dir = self.Owner:GetAimVector()
+    bullet.Spread = Vector(0.1, 0.1, 0)
+    bullet.Tracer = 0
+    bullet.Force = 10
+    bullet.Damage = damage
+    self.Owner:FireBullets(bullet)
 end
 
 function SWEP:Deploy()
-	self.Owner:EmitSound( "dagger/knife_deploy1.wav" );
-	return true
+    self.Owner:EmitSound("dagger/knife_deploy1.wav")
+
+    return true
 end
 
-function SWEP:Precache() end
+function SWEP:Precache()
+end
 
 if CLIENT then
+    -- Inventory Icon
+    if (file.Exists("materials/VGUI/weapons/dagger_inventory.vmt", "GAME")) then
+        SWEP.WepSelectIcon = surface.GetTextureID("VGUI/weapons/dagger_inventory")
+    end
 
--- Inventory Icon
-if(file.Exists("materials/VGUI/weapons/dagger_inventory.vmt","GAME")) then
-	SWEP.WepSelectIcon = surface.GetTextureID("VGUI/weapons/dagger_inventory");
+    -- Kill Icon
+    if (file.Exists("materials/weapons/knife_kill.vmt", "GAME")) then
+        killicon.Add("KRD", "/weapons/knife_kill", Color(255, 255, 255))
+    end
 end
--- Kill Icon
-if(file.Exists("materials/weapons/knife_kill.vmt","GAME")) then
-	killicon.Add("KRD","/weapons/knife_kill",Color(255,255,255));
-end
+
+function SWEP:DealAoeDamage( dmgtype, dmgamt, src, range, attacker, forcemul ) -- I've no chance but notice, that my explosion based damaging system is kinda unreliable and difficult to handle.
+
+    if ( !forcemul ) then
+        forcemul = 1
+    end
+
+    local dmg = DamageInfo()
+    dmg:SetDamageType( dmgtype )
+    if ( !attacker or !IsValid( attacker ) ) then
+        dmg:SetAttacker( self:GetValidOwner() )
+    else
+        dmg:SetAttacker( attacker )
+    end
+    dmg:SetInflictor( self )
+    dmg:SetDamageForce( Vector( 0, 0, 1 ) * forcemul )
+    dmg:SetDamage( dmgamt )
+
+    util.BlastDamageInfo( dmg, src, range )
+
+    local iDebug = cmd_debug_dmgranges:GetInt()
+
+    if ( iDebug >= 1 ) then
+        debugoverlay.Sphere( src, range, 0.5, Color( 255, 100, 100, 20 ), false )
+        debugoverlay.Sphere( src, range / 2, 0.5, Color( 255, 50, 50, 25 ), false )
+    end
+
+    if ( iDebug >= 2 ) then
+        DebugInfo( ArrangeElements( 4, 24 ), "@SciFiDamage : !Report; "..tostring(self).." dealt "..dmgamt.." ("..tostring( dmgtype )..") damage, within "..range.." units." )
+    end
+
+    if ( iDebug == 3 ) then
+        MsgC( NotiColor, "@SciFiDamage : !Report; "..tostring(self).." dealt "..dmgamt.." ("..tostring( dmgtype )..") damage, within "..range.." units.\n" )
+    end
 
 end

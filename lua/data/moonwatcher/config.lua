@@ -68,6 +68,8 @@
 
 #### Stargate config
 [stargate]
+doWormholeSequence = true
+nox_bypass = true
 # Autoclose gates, after you left it?
 autoclose=true
 # Autoclose time in minutes, after the gate shuts down - Set to 0 to disable it
@@ -97,11 +99,6 @@ max_res_transfer = 5000
 res_trans_interval = 0.1
 # allowed resources to transfer, separate by comma, keep empty to allow any resources, example usage: water,oxygen,heavy water
 res_classes = 
-
-#### Stargate Iris config
-[iris]
-# Allow pass through with Nox Hands
-nox_bypass=false
 
 #### Stargate gatespawner config
 [gatespawner]
@@ -147,10 +144,23 @@ energy_per_shot = 100
 capacity = 88000000
 # How much Zero-Point-Energy can a ZPM convert to "normal" energy?
 energy_capacity = 1000000
+# Should zpm explode without hub?
+explode = true
+
+[zpm_mk4]
+capacity = 98000000
+energy_capacity = 1800000
+# Should zpm explode without hub?
+explode = true
 
 [tampered_zpm]
 # How much Zero-Point-Energy can a ZPM convert to "normal" energy?
 energy_capacity = 5000000
+
+[powercell_small]
+capacity = 4400000
+energy_capacity = 10000
+
 
 [naquadah_bottle]
 capacity = 30000
@@ -229,6 +239,9 @@ allow_constrained = false
 allow_frozen = false
 # These ENTs are never able to get suckup
 disallowed_entities = prop_door_rotating,physgun_beam,Beam_Drawer,predicted_viewmodel,player_manager,bodyque,ai_network,info_player_start,water_lod_control,scene_manager,network,soundent,gmod_ghost,beam_drawer2b,logic_casem,prop_ragdoll
+# Display visual when trapped in the harvester
+harvester_visuals = true
+
 
 #### Cloaking Device
 [cloaking]
@@ -295,10 +308,6 @@ nuke_explode = true
 [ring]
 # These entity types are disallowed to teleportation
 classnames = cloaking,shield,physgun_beam,Beam_Drawer,predicted_viewmodel,player_manager,bodyque,ai_network,info_player_start,water_lod_control,scene_manager,network,soundent,gmod_ghost,beam_drawer2b,logic_case
-# Allowed Rings to fire laser
-class = ancient,goauld
-# Secret Code to fire laser
-code = 3571
 
 #### Ring panels
 [ring_panel]
@@ -322,11 +331,26 @@ coolingPerCycle = 300
 # allow tampered zpm
 allow_tzmp = true
 # if chance = 2, then this means 50%, 3 will mean 33%, etc. 1 = always
-tzmp_chance = 2
+tzmp_chance = 3
 # creating speed in percent 
 speed = 100
 # check for player group access
 check_rights = true
+
+[imcd]
+# allow tampered zpm
+allow_tzmp = true
+# if chance = 2, then this means 50%, 3 will mean 33%, etc. 1 = always
+tzmp_chance = 3
+# creating speed in percent 
+speed = 20
+# check for player group access
+check_rights = true
+# Require energy
+require_energy = true
+
+
+
 
 #### Tacluchnatagamuntoron (Tac)
 [tac]
@@ -398,6 +422,16 @@ blast_damage = 300
 allow_drop_weapons = true
 ship_shield = true
 cfgbackup = 4
+disable_rings = false
+
+# CAP Enhanced Settings
+[cap_enhanced_cfg]
+allow_overload = true
+hub_advbuttons = false
+harvester_visuals = true
+ATA_gene_active = true
+
+
 
 # Group-only ents
 # add_shield means add shield icon to spawnmenu
@@ -412,6 +446,11 @@ sg_turret_destmain = admin,superadmin,add_shield
 sg_turret_tollan = admin,superadmin,add_shield
 sg_vehicle_daedalus = admin,superadmin,add_shield
 stargate_supergate = admin,superadmin,add_shield
+attero_device = admin,superadmin,add_shield
+oredeposit_naq = admin,superadmin,add_shield
+oredeposit_naq+ = admin,superadmin,add_shield
+oredeposit_pr = admin,superadmin,add_shield
+oredeposit_trin = admin,superadmin,add_shield
 
 # Group-only sweps
 # add_shield means add shield icon to spawnmenu

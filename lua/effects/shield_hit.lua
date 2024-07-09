@@ -80,21 +80,22 @@ function EFFECT:Render()
 	local normal = (self.Entity:GetPos()-self.Parent:GetPos()):GetNormalized();
 	if(self.Refract < 1) then
 		if(self.DrawRadius) then
+			local mul = 1.5
 			self.Material1:SetFloat("$alpha",self.Alpha);
 			self.Material1:SetFloat("$refractamount",math.sin(self.Refract*math.pi)*0.1);
 			render.SetMaterial(self.Material1);
 			render.UpdateRefractTexture();
-			render.DrawQuadEasy(self.Entity:GetPos(),normal,self.Size,self.Size); -- Draw from the front
-			render.DrawQuadEasy(self.Entity:GetPos(),-1*normal,self.Size,self.Size); -- And from the back
+			render.DrawQuadEasy(self.Entity:GetPos(),normal,self.Size*mul,self.Size*mul); -- Draw from the front
+			render.DrawQuadEasy(self.Entity:GetPos(),-1*normal,self.Size*mul,self.Size*mul); -- And from the back
 		end
 	end
 	-- The glow effect
 	if(self.DrawEffect and IsValid(self.Parent)) then
 		local color = self.Parent:GetShieldColor();
 		self.Material2:SetVector("$color",Vector(color.r,color.g,color.b));
-		self.Material2:SetFloat("$alpha",math.Clamp(self.Alpha,0,1));
+		self.Material2:SetFloat("$alpha",math.Clamp(self.Alpha,0,0.2));
 		render.SetMaterial(self.Material2);
-		local hitsize = self.Size*2;
+		local hitsize = self.Size*1.5;
 		render.DrawQuadEasy(self.Entity:GetPos(),normal,hitsize,hitsize); -- Draw from the front
 		render.DrawQuadEasy(self.Entity:GetPos(),-1*normal,hitsize,hitsize); -- And from the back
 	end

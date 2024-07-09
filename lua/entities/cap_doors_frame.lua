@@ -31,6 +31,8 @@ ENT.Sounds={
 	AtlClose=Sound("door/atlantis_door_close.wav"),
 	DestBridgeOpen=Sound("cryptalchemy_sounds/destiny/bridge_door/bridge_door_open.wav"),
 	DestBridgeClose=Sound("cryptalchemy_sounds/destiny/bridge_door/bridge_door_close.wav"),
+	OriDoorOpen=Sound("moonwatcher/ori_door_close.wav"),
+	OriDoorClose=Sound("moonwatcher/ori_door_close.wav")
 }
 
 -----------------------------------INIT----------------------------------
@@ -78,6 +80,9 @@ function ENT:SoundType(t)
 		self.Door.CloseSound = self.Sounds.DestBridgeClose;
 		self.Door.Delay = 6.5;
 		--self.Door.Shake = true;
+	elseif (t ==4) then
+		self.Door.OpenSound = self.Sounds.OriDoorOpen;
+		self.Door.CloseSound = self.Sounds.OriDoorClose;
 	else
 		self.Door.OpenSound = self.Sounds.AtlOpen;
 		self.Door.CloseSound = self.Sounds.AtlClose;
@@ -117,7 +122,10 @@ function ENT:TriggerInput(variable, value)
 				if not self.Door.Close then
 					timer.Simple(2.5, function() 
 						if IsValid(self) and IsValid(self.Door) and self.Lockdown and not self.Door.Open then 
-							self.Entity:EmitSound(self.Sounds.LockedDest,100,100) 
+							if self.Door:GetModel()=="models/madman07/doors/dest_door.mdl" or 
+							   self.Door:GetModel()=="models/cryptalchemy_models/destiny/bridge_door/bridge_door.mdl" then
+							   self.Entity:EmitSound(self.Sounds.LockedDest,100,100) 
+							end
 						end 
 					end)
 				end

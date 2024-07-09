@@ -5,6 +5,10 @@
 
 if (StarGate!=nil and StarGate.LifeSupportAndWire!=nil) then StarGate.LifeSupportAndWire(ENT); end
 
+	
+PrecacheParticleSystem("env_fire_large_smoke")
+
+
 ENT.Type = "anim"
 ENT.Base = "base_anim"
 ENT.PrintName = "Stargate Turret Part"
@@ -28,7 +32,7 @@ function ENT:Initialize()
 	self.Entity:SetSolid(SOLID_VPHYSICS);
 
 	if (WireAddon) then
-		self.Inputs = WireLib.CreateInputs( self.Entity, {"Fire [NORMAL]", "Active [NORMAL]", "Vector [VECTOR]", "Entity [ENTITY]"});
+		--self.Inputs = WireLib.CreateInputs( self.Entity, {"Fire [NORMAL]", "Active [NORMAL]", "Vector [VECTOR]", "Entity [ENTITY]"});
 	end
 
 	local phys = self.Entity:GetPhysicsObject();
@@ -46,7 +50,9 @@ function ENT:TriggerInput(variable, value)
 		if (variable == "Vector") then self.Parent.WireVec = value;
 		elseif (variable == "Entity") then self.Parent.WireEnt = value;
 		elseif (variable == "Fire") then self.Parent.WireShoot = value;
-		elseif (variable == "Active") then self.Parent.WireActive = value;	end
+		elseif (variable == "Active") then self.Parent.WireActive = value;
+
+    	end
 	end
 end
 
@@ -56,6 +62,42 @@ function ENT:Think(ply)
 		return true
 	end
 end
+
+function ENT:OnTakeDamage(DamageInfo)
+	if (self.Parent.Destroyed == true) then return end
+	self.Parent.EntHealth = math.Clamp(self.Parent.EntHealth - DamageInfo:GetDamage(), 0, self.Parent.MaxHealth)
+	if (self.Parent.EntHealth < 1) then
+		self.Parent.Destroyed = true
+		self.Parent.WireActive = false
+		local fx = EffectData()
+        fx:SetOrigin(self:GetPos())
+        util.Effect("Explosion", fx)
+        self:SetNWBool("Turret_destroyed", true)
+		--self.firesd = CreateSound(self, "ambient/fire/fire_small_loop1.wav")
+		--self.firesd:SetSoundLevel(60)
+		--self.firesd:PlayEx(1,100)
+	end
+
+
+    local startpos = self:GetPos() + Vector(0, 0, 30)
+    local endpos = self:GetPos()+ Vector(math.random(-35,35), math.random(-35,35), 30)
+    local SparkFX = EffectData()
+    local zapfx = EffectData()
+    
+    zapfx:SetOrigin(startpos)
+    zapfx:SetStart(endpos)
+    util.Effect("icarus_zap", zapfx)
+
+    SparkFX:SetOrigin(startpos)
+    SparkFX:SetMagnitude(1)
+    SparkFX:SetScale(1)
+    SparkFX:SetRadius(100)
+
+
+    --self.ZapTime = CurTime() + 0.1
+    util.Effect("Sparks",SparkFX)
+    end
+
 
 function ENT:StartTouch( ent )
 	if IsValid(self.Parent) then self.Parent:StartTouch(ent); end
@@ -82,7 +124,24 @@ end
 end
 
 if CLIENT then
-
+ENT.CAP_NextActivationCheckT = 0
+ENT.DoneFireParticles = false
 ENT.RenderGroup = RENDERGROUP_TRANSLUCENT
+
+function ENT:Think()
+	if CurTime() > self.CAP_NextActivationCheckT then
+		if self:GetNWBool("Turret_destroyed") == true then
+			if self.DoneFireParticles == false then
+					self.DoneFireParticles = true
+				ParticleEffectAttach("env_fire_large_smoke",PATTACH_ABSORIGIN_FOLLOW,self,0)
+				ParticleEffectAttach("env_embers_large",PATTACH_ABSORIGIN_FOLLOW,self,0)
+			end
+		else
+			self:StopParticles()
+			self.DoneFireParticles = false
+		end
+		self.CAP_NextActivationCheckT = CurTime() + 0.1
+	end
+end
 
 end

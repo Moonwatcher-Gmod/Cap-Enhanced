@@ -1,4 +1,4 @@
-/*
+--[[
 	Stargate Entity Lib for GarrysMod10
 	Copyright (C) 2007  aVoN
 
@@ -14,30 +14,45 @@
 
 	You should have received a copy of the GNU General Public License
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
-
+]]
 --#########################################
 --						SENT related additions
 --#########################################
+
+if SERVER then
+
+    function StarGate.AutoLinkToPowerSource(ent)
+        local result = ents.FindInSphere(ent:GetPos(), 300)
+        --local ply = ent.Owner
+        for k,v in pairs(result) do
+            if v.IsNode then
+                CAF.GetAddon("Resource Distribution").Link(ent.Entity, v.netid)
+                break
+            end
+        end
+    end
+end
 
 --################# Compensates velocity @aVoN
 -- Imagine, you are flying fast with your "deathglider" and shoot a staff pulse. When you are too fast (which happens quite often) you hit your own blast and explodes -- on your vehicle. This function compensates this and either return true (allow explode) or false (do not allow)
 -- Input is a table: {Velocity="SENT's velocity",BaseVelocity="Velocity of the cannon",Time="Creation time of the shot",Delay="Delay - Modificator of the whole thing"}
 function StarGate.CanTouch(data)
-	if(data.BaseVelocity and data.Velocity and data.Time) then
-		data.Delay = data.Delay or 0.04;
-		local delay = data.Delay;
-		local speed = data.BaseVelocity:Length(); -- Weapon of the canon
-		-- Only apply this when we are moving into the shoot direction. Or it may collide with the vehicle, it is attached on
-		if(math.abs(math.acos(data.Velocity:GetNormal():DotProduct(data.BaseVelocity:GetNormal()))) <= math.pi/2) then
-			delay = data.Delay*speed/200;
-		end
-		if(data.Time+delay <= CurTime()) then
-			return true;
-		end
-		return false;
-	end
-	return true;
+    if (data.BaseVelocity and data.Velocity and data.Time) then
+        data.Delay = data.Delay or 0.04
+        local delay = data.Delay
+        local speed = data.BaseVelocity:Length() -- Weapon of the canon
+
+        -- Only apply this when we are moving into the shoot direction. Or it may collide with the vehicle, it is attached on
+        if (math.abs(math.acos(data.Velocity:GetNormal():DotProduct(data.BaseVelocity:GetNormal()))) <= math.pi / 2) then
+            delay = data.Delay * speed / 200
+        end
+
+        if (data.Time + delay <= CurTime()) then return true end
+
+        return false
+    end
+
+    return true
 end
 
 --################# Calculates the velocity offset for a "blast" so it won't collide with it's cannon @aVoN
@@ -45,333 +60,422 @@ end
 -- offset value, so the cannon will never collide with it's own shot when moving fast
 -- Input is a table: {Direction=Velocity_OfTheProjectile,Velocity=Cannons_Velocity,BoundingMax=MaximumBoundingBox_Distance_In_ShootDirection,Tolerance = MaximumOffset}
 function StarGate.VelocityOffset(data)
-	if(data.Direction and data.Velocity) then
-		data.Tolerance = data.Tolerance or 200;
-		data.BoundingMax = data.BoundingMax or 0;
-		local dnorm = data.Direction:GetNormal();
-		local vnorm = data.Velocity:GetNormal();
-		return (data.BoundingMax+math.Clamp(vnorm:DotProduct(dnorm),0,1)*math.Clamp(data.Velocity:Length()/5,0,data.Tolerance))*dnorm;
-	end
-	return Vector(0,0,0);
+    if (data.Direction and data.Velocity) then
+        data.Tolerance = data.Tolerance or 200
+        data.BoundingMax = data.BoundingMax or 0
+        local dnorm = data.Direction:GetNormal()
+        local vnorm = data.Velocity:GetNormal()
+
+        return (data.BoundingMax + math.Clamp(vnorm:DotProduct(dnorm), 0, 1) * math.Clamp(data.Velocity:Length() / 5, 0, data.Tolerance)) * dnorm
+    end
+
+    return Vector(0, 0, 0)
 end
 
 --################# This is to avoid this ugly behaviour that vehicles spazz out when hit by a util.BlastDamage with more than 10 units of power @aVoN
-function StarGate.BlastDamage(attacker,owner,pos,rad,dmg)
-	-- Freeze vehicles or they spazzout
-	local vehicles = {};
-	for _,v in pairs(ents.FindInSphere(pos,rad)) do
-		if(v:IsVehicle()) then
-			vehicles[v] = {Velocity = v:GetVelocity(),Bones = {}}; -- Save old velocity of the vehicle and the bones, so a hit car does not appruply stops driving!
-			for k=0,v:GetPhysicsObjectCount()-1 do
-				local phys = v:GetPhysicsObjectNum(k);
-				if(phys:IsValid()) then
-					vehicles[v].Bones[k] = phys:GetVelocity();
-					phys:EnableMotion(false);
-				end
-			end
-		end
-	end
-	-- GCombat compatibility (Make things burst, yarr harr!)
-	if(gcombat) then
-		gcombat.hcgexplode(pos,rad,dmg,4);
-	end
-	-- CombatDamageSystem - Basically does the same like the the upper code for GCombat
-	if(cds_damagepos) then
-		cds_damagepos(pos,dmg/100,50,rad,attacker);
-	end
-	-- The real blast damage
-	util.BlastDamage(attacker,owner,pos,rad,dmg);
-	-- fix for stargates @ AlexALX
-	-- and i know, its ugly, but better that nothing
-	if (rad<200) then
-		local dmginfo = DamageInfo();
-		dmginfo:SetDamage(dmg);
-		dmginfo:SetAttacker(attacker);
-		dmginfo:SetInflictor(owner);
-		dmginfo:SetDamageType(DMG_BLAST);
-		dmginfo:SetDamagePosition(pos);
-		for _,v in pairs(ents.FindInSphere(pos,1)) do
-			if (v.IsStargate) then
-				v:TakeDamageInfo(dmginfo);
-			end
-		end
-	end
-	-- Unfreeze all previosly frozen vehicles. Nees to be in a null-timer, or the Blast above isn't completely faded out this Frame and will affect the vehicles accidently
-	timer.Simple(0,
-		function()
-			for e,v in pairs(vehicles) do
-				e:SetVelocity(v.Velocity);
-				for k=0,e:GetPhysicsObjectCount()-1 do
-					local phys = e:GetPhysicsObjectNum(k);
-					if(phys:IsValid()) then
-						phys:EnableMotion(true);
-						phys:SetVelocity(v.Bones[k]);
-					end
-				end
-			end
-			if(table.Count(vehicles) > 0) then
-				-- Add a slight BlastDamage to vehicles to make them fall upside down or somthing like that
-				util.BlastDamage(attacker,owner,pos,rad,10);
-			end
-		end
-	);
+function StarGate.BlastDamage(attacker, owner, pos, rad, dmg)
+    -- Freeze vehicles or they spazzout
+    local vehicles = {}
+
+    for _, v in pairs(ents.FindInSphere(pos, rad)) do
+        if (v:IsVehicle()) then
+            -- Save old velocity of the vehicle and the bones, so a hit car does not appruply stops driving!
+            vehicles[v] = {
+                Velocity = v:GetVelocity(),
+                Bones = {}
+            }
+
+            for k = 0, v:GetPhysicsObjectCount() - 1 do
+                local phys = v:GetPhysicsObjectNum(k)
+
+                if (phys:IsValid()) then
+                    vehicles[v].Bones[k] = phys:GetVelocity()
+                    phys:EnableMotion(false)
+                end
+            end
+        end
+    end
+
+    -- GCombat compatibility (Make things burst, yarr harr!)
+    if (gcombat) then
+        gcombat.hcgexplode(pos, rad, dmg, 4)
+    end
+
+    -- CombatDamageSystem - Basically does the same like the the upper code for GCombat
+    if (cds_damagepos) then
+        cds_damagepos(pos, dmg / 100, 50, rad, attacker)
+    end
+
+        
+
+
+    -- The real blast damage
+
+
+    util.BlastDamage(attacker, owner, pos, rad, dmg)
+
+
+
+    -- fix for stargates @ AlexALX
+    -- and i know, its ugly, but better that nothing
+    if (rad < 200) then
+        local dmginfo = DamageInfo()
+        dmginfo:SetDamage(dmg)
+        dmginfo:SetAttacker(attacker)
+        dmginfo:SetInflictor(owner)
+        dmginfo:SetDamageType(DMG_BLAST)
+        dmginfo:SetDamagePosition(pos)
+
+        for _, v in pairs(ents.FindInSphere(pos, 1)) do
+            if (v.IsStargate) then
+                v:TakeDamageInfo(dmginfo)
+            end
+        end
+    end
+
+    -- Unfreeze all previosly frozen vehicles. Nees to be in a null-timer, or the Blast above isn't completely faded out this Frame and will affect the vehicles accidently
+    timer.Simple(0, function()
+        for e, v in pairs(vehicles) do
+            e:SetVelocity(v.Velocity)
+
+            for k = 0, e:GetPhysicsObjectCount() - 1 do
+                local phys = e:GetPhysicsObjectNum(k)
+
+                if (phys:IsValid()) then
+                    phys:EnableMotion(true)
+                    phys:SetVelocity(v.Bones[k])
+                end
+            end
+        end
+
+        if (table.Count(vehicles) > 0) then
+            -- Add a slight BlastDamage to vehicles to make them fall upside down or somthing like that
+            util.BlastDamage(attacker, owner, pos, rad, 10)
+        end
+    end)
 end
 
 --################# When the owner has been set to a SENT or it's "Parent" with ENT:SetVar("Owner",Player) on the cannon and ENT:SetOwner(Cannon) on the projectile, you will retrieve the correct Owner and Attacker for usage in a util.BlastDamage @aVoN
 function StarGate.GetAttackerAndOwner(e)
-	-- Owner/Attacker
-	if(not (e and e:IsValid())) then return NULL,NULL end;
-	local owner = e:GetOwner();
-	local attacker = e;
-	if(owner and owner:IsValid()) then
-		if(type(owner) == "Player") then
-			attacker = owner:GetActiveWeapon();
-		elseif(owner.Owner) then
-			owner = owner.Owner;
-		end
-	end
-	if(not (attacker and attacker:IsValid())) then attacker = e end;
-	if(not (owner and owner:IsValid())) then owner = e end;
-	return attacker,owner
+    -- Owner/Attacker
+    if (not (e and e:IsValid())) then return NULL, NULL end
+    local owner = e:GetOwner()
+    local attacker = e
+
+    if (owner and owner:IsValid()) then
+        if (type(owner) == "Player") then
+            attacker = owner:GetActiveWeapon()
+        elseif (owner.Owner) then
+            owner = owner.Owner
+        end
+    end
+
+    if (not (attacker and attacker:IsValid())) then
+        attacker = e
+    end
+
+    if (not (owner and owner:IsValid())) then
+        owner = e
+    end
+
+    return attacker, owner
 end
 
 --################# A modification of Tad2020's GetAllConstrainedEntities function -This basically also fetches the worldentity and has a MaxPasses offset to save performance
-function StarGate.GetConstrainedEnts(ent,max_passes,passes,entities,cons)
-	if(not IsValid(ent)) then return {},{} end;
-	local entities,cons = (entities or {}),(cons or {});
-	local passes = (passes or 0)+1;
-	if(max_passes and passes > max_passes) then return end;
-	if(not entities[ent]) then
-		if(not constraint.HasConstraints(ent)) then return {},{} end;
-		entities[ent] = ent;
-		for _,v in pairs(ent.Constraints) do
-			if(not cons[v]) then
-				cons[v] = v;
-				for i=1,6 do
-					local e = v["Ent"..i];
-					if(e) then
-						if(e:IsValid()) then
-							StarGate.GetConstrainedEnts(e,max_passes,passes,entities,cons);
-						elseif(not entities[e] and e:IsWorld()) then
-							entities[e] = e;
-						end
-					end
-				end
-			end
-		end
-	end
-	return table.ClearKeys(entities),table.ClearKeys(cons);
+function StarGate.GetConstrainedEnts(ent, max_passes, passes, entities, cons)
+    if (not IsValid(ent)) then return {}, {} end
+    local entities, cons = (entities or {}), (cons or {})
+    local passes = (passes or 0) + 1
+    if (max_passes and passes > max_passes) then return end
+
+    if (not entities[ent]) then
+        if (not constraint.HasConstraints(ent)) then return {}, {} end
+        entities[ent] = ent
+
+        for _, v in pairs(ent.Constraints) do
+            if (not cons[v]) then
+                cons[v] = v
+
+                for i = 1, 6 do
+                    local e = v["Ent" .. i]
+
+                    if (e) then
+                        if (e:IsValid()) then
+                            StarGate.GetConstrainedEnts(e, max_passes, passes, entities, cons)
+                        elseif (not entities[e] and e:IsWorld()) then
+                            entities[e] = e
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    return table.ClearKeys(entities), table.ClearKeys(cons)
 end
 
 -- Fix for gmod duplicator and gmod saving system by AlexALX
 -- it will not save stage of entity, but fix all bugs with crashes or broken duplications.
-function StarGate.CAP_GmodDuplicator(ply,Data)
-	Data.Class = scripted_ents.Get(Data.Class).ClassName
+function StarGate.CAP_GmodDuplicator(ply, Data)
+    Data.Class = scripted_ents.Get(Data.Class).ClassName
+    local ent = ents.Create(Data.Class)
+    if not IsValid(ent) then return false end
 
-	local ent = ents.Create( Data.Class )
-	if not IsValid(ent) then return false end
+    if (Data.Model) then
+        ent:SetModel(Data.Model)
+    end
 
-	if ( Data.Model ) then ent:SetModel( Data.Model ) end
-	if ( Data.Angle ) then ent:SetAngles( Data.Angle ) end
-	if ( Data.Pos ) then ent:SetPos( Data.Pos ) end
-	if ( Data.ModelScale ) then ent:SetModelScale( Data.ModelScale, 0 ) end
-	if ( Data.ColGroup ) then ent:SetCollisionGroup( Data.ColGroup ) end
-	if ( Data.Name ) then ent:SetName( Data.Name ) end
+    if (Data.Angle) then
+        ent:SetAngles(Data.Angle)
+    end
 
-	if (Data.GateSpawnerSpawned and Data.GateSpawnerID) then
-		ent.GateSpawnerSpawned = true;
-		ent:SetNetworkedBool("GateSpawnerSpawned",true);
-		ent.GateSpawnerID = Data.GateSpawnerID;
-	end
+    if (Data.Pos) then
+        ent:SetPos(Data.Pos)
+    end
 
-	--duplicator.DoGeneric( ent, data )
-	ent:Spawn()
-	ent:Activate()
-	duplicator.DoGenericPhysics( ent, ply, Data )
+    if (Data.ModelScale) then
+        ent:SetModelScale(Data.ModelScale, 0)
+    end
 
-	return ent;
+    if (Data.ColGroup) then
+        ent:SetCollisionGroup(Data.ColGroup)
+    end
+
+    if (Data.Name) then
+        ent:SetName(Data.Name)
+    end
+
+    if (Data.GateSpawnerSpawned and Data.GateSpawnerID) then
+        ent.GateSpawnerSpawned = true
+        ent:SetNWBool("GateSpawnerSpawned", true)
+        ent.GateSpawnerID = Data.GateSpawnerID
+    end
+
+    --duplicator.DoGeneric( ent, data )
+    ent:Spawn()
+    ent:Activate()
+    duplicator.DoGenericPhysics(ent, ply, Data)
+
+    return ent
 end
+
+
 
 --##################################
 -- 				Deriving Entity Material/Color
 --##################################
+local meta = FindMetaTable("Entity")
 
-local meta = FindMetaTable("Entity");
-if(meta/* and not meta.__SetMaterial*/) then
+--[[ and not meta.__SetMaterial]]
+if (meta) then
+    --################# Set Derive @aVoN
+    meta.SetDerive = function(self, e)
+        -- Unset old derived parent first
+        if (IsValid(self.__DeriveParent)) then
+            for k, v in pairs(self.__DeriveParent:GetDerived()) do
+                if (v == self) then
+                    self.__DeriveParent.__DerivedEntities[k] = nil
+                end
+            end
+        end
 
-	--################# Set Derive @aVoN
-	meta.SetDerive = function(self,e)
-		-- Unset old derived parent first
-		if(IsValid(self.__DeriveParent)) then
-			for k,v in pairs(self.__DeriveParent:GetDerived()) do
-				if(v == self) then
-					self.__DeriveParent.__DerivedEntities[k] = nil;
-				end
-			end
-		end
-		-- Set new derived parent
-		if(IsValid(e) and e ~= self) then
-			self.__DeriveParent = e;
-			e.__DerivedEntities = e.__DerivedEntities or {};
-			table.insert(e.__DerivedEntities,self);
-			if (not e.DeriveIgnoreParent) then 
-				-- Copy Material and Color now!
-				self:SetMaterial(e:GetMaterial());
-				self:SetColor(e:GetColor());
-				self:SetRenderMode(e:GetRenderMode());
-			end
-		else
-			self.__DeriveParent = nil; -- No Valid entity given
-		end
-	end
+        -- Set new derived parent
+        if (IsValid(e) and e ~= self) then
+            self.__DeriveParent = e
+            e.__DerivedEntities = e.__DerivedEntities or {}
+            table.insert(e.__DerivedEntities, self)
 
-	--################# Gets the Parent, this entity derives from @aVoN
-	meta.GetDerive = function(self)
-		return self.__DeriveParent or NULL;
-	end
+            if (not e.DeriveIgnoreParent) then
+                -- Copy Material and Color now!
+                self:SetMaterial(e:GetMaterial())
+                self:SetColor(e:GetColor())
+                self:SetRenderMode(e:GetRenderMode())
+            end
+        else
+            self.__DeriveParent = nil -- No Valid entity given
+        end
+    end
 
-	--################# Get Entities which are deriving from this ENT @aVoN
-	meta.GetDerived = function(self)
-		-- Just return a sequential table with onl valid entities!
-		local t = {};
-		for _,v in pairs(self.__DerivedEntities or {}) do
-			if(IsValid(v)) then
-				table.insert(t,v);
-			end
-		end
-		return t;
-	end
+    --################# Gets the Parent, this entity derives from @aVoN
+    meta.GetDerive = function(self) return self.__DeriveParent or NULL end
 
-	--################# Sets the Nowdraw to the Derving entities too @aVoN
-	meta.__SetNoDraw = meta.__SetNoDraw or meta.SetNoDraw;
-	meta.SetNoDraw = function(self,...)
-		if(not IsValid(self)) then return end;
-		self:__SetNoDraw(...);
-		if(self.__DerivedEntities) then
-			for _,v in pairs(self.__DerivedEntities) do
-				if(IsValid(v)) then
-					v:__SetNoDraw(...);
-				end
-			end
-		end
-	end
+    --################# Get Entities which are deriving from this ENT @aVoN
+    meta.GetDerived = function(self)
+        -- Just return a sequential table with onl valid entities!
+        local t = {}
 
-	--################# SetMaterial @aVoN
-	meta.__SetMaterial = meta.__SetMaterial or meta.SetMaterial;
-	meta.SetMaterial = function(self,...)
-		if(not IsValid(self)) then return end;
-		-- Default behaviour
-		if (not self.DeriveIgnoreParent) then
-			self:__SetMaterial(...);
-		end
-		-- Deriving Extra
-		if(self.__DerivedEntities) then
-			for _,v in pairs(self.__DerivedEntities) do
-				if(IsValid(v)) then
-					v:SetMaterial(...);
-				end
-			end
-		end
-	end
+        for _, v in pairs(self.__DerivedEntities or {}) do
+            if (IsValid(v)) then
+                table.insert(t, v)
+            end
+        end
 
-	--################# SetColor @aVoN
-	meta.__SetColor = meta.__SetColor or meta.SetColor;
-	meta.SetColor = function(self,...)
-		if(not IsValid(self)) then return end;
-		-- Default behaviour
-		if (not self.DeriveIgnoreParent) then
-			self:__SetColor(...);
-		end
-		-- Deriving Extra
-		if(self.__DerivedEntities) then
-			for _,v in pairs(self.__DerivedEntities) do
-				if(IsValid(v)) then
-					v:SetColor(...);
-				end
-			end
-		end
-		if self.DeriveOnSetColor then
-			self:DeriveOnSetColor(...)
-		end
-	end
+        return t
+    end
 
-	--################# SetColor @aVoN
-	meta.__SetRenderMode = meta.__SetRenderMode or meta.SetRenderMode;
-	meta.SetRenderMode = function(self,...)
-		if(not IsValid(self)) then return end;
-		-- Default behaviour
-		if (not self.DeriveIgnoreParent) then
-			self:__SetRenderMode(...);
-		end
-		-- Deriving Extra
-		if(self.__DerivedEntities) then
-			for _,v in pairs(self.__DerivedEntities) do
-				if(IsValid(v)) then
-					v:SetRenderMode(...);
-				end
-			end
-		end
-	end
-	
-	--################# SetColor @aVoN
-	meta.__SetRenderFX = meta.__SetRenderFX or meta.SetRenderFX;
-	meta.SetRenderFX = function(self,...)
-		if(not IsValid(self)) then return end;
-		-- Default behaviour
-		if (not self.DeriveIgnoreParent) then
-			self:__SetRenderFX(...);
-		end
-		-- Deriving Extra
-		if(self.__DerivedEntities) then
-			for _,v in pairs(self.__DerivedEntities) do
-				if(IsValid(v)) then
-					v:SetRenderFX(...);
-				end
-			end
-		end
-	end
-	
-	--################# K/V Setting @aVoN
-	meta.__SetKeyValue = meta.__SetKeyValue or meta.SetKeyValue;
-	meta.SetKeyValue = function(self,...)
-		if not IsValid(self) then return end
-		local keys = {renderamt=true,rendercolor=true,renderfx=true,rendermode=true}
-		-- Default behaviour
-		if (not self.DeriveIgnoreParent or not keys[key]) then
-			self:__SetKeyValue(...);
-		end
-		-- Deriving Extra
-		if(self.__DerivedEntities) then
-			local key = (({...})[1] or ""):lower();
-			if(keys[key]) then
-				for _,v in pairs(self.__DerivedEntities) do
-					if(IsValid(v)) then
-						v:SetKeyValue(...);
-					end
-				end
-			end
-		end
-	end
+    --################# Sets the Nowdraw to the Derving entities too @aVoN
+    meta.__SetNoDraw = meta.__SetNoDraw or meta.SetNoDraw
 
-	--################# ent_fire commands @aVoN
-	meta.__Fire = meta.__Fire or meta.Fire;
-	meta.Fire = function(self,...)
-		if(not IsValid(self)) then return end;
-		local keys = {color=true,alpha=true}
-		-- Default behaviour
-		if (not self.DeriveIgnoreParent or not keys[key]) then
-			self:__Fire(...);
-		end
-		-- Deriving Extra
-		if(self.__DerivedEntities) then
-			local key = (({...})[1] or ""):lower();
-			if(keys[key]) then
-				for _,v in pairs(self.__DerivedEntities) do
-					if(IsValid(v)) then
-						v:Fire(...);
-					end
-				end
-			end
-		end
-	end
+    meta.SetNoDraw = function(self, ...)
+        if (not IsValid(self)) then return end
+        self:__SetNoDraw(...)
+
+        if (self.__DerivedEntities) then
+            for _, v in pairs(self.__DerivedEntities) do
+                if (IsValid(v)) then
+                    v:__SetNoDraw(...)
+                end
+            end
+        end
+    end
+
+    --################# SetMaterial @aVoN
+    meta.__SetMaterial = meta.__SetMaterial or meta.SetMaterial
+
+    meta.SetMaterial = function(self, ...)
+        if (not IsValid(self)) then return end
+
+        -- Default behaviour
+        if (not self.DeriveIgnoreParent) then
+            self:__SetMaterial(...)
+        end
+
+        -- Deriving Extra
+        if (self.__DerivedEntities) then
+            for _, v in pairs(self.__DerivedEntities) do
+                if (IsValid(v)) then
+                    v:SetMaterial(...)
+                end
+            end
+        end
+    end
+
+    --################# SetColor @aVoN
+    meta.__SetColor = meta.__SetColor or meta.SetColor
+
+    meta.SetColor = function(self, ...)
+        if (not IsValid(self)) then return end
+
+        -- Default behaviour
+        if (not self.DeriveIgnoreParent) then
+            self:__SetColor(...)
+        end
+
+        -- Deriving Extra
+        if (self.__DerivedEntities) then
+            for _, v in pairs(self.__DerivedEntities) do
+                if (IsValid(v)) then
+                    v:SetColor(...)
+                end
+            end
+        end
+
+        if self.DeriveOnSetColor then
+            self:DeriveOnSetColor(...)
+        end
+    end
+
+    --################# SetColor @aVoN
+    meta.__SetRenderMode = meta.__SetRenderMode or meta.SetRenderMode
+
+    meta.SetRenderMode = function(self, ...)
+        if (not IsValid(self)) then return end
+
+        -- Default behaviour
+        if (not self.DeriveIgnoreParent) then
+            self:__SetRenderMode(...)
+        end
+
+        -- Deriving Extra
+        if (self.__DerivedEntities) then
+            for _, v in pairs(self.__DerivedEntities) do
+                if (IsValid(v)) then
+                    v:SetRenderMode(...)
+                end
+            end
+        end
+    end
+
+    --################# SetColor @aVoN
+    meta.__SetRenderFX = meta.__SetRenderFX or meta.SetRenderFX
+
+    meta.SetRenderFX = function(self, ...)
+        if (not IsValid(self)) then return end
+
+        -- Default behaviour
+        if (not self.DeriveIgnoreParent) then
+            self:__SetRenderFX(...)
+        end
+
+        -- Deriving Extra
+        if (self.__DerivedEntities) then
+            for _, v in pairs(self.__DerivedEntities) do
+                if (IsValid(v)) then
+                    v:SetRenderFX(...)
+                end
+            end
+        end
+    end
+
+    --################# K/V Setting @aVoN
+    meta.__SetKeyValue = meta.__SetKeyValue or meta.SetKeyValue
+
+    meta.SetKeyValue = function(self, ...)
+        if not IsValid(self) then return end
+
+        local keys = {
+            renderamt = true,
+            rendercolor = true,
+            renderfx = true,
+            rendermode = true
+        }
+
+        -- Default behaviour
+        if (not self.DeriveIgnoreParent or not keys[key]) then
+            self:__SetKeyValue(...)
+        end
+
+        -- Deriving Extra
+        if (self.__DerivedEntities) then
+            local key = (({...})[1] or ""):lower()
+
+            if (keys[key]) then
+                for _, v in pairs(self.__DerivedEntities) do
+                    if (IsValid(v)) then
+                        v:SetKeyValue(...)
+                    end
+                end
+            end
+        end
+    end
+
+    --################# ent_fire commands @aVoN
+    meta.__Fire = meta.__Fire or meta.Fire
+
+    meta.Fire = function(self, ...)
+        if (not IsValid(self)) then return end
+
+        local keys = {
+            color = true,
+            alpha = true
+        }
+
+        -- Default behaviour
+        if (not self.DeriveIgnoreParent or not keys[key]) then
+            self:__Fire(...)
+        end
+
+        -- Deriving Extra
+        if (self.__DerivedEntities) then
+            local key = (({...})[1] or ""):lower()
+
+            if (keys[key]) then
+                for _, v in pairs(self.__DerivedEntities) do
+                    if (IsValid(v)) then
+                        v:Fire(...)
+                    end
+                end
+            end
+        end
+    end
 end

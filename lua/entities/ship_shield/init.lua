@@ -65,12 +65,12 @@ function ENT:Initialize()
 	if self.IsJumper then
 		if self.Parent.Owner.epodo then
 			self.Entity:SetModel("models/Madman07/shields/jumper_shield_open.mdl");
-			self.Entity:SetNetworkedBool("shield_jumper_open", true);
-			self.Parent:SetNetworkedBool("shield_jumper_open", true);
+			self.Entity:SetNWBool("shield_jumper_open", true);
+			self.Parent:SetNWBool("shield_jumper_open", true);
 		else
 			self.Entity:SetModel("models/Madman07/shields/jumper_shield_close.mdl");
-			self.Entity:SetNetworkedBool("shield_jumper_open", false);
-			self.Parent:SetNetworkedBool("shield_jumper_open", false);
+			self.Entity:SetNWBool("shield_jumper_open", false);
+			self.Parent:SetNWBool("shield_jumper_open", false);
 		end
 		self.JumperLast = self.Parent.Owner.epodo;
 	end
@@ -469,12 +469,12 @@ function ENT:Think()
 		if self.JumperLast != self.Parent.Owner.epodo then
 			if self.Parent.Owner.epodo then
 				self.Entity:SetModel("models/Madman07/shields/jumper_shield_open.mdl");
-				self.Entity:SetNetworkedBool("shield_jumper_open", true);
-                self.Parent:SetNetworkedBool("shield_jumper_open", true);
+				self.Entity:SetNWBool("shield_jumper_open", true);
+                self.Parent:SetNWBool("shield_jumper_open", true);
 			else
 				self.Entity:SetModel("models/Madman07/shields/jumper_shield_close.mdl");
-				self.Entity:SetNetworkedBool("shield_jumper_open", false);
-				self.Parent:SetNetworkedBool("shield_jumper_open", false);
+				self.Entity:SetNWBool("shield_jumper_open", false);
+				self.Parent:SetNWBool("shield_jumper_open", false);
 			end
 			self.JumperLast = self.Parent.Owner.epodo;
 

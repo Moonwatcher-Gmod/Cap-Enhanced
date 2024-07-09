@@ -13,6 +13,9 @@ TOOL.ClientConVar["model"] = "models/MarkJaw/ancient_console/console.mdl";
 TOOL.List = "ConsoleModels";
 list.Set(TOOL.List,"models/MarkJaw/atlantis_console/console.mdl",{});
 list.Set(TOOL.List,"models/ZsDaniel/atlantis_console/console.mdl",{});
+if (util.IsValidModel("models/micropro/ancientconsole/ancient_console.mdl")) then
+	list.Set(TOOL.List,"models/micropro/ancientconsole/ancient_console.mdl",{});
+end
 
 TOOL.Entity.Class = "cap_console";
 TOOL.Entity.Keys = {"model"}; -- These keys will get saved from the duplicator

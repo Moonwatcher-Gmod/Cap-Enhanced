@@ -11,7 +11,7 @@ end
 SWEP.Author = "Madman07, MarkJaw";
 SWEP.Contact = "";
 SWEP.Purpose = "";
-SWEP.Instructions = "Use to detect life signs";
+SWEP.Instructions = "Use to detect life signs, Requires the ATA Gene";
 SWEP.Base = "weapon_base";
 SWEP.Slot = 3;
 SWEP.SlotPos = 3;
@@ -53,29 +53,7 @@ SWEP.WElements = {
 	["World_weapon_model"] = { type = "Model", model = "models/markjaw/lsd/lsd_w.mdl", bone = "ValveBiped.Bip01_R_Hand", rel = "", pos = Vector(3.4, 3.6, -0.6), angle = Angle(-120, 180, 0), size = Vector(1, 1, 1), color = Color(255, 255, 255, 255), surpresslightning = false, material = "", skin = 0, bodygroup = {} }
 }
 
-/* if (SERVER) then
-
-	function SWEP:Initialize()
-		self.Sound = CreateSound(self,Sound("weapons/atlantis_scanner.wav"));
-	end
-
-	function SWEP:Deploy()
-		self.Sound:PlayEx(0.9,100);
-	end
-
-	function SWEP:OnRemove()
-		self.Sound:Stop();
-	end
-
-	function SWEP:Holster()
-		self.Sound:Stop();
-		return true
-	end
-
-end */
-
 if SERVER then
-
 	function SWEP:OnDrop()
 		self:SetNWBool("WorldNoDraw",false);
 		return true;
@@ -153,13 +131,18 @@ function SWEP:RenderScreen()
 	matScreen:SetTexture( "$basetexture", NewRT);
 
     local OldRT = render.GetRenderTarget();
-    render.SetRenderTarget(NewRT);
-    render.SetViewPort( 0, 0, 512, 0);
+    --render.SetRenderTarget(NewRT);
+    render.SetViewPort( 0, 0, ScrW(), ScrH());
+    render.PushRenderTarget( NewRT )
 
     cam.Start2D();
+		if(self.Owner:GetNWInt("ATAGene",0) == 0) then 
+			render.Clear( 50, 50, 100, 0 );
+			surface.SetDrawColor(0,0,0, 255 );
+			surface.DrawTexturedRect( 0, 0, 512, 1024);
+		else
 
 		render.Clear( 50, 50, 100, 0 );
-
 	    surface.SetDrawColor( 255, 255, 255, 255 );
         surface.SetTexture( bg );
         surface.DrawTexturedRect( 0, 0, 512, 1024);
@@ -185,11 +168,13 @@ function SWEP:RenderScreen()
 				end
 			end
 		end
+		end
 
     cam.End2D();
 
     render.SetRenderTarget(OldRT);
     render.SetViewPort( 0, 0, oldW, oldH )
+    render.PopRenderTarget()
 
 end
 
@@ -258,7 +243,9 @@ function SWEP:Initialize()
 end
 
 function SWEP:Deploy()
-	self.Sound:PlayEx(0.5,100);
+	if(self.Owner:GetNWInt("ATAGene",0) == 1) then
+		self.Sound:PlayEx(0.5,100);
+	end
 	return true
 end
 

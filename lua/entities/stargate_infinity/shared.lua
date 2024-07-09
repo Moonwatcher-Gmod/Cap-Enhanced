@@ -13,22 +13,10 @@ ENT.EventHorizonData = {
 	OpeningDelay = 1.5,
 	OpenTime = 2.2,
 	NNFix = 1,
-	Type = "infinity"
+	Type = "infinity_v2"
 }
 
-StarGate.RegisterEventHorizon("infinity",{
-	ID=2,
-	Name=SGLanguage.GetMessage("stargate_c_tool_21_infinity"),
-	Material="CoS/stargate/effect_02.vmt",
-	UnstableMaterial="",
-	LightColor={
-		r = Vector(20,40),
-		g = Vector(60,80),
-		b = Vector(150,230),
-		sync = false, -- sync random (for white), will be used only first value from this table (r)
-	},
-	Color=Color(255,255,255),
-})
+
 
 ENT.DialSlowDelay = 2.0
 

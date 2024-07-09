@@ -410,7 +410,7 @@ function ENT.Sequence:InstantOpen(action,delay,instant,inbound,slow,nox,fail)
 	action:Add({f=self.RingSound,v={self,false},d=0});
 	action:Add({f=self.RingLight,v={self,0,true,true},d=0});
 	action:Add({f=self.RingLight,v={self,0,false,true},d=0});
-	action:Add({f=self.Fire,v={self.Entity,"SetBodyGroup",0,0.05},d=0});
+	--action:Add({f=self.Fire,v={self.Entity,"SetBodyGroup",0,0.05},d=0});
 	for i=1,chevs do
 		local b = i+1;
 		if (i == 8) then

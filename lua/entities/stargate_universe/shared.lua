@@ -28,7 +28,7 @@ StarGate.RegisterEventHorizon("universe",{
 	},
 	Color=Color(255,255,255),
 })
-		
+	
 ENT.DialSlowDelay = 1.0
 ENT.DialFastTime = 7.4
 

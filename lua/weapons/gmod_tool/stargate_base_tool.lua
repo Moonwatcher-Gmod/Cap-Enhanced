@@ -59,7 +59,7 @@ function TOOL:Register()
 		if(self.ControlsPanel) then
 			self.BuildCPanel = function(Panel)
 				if (StarGate.CFG:Get("cap_disabled_tool",self.Mode,false)) then
-					Panel:Help(SGLanguage.GetMessage("stool_disabled_tool"));
+					Panel:Help("This tool are disabled on server!");
 					return
 				end
 				-- Add the HELP, if Internet is applied!

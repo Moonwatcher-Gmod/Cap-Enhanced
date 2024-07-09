@@ -112,7 +112,7 @@ util.AddNetworkString("Stargate.Cloak.Friends");
 function ENT:Initialize()
 	self.Size = self.Size or 300; -- Make it by default at least fit for one player
 	self.Parent = self.Entity:GetParent();
-	self:SetNetworkedInt("size",self.Size);
+	self:SetNWInt("size",self.Size);
 	self:SetNWEntity("parent",self.Parent);
 	self.Entity:SetMoveType(MOVETYPE_NONE);
 	self.Entity:SetSolid(SOLID_VPHYSICS);
@@ -382,7 +382,7 @@ function ENT:Cloak(e,b)
 						if (e:IsPlayer() or e:IsNPC()) then
 							e.__SGCloacked = true;
 							if (e:IsPlayer()) then
-								e:SetNetworkedBool("CloakCloaked",true);
+								e:SetNWBool("CloakCloaked",true);
 							end
 							if (IsValid(e:GetActiveWeapon())) then
 								e:GetActiveWeapon().WeaponRenderMode = e:GetActiveWeapon():GetRenderMode()
@@ -434,7 +434,7 @@ function ENT:Cloak(e,b)
 			if (e:IsPlayer() or e:IsNPC()) then
 				e.__SGCloacked = false;
 				if (e:IsPlayer()) then
-					e:SetNetworkedBool("CloakCloaked",false);
+					e:SetNWBool("CloakCloaked",false);
 				end
 				if (IsValid(e:GetActiveWeapon()) and e:GetActiveWeapon().WeaponMaterial!=nil) then
 					e:GetActiveWeapon():SetMaterial(e:GetActiveWeapon().WeaponMaterial);
@@ -457,12 +457,12 @@ end
 
 hook.Add("PlayerDeath","StarGate.Cloak.PlayerDeath",function(ply)
 	ply.__SGCloacked = false;
-	ply:SetNetworkedBool("CloakCloaked",false);
+	ply:SetNWBool("CloakCloaked",false);
 end)
 
 hook.Add("PlayerSilentDeath","StarGate.Cloak.PlayerDeath",function(ply)
 	ply.__SGCloacked = false;
-	ply:SetNetworkedBool("CloakCloaked",false);
+	ply:SetNWBool("CloakCloaked",false);
 end)
 
 hook.Add("PlayerSwitchWeapon", "StarGate.WeaponCloak.Changed", function(ply, oldWeapon, newWeapon)

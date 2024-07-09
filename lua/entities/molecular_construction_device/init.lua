@@ -75,6 +75,7 @@ local MCDEntities = {
 	["naquadah_bottle"] = {},
 }
 
+
 function ENT:Initialize()
 	self.Entity:SetModel("models/MarkJaw/mcd/mcd.mdl");
 	self.Entity:PhysicsInit(SOLID_VPHYSICS);
@@ -87,7 +88,7 @@ function ENT:Initialize()
 	end
 	self.Create = false;
 	self.InitCreate = true;
-	self.Entity:SetNetworkedInt("EntProgress",0);
+	self.Entity:SetNWInt("EntProgress",0);
 	self.EntProgress = 0;
 	self.Progress = 0;
 	self.Entity:SetNWInt("Progress",0);
@@ -101,6 +102,8 @@ function ENT:Initialize()
 	self.AdvanceTimer = 0;
 	self.AtlSkin = false;
 	self:SetUseType(SIMPLE_USE)
+	--self:AddResource("energy",1);
+	self.Entity:SetMaterial("MarkJaw/mcd/mcd_atl.vmt");
 	
 	self.EffDColor = Color(247,51,12,0);
 	self.EffColor = self.EffDColor;
@@ -120,16 +123,16 @@ function ENT:TriggerInput(k,v)
 		if (v>=1) then
 			self.AtlSkin = true
     		if(self.Create)then
-		        self.Entity:SetMaterial("MarkJaw/mcd/mcd_on_atl.vmt");
+		        self.Entity:SetMaterial("MarkJaw/mcd/mcd_on.vmt");
 		  	else
-		        self.Entity:SetMaterial("MarkJaw/mcd/mcd_atl.vmt");
+		        self.Entity:SetMaterial("MarkJaw/mcd/mcd.vmt");
 		  	end
 		else
 			self.AtlSkin = false
     		if(self.Create)then
-		        self.Entity:SetMaterial("MarkJaw/mcd/mcd_on.vmt");
+		        self.Entity:SetMaterial("MarkJaw/mcd/mcd_on_atl.vmt");
 		  	else
-		        self.Entity:SetMaterial("MarkJaw/mcd/mcd.vmt");
+		        self.Entity:SetMaterial("MarkJaw/mcd/mcd_atl.vmt");
 		  	end
 		end
 	elseif (k=="Effect Color") then
@@ -193,6 +196,10 @@ function ENT:Use(ply)
 		net.WriteTable(classes)
 	    net.Send(ply)
 		self.Player = ply;
+	else
+		net.Start("MCD_Abort")
+		net.WriteEntity(self.Entity)
+		net.Send(ply)
 	end
 end
 
@@ -209,9 +216,9 @@ function ENT:Think()
 		    self.InitCreate = false;
 			self.Forw = false;
 		    if (self.AtlSkin) then
-	        	self.Entity:SetMaterial("MarkJaw/mcd/mcd_on_atl.vmt");
-		    else
 	        	self.Entity:SetMaterial("MarkJaw/mcd/mcd_on.vmt");
+		    else
+	        	self.Entity:SetMaterial("MarkJaw/mcd/mcd_on_atl.vmt");
 	        end
 			self.Entity:SetNWBool("IdleSound",true);
 			local color = self.Ent:GetColor();
@@ -261,7 +268,7 @@ function ENT:Think()
 				local distance = (self.Entity:GetPos() - self.Ent:GetPos()):Length()
 				if(distance >= self.Ent._MCDSTOP)then
 			        self.Ent:SetPos(self.Entity:GetPos() + self.Entity:GetUp()*self.Ent._MCDUP)
-					self.Ent._MCDUP = self.Ent._MCDUP - 0.04;
+					self.Ent._MCDUP = self.Ent._MCDUP - 0.24;
 				elseif (self.Progress==255) then
 					self.EntProgress = 255;
 					self.Entity:SetNWInt("EntProgress",self.EntProgress);
@@ -272,7 +279,8 @@ function ENT:Think()
 	            self.Ent:SetParent(nil);
 				self.Entity:SetNWBool("IdleSound",false);
 				if (self.Ent._MCDTampered) then
-					local e = ents.Create("tampered_zpm");
+					local e = ents.Create("zpm_mk3");
+					e.IsTampered = true
 					e:SetPos(self.Ent:GetPos());
 					e:Spawn();
 					e:SetAngles(self.Ent:GetAngles());
@@ -297,7 +305,7 @@ function ENT:Think()
 			    util.Effect( "mcd_spawn", effectdata )
 				util.PrecacheSound("tech/mcd_spawn.wav")
 		        self.Entity:EmitSound( "tech/asgard_teleport.mp3", 100, 75 )
-				timer.Simple(0.3,function()
+				timer.Simple(0.2,function()
 				    if(IsValid(self.Ent))then
 					    self.Ent:SetColor(Color(self.ColorR,self.ColorG,self.ColorB,255));
 				        self.Ent:SetMaterial(self.Material);
@@ -343,12 +351,12 @@ function ENT:Think()
 		end
         --##############################################################################
 	elseif(not self.Create and self.Undone)then
-	    timer.Simple(6,function()
+	    timer.Simple(2,function()
 		    if(IsValid(self.Entity))then
 		    	if (self.AtlSkin) then
-		       		self.Entity:SetMaterial("MarkJaw/mcd/mcd_atl.vmt");
-		    	else
 		       		self.Entity:SetMaterial("MarkJaw/mcd/mcd.vmt");
+		    	else
+		       		self.Entity:SetMaterial("MarkJaw/mcd/mcd_atl.vmt");
 		        end
 				self.Entity:SetNWInt("Advance",0);
 				self.Entity:SetNWBool("IdleSound",false);
@@ -379,6 +387,7 @@ function ENT:Think()
 		--self.Forw = true;
 		self.AdvanceTimer = 0;
 		if(self.HasWire) then
+			self.Speed = StarGate.CFG:Get("mcd","speed",100)/100;
 			self:SetWire("Conscruction Complete", 1)
 		end
 	end
@@ -399,8 +408,36 @@ function ENT:ProgressIdle()
 end
 
 util.AddNetworkString("MCD")
+util.AddNetworkString("MCD_Abort")
 
 function ENT:StartCreate(class,owner,data)
+		
+
+	--local needed_energy = 450000;
+
+	-- if (class=="zpm_mk3") then
+
+	-- 	local multiplier = 10;
+
+	-- 	local energy = self:GetResource("energy",needed_energy);
+	-- 	if(energy < needed_energy*multiplier) then
+	-- 		if (IsValid(owner)) then
+	-- 			owner:SendLua("GAMEMODE:AddNotify(SGLanguage.GetMessage(\"asgardtp_energy\"), NOTIFY_ERROR, 3); surface.PlaySound( \"buttons/button2.wav\" )");
+	-- 		end
+	-- 		return
+	-- 	end
+	-- 	self:ConsumeResource("energy",needed_energy*multiplier);
+	-- else
+	-- 	local energy = self:GetResource("energy",needed_energy);
+	-- 	if(energy < needed_energy) then
+	-- 		if (IsValid(owner)) then
+	-- 			owner:SendLua("GAMEMODE:AddNotify(SGLanguage.GetMessage(\"asgardtp_energy\"), NOTIFY_ERROR, 3); surface.PlaySound( \"buttons/button2.wav\" )");
+	-- 		end
+	-- 		return
+	-- 	end
+	-- 	self:ConsumeResource("energy",needed_energy);
+	-- end
+
 	if (self.Create or not class or not MCDEntities[class]) then return end
 	local info = MCDEntities[class];
 	local orig_class = class;
@@ -414,6 +451,7 @@ function ENT:StartCreate(class,owner,data)
 	if (not IsValid(e)) then return end
 	self:SetWire("Creation Class",orig_class);
     if (class=="zpm_mk3" and StarGate.CFG:Get("mcd","allow_tzmp",false)) then
+    	self.Speed = 500/600;
     	local rnd = StarGate.CFG:Get("mcd","tzmp_chance",2);
     	if (rnd<1) then rnd = 1 end
     	local rand = math.random(1,rnd);
@@ -505,6 +543,21 @@ function ENT:StartCreate(class,owner,data)
     end
 
 end
+
+net.Receive("MCD_Abort",function(len,ply)
+
+		local self = net.ReadEntity()
+		if (not IsValid(self) or self.Player!=ply) then return end
+		self:EmitSound("ambient/energy/power_off1.wav",100,90)
+		self.Create = false;
+		self.Entity:SetNWInt("EntProgress",0);
+		self.Entity:SetNWInt("Progress",0);
+		self.InitCreate = true;
+		self.Entity:SetNWBool("StartEffects",false);
+		self.Start = false;
+		self.Entity:ResetSequence(self.Entity:LookupSequence("idle"));
+		self.Ent:Remove();
+end)
 
 net.Receive("MCD",function(len,ply)
 	local self = net.ReadEntity()

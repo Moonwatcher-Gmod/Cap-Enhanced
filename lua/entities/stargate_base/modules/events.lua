@@ -120,10 +120,14 @@ function ENT.Sequence:OpenGate()
 	if(autoclose > 0) then
 		action:Add({f=self.Close,v={self},d=0}); -- Close the gate after the ammount of time mentioned above
 	end
+
+	self.OldDialedAddress = self.DialledAddress --set variable for the most recent dialled address for adria dialer
+
 	return action;
 end
 
 function ENT:CheckTarget()
+	
 	if (not IsValid(self.Target)) then return end
 	if (not IsValid(self.Target.Target)) then
 		self.Target.Target = self.Entity
@@ -177,6 +181,12 @@ end
 function ENT:Open()
 	if (not IsValid(self.Entity)) then return end
 	local e = ents.Create("event_horizon");
+	if StarGate.IsProtectedByGateSpawner(self.Entity) then
+		e:SetNWBool("phase_protected", true)
+	end
+	if (self.Instancing) then
+		e:SetInstance(self.Entity:GetOwner():GetInstance())
+	end
 	if(self.Entity:GetClass()=="stargate_supergate")then
 		e:SetPos(self.Entity:GetPos()+self.Entity:GetUp()*2375);
 	else
@@ -240,6 +250,7 @@ end
 function ENT:DeactivateStargate(ignore)
 	if(self.IsOpen and not self.Dialling and (self.Outbound or ignore)) then
 		if(IsValid(self.Target)) then
+			self.Target.Charged = false
 			self.Target:Close(ignore);
 			self.Target.NoxDialingType = false;
 			self.Target.NoxIrisReactivated = false;
@@ -248,6 +259,7 @@ function ENT:DeactivateStargate(ignore)
 			table.Empty(self.Target.DialledAddress);
 			self.Target.Target = nil;
 		end
+		self.Charged = false
 		self.NoxDialingType = false;
 		self.NoxIrisReactivated = false;
 		self:Close(ignore);
@@ -269,7 +281,8 @@ function ENT:ActivateStargate(inbound,fast)
 	self:CheckConnection()
 	self.NoxDialingType = false;
 	self.NoxIrisReactivated = false;
-	if (self.HasRD and not self:CheckEnergy(true) and not self.Dialling and not inbound) then
+	if (self.HasRD and not (self:CheckEnergy(true) or self.Charged) and not self.Dialling and not inbound) then
+
 		self.Outbound = true;
 		local action = self.Sequence:New();
 		action = self.Sequence:DialFail(nil,true);
@@ -283,6 +296,11 @@ function ENT:ActivateStargate(inbound,fast)
 			else
 				if(inbound or (self.DialledAddress and (#self.DialledAddress >= 8 and #self.DialledAddress <= 10) and not self:IsBlocked(nil,nil,true))) then
 					if(IsValid(e) and e.IsStargate and not (e.IsOpen or e.Dialling == true) and (inbound or not inbound and self:CheckEnergy()) and (inbound or not e:IsBlocked(nil,nil,true))) then
+						if (inbound) then
+							self.GateCaller = self.Target
+						end
+
+
 						action = self.Sequence:OpenGate();
 						--################# And open the other gate
 						if(not inbound) then
@@ -340,7 +358,7 @@ function ENT:NoxActivateStargate(inbound)
 	 -- prepare power calculations, and check for energy
 	self:CheckConnection();
 	self.NoxDialingType = true;
-	if (self.HasRD and not self:CheckEnergy(true) and not self.Dialling and not inbound or not IsValid(e) and not self:IsSelfDial()) then
+	if (self.HasRD and not self:CheckEnergy(true) and not self.Charged and not self.Dialling and not inbound or not IsValid(e) and not self:IsSelfDial()) then
 		self.Outbound = true;
 		local action = self.Sequence:New();
 		action = self.Sequence:DialFail(nil,true);
@@ -356,6 +374,9 @@ function ENT:NoxActivateStargate(inbound)
 			if(inbound or (self.DialledAddress and (#self.DialledAddress >= 8 and #self.DialledAddress <= 10) and not self:IsBlocked(nil,nil,true))) then
 				if(IsValid(e) and e.IsStargate and not (e.IsOpen or e.Dialling == true) and (inbound or not inbound and self:CheckEnergy()) and (inbound or not e:IsBlocked(nil,nil,true))) then
 					action = self.Sequence:OpenGate();
+					if (inbound) then
+							self.GateCaller = self.Target
+						end
 					--################# And open the other gate
 					if(not inbound) then
 						self:StopActions();
@@ -408,6 +429,7 @@ function ENT:OnButtActivateStargate(inbound)
 		local busy = false;
 		if (IsValid(e) and self:CheckEnergy() and e.IsStargate and (e.IsOpen or e.Dialling == true or e:IsBlocked(nil,nil,true)) and not inbound or self:IsSelfDial() or self:IsBlocked(nil,nil,true)) then
 			busy = true;
+
 		end
 		action = self.Sequence:OnButtonDialFail(table.getn(self.DialledAddress)-1,true,busy);
 		action = action + self.Sequence:DialFail(nil,true);
@@ -422,6 +444,9 @@ function ENT:OnButtActivateStargate(inbound)
 				if(inbound or (self.DialledAddress and (#self.DialledAddress >= 8 and #self.DialledAddress <= 10))) then
 					if(IsValid(e) and e.IsStargate and (not (e.IsOpen or e.Dialling == true) or e.OnButtLock) and (inbound or not e:IsBlocked(nil,nil,true))) then
 						action = self.Sequence:OpenGate();
+						if (inbound) then
+							self.GateCaller = self.Target
+						end
 						--################# And open the other gate
 						if(not inbound) then
 							self:StopActions();

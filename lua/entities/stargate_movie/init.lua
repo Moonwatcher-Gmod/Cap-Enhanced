@@ -297,11 +297,11 @@ function ENT:ChangeSystemType(groupsystem,reload)
 end
 
 function ENT:GateWireInputs(groupsystem)
-	self:CreateWireInputs("Dial Address","Dial String [STRING]","Dial Mode","Start String Dial","Close","Disable Autoclose","Transmit [STRING]","Chevron Light","Classic Mode","Rotate Ring","Ring Speed Mode","Chevron Encode","Chevrons Lock","Encode Symbol [STRING]","Lock Symbol [STRING]","Activate chevron numbers [STRING]","SGC Type","Set Point of Origin","Disable Menu","Event Horizon Type [STRING]","Event Horizon Color [VECTOR]");
+	self:CreateWireInputs("Dial Address","Dial String [STRING]","Dial Mode","Start String Dial","Close","Disable Autoclose","Transmit [STRING]","Chevron Light","Classic Mode","Rotate Ring","Ring Speed Mode","Chevron Encode","Chevrons Lock","Encode Symbol [STRING]","Lock Symbol [STRING]","Activate chevron numbers [STRING]","SGC Type","Set Point of Origin","Disable Menu","Event Horizon Type [STRING]","Event Horizon Color [VECTOR]","TargetGate [ENTITY]","Switch Gate","Pause Routing","Resume Routing");
 end
 
 function ENT:GateWireOutputs(groupsystem)
-	self:CreateWireOutputs("Active","Open","Inbound","Chevron","Chevron Locked","Chevrons [STRING]","Ring Symbol [STRING]","Ring Rotation","Ring Chev7 Symbol [STRING]","Earth Point of Origin","Dialing Address [STRING]","Dialing Mode","Dialing Symbol [STRING]","Dialed Symbol [STRING]","SGC Type","Received [STRING]");
+	self:CreateWireOutputs("Active","Open","Inbound","Chevron","Chevron Locked","Chevrons [STRING]","Ring Symbol [STRING]","Ring Rotation","Ring Chev7 Symbol [STRING]","Earth Point of Origin","Dialing Address [STRING]","Dialing Mode","Dialing Symbol [STRING]","Dialed Symbol [STRING]","SGC Type","Received [STRING]","Entities On Route");
 end
 
 function ENT:WireOrigin()
@@ -895,6 +895,27 @@ function ENT:TriggerInput(k,v,mobile,mdhd)
 			self.WireLockSymbol = v;
 			self.Entity:SetWire("Dialing Symbol",v);
 		end
+	elseif (k == "TargetGate") then
+
+			if (IsValid(v)) then
+				self.TargetGate = v
+			else
+				self.TargetGate = nil
+			end
+	elseif (k == "Switch Gate") then
+		if (v == 42) then
+			if (IsValid(self.TargetGate)) then
+				self:ControlledJump(self.TargetGate)
+			end
+		end
+	elseif(k == "Pause Routing" and self.Active and IsValid(self.EventHorizon)) then
+		if (v >= 1) then
+			self.EventHorizon:PauseAllRouting()
+		end
+	elseif(k == "Resume Routing" and self.Active and IsValid(self.EventHorizon)) then
+		if (v >= 1) then
+			self.EventHorizon:ResumeAllRouting()
+		end
 	end
 end
 
@@ -933,7 +954,7 @@ function ENT:ActivateChevron(chev,b,inbound,nosound)
 				return
 			end
 			self.Chevron[chev]:Fire("SetAnimation","Lock",0);
-			self.Chevron[chev]:SetNetworkedString("ChevAnim","chevlocked");
+			self.Chevron[chev]:SetNWString("ChevAnim","chevlocked");
 			if (not nosound) then self.Entity:ChevronSound(chev,true,inbound,false); end
 		elseif (not b and self.Chevron[chev]:GetNWString("ChevAnim") == "chevlocked") then
 			self.Chevron[chev]:Fire("SetAnimation","UnLock",0);

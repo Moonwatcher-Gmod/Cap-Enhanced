@@ -49,6 +49,7 @@ function ENT:Initialize()
 	self.Deto = true;
 	self.Nuke=true
 	self.InitBomb=true;
+	self.Cloaked = false
 end
 
 function ENT:SpawnFunction(p,t)
@@ -68,7 +69,7 @@ end
 function ENT:Skin(a)
     if(a==1)then
         self.Entity:SetSkin(3);
-		self.Entity:SetNetworkedInt("zpmbluerlightalpha",195);
+		self.Entity:SetNWInt("zpmbluerlightalpha",195);
 		timer.Create("TZPME"..self.Entity:EntIndex(), 60.0, 0, function() if IsValid(self.Entity) then self:ExplodeTimer() end end);
 	elseif(a==2)then
         self.Entity:SetSkin(2);
@@ -86,7 +87,22 @@ function ENT:OnRemove()
 end
 
 function ENT:Think()
+
     if(self.empty or not self.HasResourceDistribution)then return end;
+
+    if (self.IsCloaked) then
+            self.Cloaked = true
+            self.Entity:SetNWInt("zpmbluelightalpha", 1)
+            self:DrawShadow(false)
+        else
+            self.Cloaked = false
+            self:DrawShadow(true)
+            if (self.Connected) then
+                self.Entity:SetNWInt("zpmbluelightalpha", 155)
+            end
+        end
+
+
 	if(self.Entity:SetNetworkedEntity("ZPM",self.Zpm)==NULL)then
 	    self.Entity:SetNetworkedEntity("ZPM",self.Zpm)
 	end
@@ -275,10 +291,6 @@ end
 
 if CLIENT then
 
-if (SGLanguage!=nil and SGLanguage.GetMessage!=nil) then
-language.Add("tampered_zpm",SGLanguage.GetMessage("stool_tzpm"));
-end
-
 if (StarGate==nil or StarGate.MaterialFromVMT==nil) then return end
 
 ENT.ZpmSprite = StarGate.MaterialFromVMT(
@@ -300,10 +312,10 @@ ENT.SpritePositions = {
 	Vector(0,0,-5),
 }
 
-ENT.Zpm_hud = surface.GetTextureID("VGUI/resources_hud/zpm_temp");
+ENT.Zpm_hud = surface.GetTextureID("VGUI/resources_hud/zpm");
 
 function ENT:Initialize()
-	self.Entity:SetNetworkedString("add","Disconnected");
+	self.Entity:SetNWString("add","Disconnected");
 	self.Entity:SetNWString("perc",0);
 	self.Entity:SetNWString("eng",0);
 end
@@ -311,7 +323,7 @@ end
 function ENT:Draw()
 	self.Entity:DrawModel();
 	hook.Remove("HUDPaint",tostring(self.Entity).."TP");
-    if(LocalPlayer():GetEyeTrace().Entity == self.Entity && EyePos():Distance( self.Entity:GetPos() ) < 1024)then
+    if(LocalPlayer():GetEyeTrace().Entity == self.Entity && self.Cloaked and EyePos():Distance( self.Entity:GetPos() ) < 1024)then
 		hook.Add("HUDPaint",tostring(self.Entity).."TP",function()
 		    local w = 0;
             local h = 260;

@@ -69,7 +69,7 @@ local Sounds = {
 
 function SWEP:Initialize()
 	self:SetWeaponHoldType(self.HoldType)
-	--self.Owner:SetNetworkedFloat("pShieldStrength", 0)
+	--self.Owner:SetNWFloat("pShieldStrength", 0)
 end
 
 local function EngageEffect(ply)

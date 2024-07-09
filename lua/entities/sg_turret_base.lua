@@ -54,6 +54,9 @@ function ENT:Initialize()
 	self.ShootingCann = 1;
 	self.CanFire = true;
 	self.SoundTime = CurTime()+self.SoundDur;
+	self.EntHealth = 1000
+	self.MaxHealth = self.EntHealth
+    self.Destroyed = false
 
 	self.Stand = self.Entity;
 	local phys = self.Stand:GetPhysicsObject();
@@ -151,7 +154,22 @@ function ENT:TriggerInput(variable, value)
 	if (variable == "Vector") then self.WireVec = value;
 	elseif (variable == "Entity") then self.WireEnt = value;
 	elseif (variable == "Fire") then self.WireShoot = value;
-	elseif (variable == "Active") then self.WireActive = value;	end
+	elseif (variable == "Active") then 
+		if (self.Destroyed) then
+        else
+            self.WireActive = value
+        end
+	end
+end
+
+function ENT:HealthRepair(health)
+	self.EntHealth = health
+	self:SetWire("Health", health)
+
+	if(self.Destroyed == true) then
+		self.Destroyed = false
+		self.Turn:SetNWBool("Turret_destroyed", false)
+	end
 end
 
 function ENT:StartTouch( ent )

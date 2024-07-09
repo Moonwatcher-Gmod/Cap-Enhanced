@@ -24,6 +24,20 @@ if (StarGate==nil or StarGate.CheckModule==nil or not StarGate.CheckModule("extr
 AddCSLuaFile();
 
 -----------------------------------INIT----------------------------------
+ENT.Sounds={
+	DestOpen=Sound("door/dest_door_open.wav"),
+	DestClose=Sound("door/dest_door_close.wav"),
+    LockedDest=Sound("gmod4phun/dest_door_lock_new.wav"),
+	Lock=Sound("door/dest_door_lock.wav"),
+	AtlOpen=Sound("door/atlantis_door_open.wav"),
+	AtlClose=Sound("door/atlantis_door_close.wav"),
+	DestBridgeOpen=Sound("cryptalchemy_sounds/destiny/bridge_door/bridge_door_open.wav"),
+	DestBridgeClose=Sound("cryptalchemy_sounds/destiny/bridge_door/bridge_door_close.wav"),
+	OriDoorOpen=Sound("moonwatcher/ori_door_close.wav"),
+	OriDoorClose=Sound("moonwatcher/ori_door_close.wav")
+}
+
+
 
 function ENT:Initialize()
 	self.Entity:SetName("Doors");
@@ -57,7 +71,11 @@ function ENT:Toggle()
 				self:Toggle()
 				timer.Simple(2.5, function() 
 					if IsValid(self) and IsValid(self.Frame) and self.Frame.Lockdown and not self.Open then 
-						self.Frame:EmitSound(self.Frame.Sounds.LockedDest,100,100) 
+						--self.Frame:EmitSound(self.Frame.Sounds.LockedDest,100,100)
+						if self.Frame:GetModel()=="models/madman07/doors/dest_frame.mdl" or 
+						   self.Frame:GetModel()=="models/cryptalchemy_models/destiny/bridge_door/bridge_door_frame.mdl" then
+						   self.Entity:EmitSound(self.Sounds.LockedDest,100,100) 
+						end
 					end 
 				end)
 			end

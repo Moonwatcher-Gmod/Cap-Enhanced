@@ -44,24 +44,43 @@ function SWEP:Initialize()
 end
 
 function SWEP:Think()
-	local p = self.Owner;
+	local p = self.Owner
 	local tr = util.GetPlayerTrace(p)
 	local trace=util.TraceLine(tr)
-	p.Target = trace.HitPos;
+	p.Target = trace.HitPos
 
 	if IsValid(p.MiniDronePlatform) then
-		local len = (p:GetPos() - p.MiniDronePlatform:GetPos()):Length();
-		if (len < 500) then
-			p.CanMinidroneControll = true;
+		if(self.Owner:GetNWInt("ATAGene",0) == 1) then
+			local len = (p:GetPos() - p.MiniDronePlatform:GetPos()):Length()
+			if (len < 500) then
+				p.CanMinidroneControll = true
+			else
+				p.CanMinidroneControll = false
+			end
 		else
-			p.CanMinidroneControll = false;
+			if(p.CanMinidroneControll == true) then
+				p.CanMinidroneControll = false
+			end
 		end
 	end
 end
 
+function SWEP:OnDrop()
+	self.Owner.CanMinidroneControll = false
+end
+
+function SWEP:OnRemove()
+	self.Owner.CanMinidroneControll = false
+end
+
+function SWEP:Holster()
+	self.Owner.CanMinidroneControll = false
+	return true
+end
+
 function SWEP:PrimaryAttack()
 	local p = self.Owner;
-	if (p.CanMinidroneControll and IsValid(p.MiniDronePlatform)) then
+	if(p.CanMinidroneControll and IsValid(p.MiniDronePlatform)) then
 		p.MiniDronePlatform:FireDrones(p);
 	end
 

@@ -29,7 +29,7 @@ StarGate.Trace:Add("shield_core_buble",
 			if (type(values[3]) == "table") then
 				own = StarGate.GetMultipleOwner(values[3][1]);
 				if (IsValid(values[3][1])) then
-					values[3][1]:SetNetworkedEntity("SC_Owner", own); // for clientside prediction
+					values[3][1]:SetNWEntity("SC_Owner", own); // for clientside prediction
 				end
 			else
 				own = StarGate.GetMultipleOwner(values[3]);
@@ -117,7 +117,7 @@ function ENT:SetCollisionScale(model, size)
 
 	self:SetNWVector("TraceSize",self.Size);
 
-	self:SetNotSolid(true);
+	self:SetNotSolid(false);
 	self.ShShap = mod;
 end
 
@@ -337,7 +337,7 @@ end
 
 local function CalcDmgProtect(ent, inflictor, attacker, ammount, dmginfo)
 	if (IsValid(ent) and ent:IsPlayer()) then
-		if IsValid(inflictor) then
+		if (IsValid(inflictor) and attacker) then
 			local class = inflictor:GetClass();
 			if (class == "tokra_shield" or class == "shield_core_buble") then
 				dmginfo:SetDamage(0);

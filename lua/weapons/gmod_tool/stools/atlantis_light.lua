@@ -103,8 +103,8 @@ end
 --################# Controlpanel @aVoN
 function TOOL:ControlsPanel(Panel)
 	
-	Panel:NumSlider(SGLanguage.GetMessage("stool_brightness"),"atlantis_light_brightness",1,StarGate.CFG:Get("atlantis_light","max_brightness",5),0);
-	Panel:NumSlider(SGLanguage.GetMessage("stool_size"),"atlantis_light_size",10,StarGate.CFG:Get("atlantis_light","max_size",1000),0);
+	Panel:NumSlider("Brightness:","atlantis_light_brightness",1,StarGate.CFG:Get("atlantis_light","max_brightness",5),0);
+	Panel:NumSlider("Size:","atlantis_light_size",10,StarGate.CFG:Get("atlantis_light","max_size",1000),0);
 
 	Panel:AddControl("Color",{
 		Label = SGLanguage.GetMessage("stool_atlantis_light_colour"),
@@ -116,8 +116,8 @@ function TOOL:ControlsPanel(Panel)
 		ShowRGB = 1,
 		Multiplier = 255,
 	});
-	Panel:AddControl("PropSelect",{Label=SGLanguage.GetMessage("stool_model"),ConVar="atlantis_light_model",Category="",Models=self.Models});
-	Panel:CheckBox(SGLanguage.GetMessage("stool_autoweld"),"atlantis_light_autoweld");
+	Panel:AddControl("PropSelect",{Label="Model:",ConVar="atlantis_light_model",Category="",Models=self.Models});
+	Panel:CheckBox("Autoweld","atlantis_light_autoweld");
 
 end
 

@@ -1,65 +1,63 @@
 -- Use the Stargate addon to add LS, RD and Wire support to this entity
-if (StarGate!=nil and StarGate.LifeSupportAndWire!=nil) then StarGate.LifeSupportAndWire(ENT); end
+if (StarGate ~= nil and StarGate.LifeSupportAndWire ~= nil) then
+    StarGate.LifeSupportAndWire(ENT)
+end
 
-ENT.Type             = "anim"
-ENT.Base             = "base_anim"
-
-ENT.PrintName        = "Gate Weapon"
-ENT.WireDebugName    = "Gate Weapon"
-ENT.Author           = "PyroSpirit, Madman07, Rafael De Jongh"
-ENT.Contact		      = "forums.facepunchstudios.com"
-ENT.Category 		 = "Stargate Carter Addon Pack: Weapons"
-
-list.Set("CAP.Entity", ENT.PrintName, ENT);
-
+ENT.Type = "anim"
+ENT.Base = "base_anim"
+ENT.PrintName = "Gate Weapon"
+ENT.WireDebugName = "Gate Weapon"
+ENT.Author = "PyroSpirit, Madman07, Rafael De Jongh"
+ENT.Contact = "forums.facepunchstudios.com"
+ENT.Category = "Stargate Carter Addon Pack: Weapons"
+if (SGLanguage!=nil and SGLanguage.GetMessage!=nil) then
+ENT.Category = SGLanguage.GetMessage("entity_weapon_cat");
+end
+list.Set("CAP.Entity", ENT.PrintName, ENT)
 ENT.AutomaticFrameAdvance = true
-
-ENT.energyPerSecond       = 2500
-ENT.energyPerCycle        = 500
-ENT.coolingPerCycle       = 300
+ENT.energyPerSecond = 2500
+ENT.energyPerCycle = 500
+ENT.coolingPerCycle = 300
 
 -- Get the position of the beam emitter on the overloader
 function ENT:GetEmitterPos()
-	local emitter = self.Entity:GetAttachment(self.Entity:LookupAttachment("emitter0"));
-	if emitter and emitter.Pos then
-		return emitter.Pos + self.Entity:GetForward()*10;
-	else
-		return self.Entity:GetPos() + self.Entity:GetForward()*110;
-	end
+    local emitter = self.Entity:GetAttachment(self.Entity:LookupAttachment("emitter0"))
+
+    if emitter and emitter.Pos then
+        return emitter.Pos + self.Entity:GetForward() * 10
+    else
+        return self.Entity:GetPos() + self.Entity:GetForward() * 110
+    end
 end
 
 function ENT:GetSubBeamPos(beam)
-	local beams = {}
-	local attachmentIDs =
-	{
-		self.Entity:LookupAttachment("emitter1"),
-		self.Entity:LookupAttachment("emitter2"),
-		self.Entity:LookupAttachment("emitter3"),
-		self.Entity:LookupAttachment("emitter4"),
-	}
+    local beams = {}
 
-	local emitter = self.Entity:GetAttachment(attachmentIDs[beam])
-	if emitter and emitter.Pos then
-		return emitter.Pos - self.Entity:GetForward()*90
-	else
-		return self.Entity:GetPos() + self.Entity:GetForward()*10
-	end
+    local attachmentIDs = {self.Entity:LookupAttachment("emitter1"), self.Entity:LookupAttachment("emitter2"), self.Entity:LookupAttachment("emitter3"), self.Entity:LookupAttachment("emitter4")}
+
+    local emitter = self.Entity:GetAttachment(attachmentIDs[beam])
+
+    if emitter and emitter.Pos then
+        return emitter.Pos - self.Entity:GetForward() * 90
+    else
+        return self.Entity:GetPos() + self.Entity:GetForward() * 10
+    end
 end
 
 function ENT:IsActive()
-   return self.Entity:GetNetworkedBool("isActive", self.isActive == true)
+    return self.Entity:GetNetworkedBool("isActive", self.isActive == true)
 end
 
 function ENT:IsFiring()
-   return self.Entity:GetNetworkedBool("isFiring", self.isFiring == true)
+    return self.Entity:GetNetworkedBool("isFiring", self.isFiring == true)
 end
 
 function ENT:GetLocalGate()
-   return self.Entity:GetNetworkedEntity("localGate", nil)
+    return self.Entity:GetNetworkedEntity("localGate", nil)
 end
 
 function ENT:GetRemoteGate()
-   return self.Entity:GetNetworkedEntity("remoteGate", nil)
+    return self.Entity:GetNetworkedEntity("remoteGate", nil)
 end
 
 function ENT:GetOutboundBeam()
@@ -71,449 +69,421 @@ function ENT:GetInboundBeam()
 end
 
 if CLIENT then
-
-if (StarGate==nil or StarGate.MaterialFromVMT==nil) then return end
-
-if (SGLanguage!=nil and SGLanguage.GetMessage!=nil) then
-ENT.Category = SGLanguage.GetMessage("entity_weapon_cat");
-ENT.PrintName = SGLanguage.GetMessage("entity_asuran_weapon");
-end
+    if (StarGate == nil or StarGate.MaterialFromVMT == nil) then return end
 
 end
 
 if SERVER then
+    if (StarGate == nil or StarGate.CheckModule == nil or not StarGate.CheckModule("entweapon")) then return end
+    AddCSLuaFile()
+    -- Sound when firing begins
+    local fireSoundPath = Sound("weapons/overloader_charge.wav")
+    -- Ambient sound while firing
+    local beamSoundPath = Sound("weapons/asuran_beam.wav")
+    -- Sound when a valid target gate is detected and the overloader prepares to fire
+    local startupSoundPath = Sound("NPC_FloorTurret.Deploy")
+    -- Sound when the overloader shuts down (no longer able to fire)
+    local shutdownSoundPath = Sound("NPC_FloorTurret.Retire")
+    -- Animation names
+    local startupAnimName = "open"
+    local shutdownAnimName = "close"
+    local firingAnimName = "firing"
+    -- A multiplier for the amount of energy needed to destroy a stargate.
+    -- i.e. energyNeeded = gate.capacity * energyMultiplier
+    local energyMultiplier = 0
+    local MAX_GATE_DISTANCE = 2000
+    local MIN_ENERGY_USAGE = 200
+    local MAX_ENERGY_USAGE = 2000
+    -- The numbe of seconds between each Think() call
+    ENT.cycleInterval = 0.25
+    -- The beam that is being fired
+    ENT.beam = nil
+    -- The gate on the overloader's end of the wormhole
+    ENT.localGate = nil
+    -- The gate on the other end of the wormhole
+    ENT.remoteGate = nil
+    -- Whether the weapon should prepare to fire
+    ENT.isArmed = false
+    -- Whether the weapon has a gate targetted and is ready to fire
+    ENT.isActive = false
+    -- Whether the weapon is firing into a gate
+    ENT.isFiring = false
+    -- The stargate overloader is immune to EMP, as seen in the series
+    ENT.CDSEmp_Ignore = true
 
-if (StarGate==nil or StarGate.CheckModule==nil or not StarGate.CheckModule("entweapon")) then return end
+    -- Spawns a gate overloader for the given player
+    function ENT:SpawnFunction(ply, tr)
+        if (not tr.Hit) then return end
+        local PropLimit = GetConVar("CAP_asuran_beam_max"):GetInt()
 
-AddCSLuaFile()
+        if (ply:GetCount("CAP_asuran_beam") + 1 > PropLimit) then
+            ply:SendLua("GAMEMODE:AddNotify(\"Asuran Gate Weapon limit reached!\", NOTIFY_ERROR, 5); surface.PlaySound( \"buttons/button2.wav\" )")
 
--- Sound when firing begins
-local fireSoundPath = Sound("weapons/overloader_charge.wav")
--- Ambient sound while firing
-local beamSoundPath = Sound("weapons/asuran_beam.wav")
--- Sound when a valid target gate is detected and the overloader prepares to fire
-local startupSoundPath  = Sound("NPC_FloorTurret.Deploy")
--- Sound when the overloader shuts down (no longer able to fire)
-local shutdownSoundPath = Sound("NPC_FloorTurret.Retire")
+            return
+        end
 
--- Animation names
-local startupAnimName = "open"
-local shutdownAnimName = "close"
-local firingAnimName = "firing"
+        local ang = ply:GetAimVector():Angle()
+        ang.p = 0
+        ang.r = 0
+        ang.y = ang.y % 360
+        local ent = ents.Create("asuran_gate_weapon")
+        ent:SetAngles(ang)
+        ent:SetPos(tr.HitPos)
+        ent:Spawn()
+        ent:Activate()
+        ent.Owner = ply
+        local phys = ent:GetPhysicsObject()
 
--- A multiplier for the amount of energy needed to destroy a stargate.
--- i.e. energyNeeded = gate.capacity * energyMultiplier
-local energyMultiplier = 0
+        if IsValid(phys) then
+            phys:EnableMotion(false)
+        end
 
-local MAX_GATE_DISTANCE = 2000
-local MIN_ENERGY_USAGE = 200
-local MAX_ENERGY_USAGE = 2000
+        ply:AddCount("CAP_asuran_beam", ent)
 
--- The numbe of seconds between each Think() call
-ENT.cycleInterval = 0.25
+        return ent
+    end
 
--- The beam that is being fired
-ENT.beam = nil
--- The gate on the overloader's end of the wormhole
-ENT.localGate = nil
--- The gate on the other end of the wormhole
-ENT.remoteGate = nil
+    function ENT:PostEntityPaste(ply, Ent, CreatedEntities)
+        if (StarGate.NotSpawnable(Ent:GetClass(), ply)) then
+            self.Entity:Remove()
 
--- Whether the weapon should prepare to fire
-ENT.isArmed = false
--- Whether the weapon has a gate targetted and is ready to fire
-ENT.isActive = false
--- Whether the weapon is firing into a gate
-ENT.isFiring = false
+            return
+        end
 
--- The stargate overloader is immune to EMP, as seen in the series
-ENT.CDSEmp_Ignore = true
+        local PropLimit = GetConVar("CAP_asuran_beam_max"):GetInt()
 
--- Spawns a gate overloader for the given player
-function ENT:SpawnFunction( ply, tr )
-	if ( !tr.Hit ) then return end
+        if (IsValid(ply)) then
+            if (ply:GetCount("CAP_asuran_beam") + 1 > PropLimit) then
+                ply:SendLua("GAMEMODE:AddNotify(\"Asuran Gate Weapon limit reached!\", NOTIFY_ERROR, 5); surface.PlaySound( \"buttons/button2.wav\" )")
+                self.Entity:Remove()
 
-	local PropLimit = GetConVar("CAP_asuran_beam_max"):GetInt()
-	if(ply:GetCount("CAP_asuran_beam")+1 > PropLimit) then
-		ply:SendLua("GAMEMODE:AddNotify(SGLanguage.GetMessage(\"entity_limit_asuran_weap\"), NOTIFY_ERROR, 5); surface.PlaySound( \"buttons/button2.wav\" )");
-		return
-	end
+                return
+            end
 
-	local ang = ply:GetAimVector():Angle(); ang.p = 0; ang.r = 0; ang.y = ang.y % 360;
+            ply:AddCount("CAP_asuran_beam", self.Entity)
+        end
 
-	local ent = ents.Create("asuran_gate_weapon");
-	ent:SetAngles(ang);
-	ent:SetPos(tr.HitPos);
-	ent:Spawn();
-	ent:Activate();
-	ent.Owner = ply;
+        StarGate.WireRD.PostEntityPaste(self, ply, Ent, CreatedEntities)
+    end
 
-	local phys = ent:GetPhysicsObject()
-	if IsValid(phys) then phys:EnableMotion(false) end
+    -- Sets the gate overloader's model, physics, health, resources, wire inputs/outputs, etc.
+    function ENT:Initialize()
+        self.Entity:SetModel("models/Iziraider/gateweapon/gateweapon.mdl")
+        self.Entity:SetSolid(SOLID_VPHYSICS)
+        self.Entity:PhysicsInit(SOLID_VPHYSICS)
+        -- Round up energy requirement
+        self:SetEnergyUsage(1000)
+        -- Reset states (this sets them as networked variables)
+        self:SetIsActive(false)
+        self:SetIsFiring(false)
 
-	ply:AddCount("CAP_asuran_beam", ent)
-	return ent
-end
+        -- Set resources
+        if (self.HasRD) then
+            self:AddResource("energy", 1)
+        end
 
-function ENT:PostEntityPaste(ply, Ent, CreatedEntities)
-	if (StarGate.NotSpawnable(Ent:GetClass(),ply)) then self.Entity:Remove(); return end
-	local PropLimit = GetConVar("CAP_asuran_beam_max"):GetInt()
-	if (IsValid(ply)) then
-		if(ply:GetCount("CAP_asuran_beam")+1 > PropLimit) then
-			ply:SendLua("GAMEMODE:AddNotify(SGLanguage.GetMessage(\"entity_limit_asuran_weap\"), NOTIFY_ERROR, 5); surface.PlaySound( \"buttons/button2.wav\" )");
-			self.Entity:Remove();
-			return
-		end
-		ply:AddCount("CAP_asuran_beam", self.Entity)
-	end
-	StarGate.WireRD.PostEntityPaste(self,ply,Ent,CreatedEntities)
-end
+        -- Set up wire inputs and outputs
+        if (self.HasWire) then
+            self:CreateWireInputs("Fire","ATA Mode")
+            self:CreateWireOutputs("Active")
+        end
 
--- Sets the gate overloader's model, physics, health, resources, wire inputs/outputs, etc.
-function ENT:Initialize()
+        -- The time when the USE key was last pressed on this entity
+        self.lastUseTime = 0
+    end
 
-	self.Entity:SetModel("models/Iziraider/gateweapon/gateweapon.mdl")
-	self.Entity:SetSolid(SOLID_VPHYSICS)
-	self.Entity:PhysicsInit(SOLID_VPHYSICS)
+    -- Respond to a given wire input
+    function ENT:TriggerInput(iname,value)
+        if(iname == "Fire") then
+            if(value ~= 0) then
+                self:Arm()
+            else
+                self:Disarm()
+            end
+        elseif(iname == "ATA Mode") then
+            if(value > 0) then
+                self.ATAMode = true
+            else
+                self.ATAMode = false
+            end
+        end
+    end
 
-	-- Round up energy requirement
-	self:SetEnergyUsage(1000)
+    -- Toggle armed state when the USE key is pressed on the overloader
+    function ENT:Use(ply)
+        if(self.ATAMode == true and ply:GetNWInt("ATAGene",0) == 0) then return end
 
-	-- Reset states (this sets them as networked variables)
-	self:SetIsActive(false)
-	self:SetIsFiring(false)
+        if (self.lastUseTime + 3 >= CurTime()) then return end
 
-	-- Set resources
-	if(self.HasRD) then
-		self:AddResource("energy", 1)
-	end
+        if (self.isArmed == false) then
+            self:Arm()
+        else
+            self:Disarm()
+        end
 
-	 -- Set up wire inputs and outputs
-	if(self.HasWire) then
-		self:CreateWireInputs("Fire")
-		self:CreateWireOutputs("Active")
-	end
+        self.lastUseTime = CurTime()
+    end
 
-	-- The time when the USE key was last pressed on this entity
-	self.lastUseTime = 0;
-end
+    -- Sets the amount of energy the overloader should use per second
+    function ENT:SetEnergyUsage(energyUsage)
+        if (energyUsage < MIN_ENERGY_USAGE) then
+            energyUsage = MIN_ENERGY_USAGE
+        elseif (energyUsage > MAX_ENERGY_USAGE) then
+            energyUsage = MAX_ENERGY_USAGE
+        end
 
--- Respond to a given wire input
-function ENT:TriggerInput(inputName, inputValue)
-	if(inputName == "Fire") then
-		if(inputValue ~= 0) then
-			self:Arm()
-		else
-			self:Disarm()
-		end
-	end
-end
+        self.energyPerSecond = energyUsage
+        self.energyPerCycle = energyUsage * self.cycleInterval
+    end
 
--- Toggle armed state when the USE key is pressed on the overloader
-function ENT:Use()
-	if(self.lastUseTime + 3 >= CurTime()) then
-		return
-	end
+    -- Returns a valid target stargate (nearby and in front of the overloader)
+    function ENT:FindTarget()
+        for _, gate in pairs(ents.FindByClass("stargate_*")) do
+            if (gate:GetClass() == "stargate_orlin") then return end
+            local gateDistance = self.Entity:GetPos():Distance(gate:GetPos())
+            if (gateDistance < MAX_GATE_DISTANCE and self:IsAimedAtGate(gate)) then return gate end
+        end
 
-	if(self.isArmed == false) then
-		self:Arm()
-	else
-		self:Disarm()
-	end
+        return nil
+    end
 
-	self.lastUseTime = CurTime()
-end
+    -- Returns whether there is Line-Of-Sight between the overloader's emitter and the given entity
+    function ENT:IsAimedAtGate(gate)
+        if (gate == nil or gate:IsValid() == false) then return false end
+        local gateCentre = StarGate.GetEntityCentre(gate)
+        local emitterPos = self:GetEmitterPos()
+        local gateDirection = gateCentre - emitterPos
+        local emitterDirection = emitterPos - gateCentre
+        local angleToGate = gateDirection:GetNormal():Dot(self.Entity:GetAngles():Forward())
+        local angleFromGate = emitterDirection:GetNormal():Dot(gate:GetAngles():Forward())
+        -- If the cannon is not facing almost directly at the gate, return false
+        if (angleToGate < 0.98 or angleFromGate < 0.98) then return false end
+        local vector = (gateCentre - emitterPos) * 1.1
 
--- Sets the amount of energy the overloader should use per second
-function ENT:SetEnergyUsage(energyUsage)
-	if(energyUsage < MIN_ENERGY_USAGE) then
-		energyUsage = MIN_ENERGY_USAGE
-	elseif(energyUsage > MAX_ENERGY_USAGE) then
-		energyUsage = MAX_ENERGY_USAGE
-	end
+        local ignorableEntities = {self.Entity}
 
-	self.energyPerSecond = energyUsage
-	self.energyPerCycle = energyUsage * self.cycleInterval
-end
+        self.trace = StarGate.Trace:New(emitterPos, vector, ignorableEntities)
+        local traceEnt = self.trace.Entity
+        -- If we had LOS on a gate, but now are hitting a player/NPC, return true so the overloader doesn't shut off
+        -- (the player/NPC will be disintegrated shortly and LOS should be restored)
+        if (IsValid(self.localGate) and IsValid(traceEnt) and (traceEnt:IsPlayer() or traceEnt:IsNPC())) then return true end
+        local hasTraceHitGate = IsValid(traceEnt) and (traceEnt == gate or traceEnt == gate.EventHorizon)
 
--- Returns a valid target stargate (nearby and in front of the overloader)
-function ENT:FindTarget()
-	for _, gate in pairs(ents.FindByClass("stargate_*")) do
-		if (gate:GetClass() == "stargate_orlin") then return end
-		local gateDistance = self.Entity:GetPos():Distance(gate:GetPos())
+        return hasTraceHitGate
+    end
 
-		if(gateDistance < MAX_GATE_DISTANCE && self:IsAimedAtGate(gate)) then
-			return gate
-		end
-	end
+    -- Returns whether the overloader is upright
+    function ENT:IsUpright()
+        return self.Entity:GetAngles():Up():Dot(Vector(0, 0, 1)) > 0.8
+    end
 
-	return nil
-end
+    -- Returns whether the given gate is a valid target
+    function ENT:IsGateValidTarget(gate)
+        if (gate ~= nil and gate:IsValid() and self:IsAimedAtGate(gate)) then
+            return true
+        else
+            return false
+        end
+    end
 
--- Returns whether there is Line-Of-Sight between the overloader's emitter and the given entity
-function ENT:IsAimedAtGate(gate)
-	if(gate == nil || gate:IsValid() == false) then
-		return false
-	end
+    function ENT:SetLocalGate(gate)
+        self.localGate = gate
+        self.Entity:SetNetworkedEntity("localGate", gate)
+    end
 
-	local gateCentre = StarGate.GetEntityCentre(gate)
-	local emitterPos = self:GetEmitterPos()
+    -- Clears the current target and shuts down the overloader
+    function ENT:ClearTarget()
+        self:Shutdown()
+        self:SetLocalGate(nil)
+    end
 
-	local gateDirection = gateCentre - emitterPos
-	local emitterDirection = emitterPos - gateCentre
+    function ENT:UpdateTransmitState()
+        if (self.isFiring) then
+            return TRANSMIT_ALWAYS
+        else
+            return TRANSMIT_PVS
+        end
+    end
 
-	local angleToGate = gateDirection:GetNormal():Dot(self.Entity:GetAngles():Forward())
-	local angleFromGate = emitterDirection:GetNormal():Dot(gate:GetAngles():Forward())
+    -- Handles state transitions and cools down all stargates
+    function ENT:Think()
+        if (self.localGate and self:IsGateValidTarget(self.localGate) == false) then
+            self:ClearTarget()
+        end
 
-	-- If the cannon is not facing almost directly at the gate, return false
-	if(angleToGate < 0.98 || angleFromGate < 0.98) then
-		return false
-	end
+        if (self.isArmed) then
+            if (self:IsUpright()) then
+                if (self.isActive) then
+                    self:FireBeam()
+                else
+                    self.localGate = self:FindTarget()
 
-	local vector = (gateCentre - emitterPos) * 1.1
-	local ignorableEntities = { self.Entity }
-	self.trace = StarGate.Trace:New(emitterPos,
-											  vector,
-											  ignorableEntities)
+                    if (self.localGate) then
+                        self:Startup()
+                    end
+                end
+            else
+                self:Shutdown()
+            end
+        end
 
-	local traceEnt = self.trace.Entity
+        if (self.HasRD and self.isActive) then
+            local energyAvailable = self:GetResource("energy")
+            self:ConsumeResource("energy", self.energyPerCycle * 100)
 
-	-- If we had LOS on a gate, but now are hitting a player/NPC, return true so the overloader doesn't shut off
-	-- (the player/NPC will be disintegrated shortly and LOS should be restored)
-	if(IsValid(self.localGate) &&
-		IsValid(traceEnt) && (traceEnt:IsPlayer() || traceEnt:IsNPC())) then
+            -- If there isn't enough energy left to power the beam for another second, stop firing
+            if (energyAvailable < self.energyPerSecond) then
+                self:StopFiring()
 
-		return true
-	end
+                return false
+            end
+        end
 
-	local hasTraceHitGate = IsValid(traceEnt) &&
-									(traceEnt == gate ||
-									 traceEnt == gate.EventHorizon)
+        self.Entity:NextThink(CurTime() + self.cycleInterval)
 
-	return hasTraceHitGate
-end
+        return true
+    end
 
--- Returns whether the overloader is upright
-function ENT:IsUpright()
-	return self.Entity:GetAngles():Up():Dot(Vector(0,0,1)) > 0.8
-end
+    -- Prepares the overloader to fire
+    -- Returns: Whether startup was successful
+    function ENT:Startup()
+        if (self.isArmed == false) then
+            return false
+        elseif (self.isActive == true) then
+            return true
+        end
 
--- Returns whether the given gate is a valid target
-function ENT:IsGateValidTarget(gate)
-	if(gate ~= nil && gate:IsValid() && self:IsAimedAtGate(gate)) then
-		return true
-	else
-		return false
-	end
-end
+        local readyAnimation = self.Entity:LookupSequence(startupAnimName)
 
-function ENT:SetLocalGate(gate)
-	self.localGate = gate
-	self.Entity:SetNetworkedEntity("localGate", gate)
-end
+        if (readyAnimation ~= -1) then
+            self.Entity:ResetSequence(readyAnimation)
+        end
 
--- Clears the current target and shuts down the overloader
-function ENT:ClearTarget()
-	self:Shutdown()
-
-	self:SetLocalGate(nil)
-end
-
-function ENT:UpdateTransmitState()
-	if (self.isFiring) then
-		return TRANSMIT_ALWAYS;
-	else
-		return TRANSMIT_PVS;
-	end
-end
-
--- Handles state transitions and cools down all stargates
-function ENT:Think()
-	if(self.localGate && self:IsGateValidTarget(self.localGate) == false) then
-		self:ClearTarget()
-	end
-
-	if(self.isArmed) then
-		if(self:IsUpright()) then
-			if(self.isActive) then
-				self:FireBeam()
-			else
-				self.localGate = self:FindTarget()
-
-				if(self.localGate) then
-					self:Startup()
-				end
-			end
-		else
-			self:Shutdown()
-		end
-	end
-
-   if(self.HasRD and self.isActive) then
-      local energyAvailable = self:GetResource("energy")
-      self:ConsumeResource("energy", self.energyPerCycle*100)
-      -- If there isn't enough energy left to power the beam for another second, stop firing
-      if(energyAvailable < self.energyPerSecond) then
-         self:StopFiring()
-         return false
-      end
-   end
-
-	self.Entity:NextThink(CurTime() + self.cycleInterval)
-	return true
-end
-
-
--- Prepares the overloader to fire
--- Returns: Whether startup was successful
-function ENT:Startup()
-	if(self.isArmed == false) then
-		return false
-	elseif(self.isActive == true) then
-		return true
-	end
-
-	local readyAnimation = self.Entity:LookupSequence(startupAnimName)
-
-	if(readyAnimation ~= -1) then
-		self.Entity:ResetSequence(readyAnimation)
-	end
-
-	self.Entity:EmitSound(startupSoundPath, 80, 100)
-
-	self:SetLocalGate(self.localGate) -- Sets the local gate as a networked entity
-       /*
+        self.Entity:EmitSound(startupSoundPath, 80, 100)
+        self:SetLocalGate(self.localGate) -- Sets the local gate as a networked entity
+        --[[
 	if(self.HasRD) then
 		-- Allow the overloader to store the energy it needs for one second of fire
 		self:AddResource("energy", self.energyPerSecond)
-	end */
+	end ]]
+        self:SetIsActive(true)
 
-	self:SetIsActive(true)
+        return true
+    end
 
-	return true
-end
-
--- Returns: whether the overloader could be shutdown
-function ENT:Shutdown()
-	if(self.isActive == false) then
-		return true
-	end
-
-	self:StopFiring()
-              /*
+    -- Returns: whether the overloader could be shutdown
+    function ENT:Shutdown()
+        if (self.isActive == false) then return true end
+        self:StopFiring()
+        --[[
 	if(self.HasRD) then
 		-- Remove energy storage while the device is not active
 		self:AddResource("energy", 1)
-	end         */
+	end         ]]
+        self.Entity:EmitSound(shutdownSoundPath, 100, 100)
+        local idleAnimation = self.Entity:LookupSequence(shutdownAnimName)
 
-	self.Entity:EmitSound(shutdownSoundPath, 100, 100)
+        if (idleAnimation ~= -1) then
+            self.Entity:SetSequence(idleAnimation)
+        end
 
-	local idleAnimation = self.Entity:LookupSequence(shutdownAnimName)
+        self:SetIsActive(false)
+        self:UpdateWireOutputs()
 
-	if(idleAnimation ~= -1) then
-		self.Entity:SetSequence(idleAnimation)
-	end
+        return true
+    end
 
-	self:SetIsActive(false)
-	self:UpdateWireOutputs()
+    -- Allows the overloader to acquire a target gate and fire when ready
+    -- Returns: whether the overloader could be armed
+    function ENT:Arm()
+        self.isArmed = true
 
-	return true
-end
+        return true
+    end
 
--- Allows the overloader to acquire a target gate and fire when ready
--- Returns: whether the overloader could be armed
-function ENT:Arm()
-	self.isArmed = true
+    -- Shuts down the overloader and prevents it from firing or acquiring a new target
+    -- Returns: whether the overloader could be disarmed
+    function ENT:Disarm()
+        if (self.isArmed == false) then return true end
+        self:Shutdown()
+        self.isArmed = false
+        self:UpdateWireOutputs()
 
-	return true
-end
+        return true
+    end
 
--- Shuts down the overloader and prevents it from firing or acquiring a new target
--- Returns: whether the overloader could be disarmed
-function ENT:Disarm()
-	if(self.isArmed == false) then
-		return true
-	end
+    -- Fires the beam
+    -- Returns: whether firing succeeded
+    function ENT:FireBeam()
+        if (self.isArmed == false or self.isActive == false or self:IsGateValidTarget(self.localGate) == false or StarGate.IsStargateOpen(self.localGate) == false or StarGate.GetRemoteStargate(self.localGate) == nil) then
+            self:StopFiring()
 
-	self:Shutdown()
-	self.isArmed = false
-	self:UpdateWireOutputs()
+            return false
+        elseif (StarGate.IsIrisClosed(self.localGate)) then
+            self:StopFiring()
 
-	return true
-end
+            return false
+        elseif (StarGate.IsStargateOutbound(self.localGate) == false) then
+            self:StopFiring()
 
--- Fires the beam
--- Returns: whether firing succeeded
-function ENT:FireBeam()
-	if(self.isArmed == false || self.isActive == false ||
-		self:IsGateValidTarget(self.localGate) == false ||
-		StarGate.IsStargateOpen(self.localGate) == false ||
-		StarGate.GetRemoteStargate(self.localGate) == nil) then
-		self:StopFiring()
-		return false
-	elseif(StarGate.IsIrisClosed(self.localGate)) then
-		self:StopFiring()
-		return false
-	elseif(StarGate.IsStargateOutbound(self.localGate) == false) then
-		self:StopFiring()
-		return false
-	end
+            return false
+        end
 
-	if(self.HasRD) then
-		local energyAvailable = self:GetResource("energy")
+        if (self.HasRD) then
+            local energyAvailable = self:GetResource("energy")
 
-		-- If there isn't enough energy left to power the beam for another second, stop firing
-		if(energyAvailable < self.energyPerSecond) then
-			self:StopFiring()
-			return false
-		end
-	end
+            -- If there isn't enough energy left to power the beam for another second, stop firing
+            if (energyAvailable < self.energyPerSecond) then
+                self:StopFiring()
 
-	self.remoteGate = StarGate.GetRemoteStargate(self.localGate)
+                return false
+            end
+        end
 
-	if(self.remoteGate == nil || self.remoteGate:IsValid() == false) then
-		self:StopFiring()
-		return false
-	end
+        self.remoteGate = StarGate.GetRemoteStargate(self.localGate)
 
-	-- If this is the starting shot
-	if(self.isFiring == false) then
-		self:StartFiring()
-	end
+        if (self.remoteGate == nil or self.remoteGate:IsValid() == false) then
+            self:StopFiring()
 
-	if(self.beamSound) then
-		self.beamSound:Play()
-	end
+            return false
+        end
 
-	-- Make sure any DHDs near the gate are jammed
-	-- Do this constantly while firing to prevent players spawning a DHD in order to shut down the gate
-	for _, dhd in pairs(self.remoteGate:FindDHD()) do
-		StarGate.JamDHD(dhd, self.cycleInterval * 2)
-	end
+        -- If this is the starting shot
+        if (self.isFiring == false) then
+            self:StartFiring()
+        end
 
-	self:SetIsFiring(true)
-	self:UpdateWireOutputs()
+        if (self.beamSound) then
+            self.beamSound:Play()
+        end
 
-	if(self.beam == nil) then
-		self.beam = self:CreateBeam()
-	end
+        -- Make sure any DHDs near the gate are jammed
+        -- Do this constantly while firing to prevent players spawning a DHD in order to shut down the gate
+        for _, dhd in pairs(self.remoteGate:FindDHD()) do
+            StarGate.JamDHD(dhd, self.cycleInterval * 2)
+        end
 
-	return true
-end
+        self:SetIsFiring(true)
+        self:UpdateWireOutputs()
 
-function ENT:StartFiring()
-	self.lastUseTime = CurTime()
+        if (self.beam == nil) then
+            self.beam = self:CreateBeam()
+        end
 
-	self.Entity:EmitSound(fireSoundPath, 100, 100)
+        return true
+    end
 
-	local firingAnimation = self.Entity:LookupSequence(firingAnimName)
+    function ENT:StartFiring()
+        self.lastUseTime = CurTime()
+        self.Entity:EmitSound(fireSoundPath, 100, 100)
+        local firingAnimation = self.Entity:LookupSequence(firingAnimName)
 
-	if(firingAnimation ~= -1) then
-		self.Entity:SetSequence(firingAnimation)
-	end
+        if (firingAnimation ~= -1) then
+            self.Entity:SetSequence(firingAnimation)
+        end
 
-	StarGate.JamRemoteGate(self.remoteGate)
-    /*
+        StarGate.JamRemoteGate(self.remoteGate)
+        --[[
 	if(StarGate.GetStargateEnergyCapacity(self.remoteGate) == nil) then
 		StarGate.SetStargateEnergyCapacity(self.remoteGate, StarGate.STARGATE_DEFAULT_ENERGY_CAPACITY)
 	end
@@ -523,147 +493,135 @@ function ENT:StartFiring()
 													  energyMultiplier
 	end
 
-	self.Entity:SetNetworkedEntity("remoteGate", self.remoteGate)  */
-	self.remoteGate.asuranweapon = self.Entity
-end
+	self.Entity:SetNetworkedEntity("remoteGate", self.remoteGate)  ]]
+        self.remoteGate.asuranweapon = self.Entity
+    end
 
-function ENT:SetIsActive(isActive)
-	self.isActive = util.tobool(isActive)
-	self.Entity:SetNetworkedBool("isActive", self.isActive)
-end
+    function ENT:SetIsActive(isActive)
+        self.isActive = util.tobool(isActive)
+        self.Entity:SetNWBool("isActive", self.isActive)
+    end
 
-function ENT:SetIsFiring(isFiring)
-	self.isFiring = util.tobool(isFiring)
-	self.Entity:SetNetworkedBool("isFiring", self.isFiring)
-end
+    function ENT:SetIsFiring(isFiring)
+        self.isFiring = util.tobool(isFiring)
+        self.Entity:SetNWBool("isFiring", self.isFiring)
+    end
 
-function ENT:CreateBeam()
+    function ENT:CreateBeam()
+        local gateMarker = StarGate.GetGateMarker(self.localGate)
+        local beam = ents.Create("env_laser")
+        beam:SetPos(self:GetEmitterPos() + self.Entity:GetForward() * 10)
+        beam:SetAngles(self.Entity:GetAngles())
+        beam:SetOwner(self.Entity:GetOwner())
+        beam:SetVar("Owner", self.Entity:GetVar("Owner", nil))
+        beam:SetKeyValue("texture", "cable/crystal_beam1.vmt")
+        beam:SetKeyValue("LaserTarget", gateMarker:GetName())
+        beam:SetKeyValue("renderamt", "0")
+        beam:SetKeyValue("rendermode", "1")
+        beam:SetKeyValue("rendercolor", "255 50 50")
+        beam:SetKeyValue("TextureScroll", "20")
+        beam:SetKeyValue("width", "30")
+        beam:SetKeyValue("damage", self.energyPerCycle)
+        beam:SetKeyValue("dissolvetype", "0")
+        beam:Spawn()
+        beam:SetParent(self.Entity)
+        beam:Fire("TurnOn", 1)
+        self.Entity:SetNetworkedEntity("SmallBeam", beam)
 
-	local gateMarker = StarGate.GetGateMarker(self.localGate)
+        -- Spawn the beam after the effect finishes
+        timer.Simple(1.5, function()
+            if (self.remoteGate == nil) then return end
+            local inBeamInfo = EffectData()
+            inBeamInfo:SetEntity(self.Entity)
+            util.Effect("GateWeapon_beams", inBeamInfo, true, true)
+            local energyBeam = ents.Create("energy_laser")
+            energyBeam.Owner = self.Entity
+            energyBeam:SetPos(self.remoteGate.EventHorizon:GetPos())
+            energyBeam:Spawn()
+            energyBeam:Activate()
+            energyBeam:SetOwner(self.Entity)
+            energyBeam:Setup(self.remoteGate.EventHorizon, "GateWep")
+            self.Outgoingbeam = energyBeam
+        end)
 
-	local beam = ents.Create("env_laser")
-	beam:SetPos(self:GetEmitterPos() + self.Entity:GetForward()*10)
-	beam:SetAngles(self.Entity:GetAngles())
-	beam:SetOwner(self.Entity:GetOwner())
-	beam:SetVar("Owner", self.Entity:GetVar("Owner", nil))
-	beam:SetKeyValue("texture", "cable/crystal_beam1.vmt")
-	beam:SetKeyValue("LaserTarget", gateMarker:GetName())
-	beam:SetKeyValue("renderamt", "0")
-	beam:SetKeyValue("rendermode","1")
-	beam:SetKeyValue("rendercolor", "255 50 50")
-	beam:SetKeyValue("TextureScroll", "20")
-	beam:SetKeyValue("width", "30")
-	beam:SetKeyValue("damage", self.energyPerCycle)
-	beam:SetKeyValue("dissolvetype", "0")
+        -- energyBeam.SoundPaths["active"] = Sound("weapons/asuran_beam.wav")
+        self.Entity:SetNetworkedEntity("outBeam", energyBeam)
+        beam.sound = CreateSound(self.Entity, beamSoundPath)
 
-	beam:Spawn()
-	beam:SetParent(self.Entity)
-	beam:Fire("TurnOn", 1)
-	 self.Entity:SetNetworkedEntity("SmallBeam", beam);
+        if (beam.sound) then
+            beam.sound:Play()
+        end
 
-		timer.Simple(1.5, function() -- Spawn the beam after the effect finishes
-		  if(self.remoteGate == nil) then
-			 return
-		  end
+        return beam
+    end
 
-		local inBeamInfo = EffectData()
-			inBeamInfo:SetEntity(self.Entity)
-		util.Effect("GateWeapon_beams", inBeamInfo,true,true)
+    function ENT:DestroyBeam(beam)
+        if (beam.sound) then
+            beam.sound:Stop()
+            beam.sound = nil
+        end
 
-		local energyBeam = ents.Create("energy_laser");
-		energyBeam.Owner = self.Entity;
-		energyBeam:SetPos(self.remoteGate.EventHorizon:GetPos());
-		energyBeam:Spawn();
-		energyBeam:Activate();
-		energyBeam:SetOwner(self.Entity);
-		energyBeam:Setup(self.remoteGate.EventHorizon, "GateWep");
+        beam:Remove()
 
-		self.Outgoingbeam = energyBeam
+        if IsValid(self.Outgoingbeam) then
+            self.Outgoingbeam:Remove()
+        end
+    end
 
-		-- energyBeam.SoundPaths["active"] = Sound("weapons/asuran_beam.wav")
+    -- Stops the overloader firing
+    -- Returns: whether it was possible to stop firing
+    function ENT:StopFiring()
+        if (self.isFiring == false) then return false end
 
-		end)
+        if (self.beam and self.beam:IsValid()) then
+            self:DestroyBeam(self.beam)
+            self.beam = nil
+        end
 
-	self.Entity:SetNetworkedEntity("outBeam", energyBeam)
+        -- Attempt to un-jam gates individually incase one of them has been destroyed
+        if (self.remoteGate and self.remoteGate:IsValid()) then
+            StarGate.UnJamGate(self.remoteGate)
+            self.remoteGate:DeactivateStargate(true)
+            self.remoteGate.asuranweapon = nil
+        end
 
-	beam.sound = CreateSound(self.Entity, beamSoundPath);
+        self.remoteGate = nil
 
-	if(beam.sound) then
-		beam.sound:Play()
-	end
+        if (self.localGate and self.localGate:IsValid()) then
+            StarGate.UnJamGate(self.localGate)
+            self.localGate:DeactivateStargate(true)
+        else
+            self.localGate = nil
+        end
 
-	return beam
-end
+        self:SetIsFiring(false)
 
-function ENT:DestroyBeam(beam)
-	if(beam.sound) then
-		beam.sound:Stop()
-		beam.sound = nil
-	end
+        return true
+    end
 
-	beam:Remove()
-	if IsValid(self.Outgoingbeam)  then self.Outgoingbeam:Remove() end
-end
+    -- Updates all wire output values
+    function ENT:UpdateWireOutputs()
+        if (not self.HasWire) then return end
 
--- Stops the overloader firing
--- Returns: whether it was possible to stop firing
-function ENT:StopFiring()
-	if(self.isFiring == false) then
-		return false
-	end
+        if (self.isFiring) then
+            self:SetWire("Active", 1)
+        else
+            self:SetWire("Active", 0)
+        end
+    end
 
-	if(self.beam && self.beam:IsValid()) then
-		self:DestroyBeam(self.beam)
-		self.beam = nil
-	end
+    function ENT:OnRemove()
+        self:Disarm()
+        self:StopFiring()
 
-	-- Attempt to un-jam gates individually incase one of them has been destroyed
+        if (self.beamSound) then
+            self.beamSound:Stop()
+        end
 
-	if(self.remoteGate && self.remoteGate:IsValid()) then
-		StarGate.UnJamGate(self.remoteGate)
-		self.remoteGate:DeactivateStargate(true)
-		self.remoteGate.asuranweapon = nil
-	end
+        StarGate.WireRD.OnRemove(self)
+    end
 
-	self.remoteGate = nil
-
-	if(self.localGate && self.localGate:IsValid()) then
-		StarGate.UnJamGate(self.localGate)
-		self.localGate:DeactivateStargate(true)
-	else
-		self.localGate = nil
-	end
-
-	self:SetIsFiring(false)
-
-	return true
-end
-
--- Updates all wire output values
-function ENT:UpdateWireOutputs()
-   if(!self.HasWire) then
-      return
-   end
-
-   if(self.isFiring) then
-      self:SetWire("Active", 1)
-   else
-      self:SetWire("Active", 0)
-   end
-end
-
-function ENT:OnRemove()
-	self:Disarm();
-	self:StopFiring();
-	if(self.beamSound) then
-      self.beamSound:Stop()
-   end
-
-	StarGate.WireRD.OnRemove(self);
-end
-
-if (StarGate and StarGate.CAP_GmodDuplicator) then
-	duplicator.RegisterEntityClass( "asuran_gate_weapon", StarGate.CAP_GmodDuplicator, "Data" )
-end
-
+    if (StarGate and StarGate.CAP_GmodDuplicator) then
+        duplicator.RegisterEntityClass("asuran_gate_weapon", StarGate.CAP_GmodDuplicator, "Data")
+    end
 end

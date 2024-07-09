@@ -74,7 +74,7 @@ end
 
 --################# Set a gate group by AlexALX
 function ENT:SetGateGroup(s)
-	if(s and (s:len() == 2 or s:len() == 3 and self.Entity:GetClass() == "stargate_universe")) then
+	if(s and (s:len() == 2 or s:len() == 3 and self.IsUniverseGate)) then
 		LocalPlayer():ConCommand("_StarGate.SetValue "..self.Entity:EntIndex().." Group \""..s.."\"");
 	end
 end
@@ -122,7 +122,7 @@ end
 
 --################# Is the stargate blocked? by AlexALX
 function ENT:GetBlocked()
-	if (self:GetNetworkedInt("SG_BLOCK_ADDRESS")<=0 or self:GetNetworkedInt("SG_BLOCK_ADDRESS")==1 and self:GetClass()!="stargate_universe") then return false; end
+	if (self:GetNetworkedInt("SG_BLOCK_ADDRESS")<=0 or self:GetNetworkedInt("SG_BLOCK_ADDRESS")==1 and not self.IsUniverseGate) then return false; end
 	return self:GetNWBool("Blocked",false);
 end
 
@@ -233,12 +233,12 @@ hook.Add("HUDPaint","StarGate.Hook.HUDPaint.ShowAddressAndGroupAndName",
 							local name = e:GetGateName();
 							if(name == "") then name = "N/A" end;
 							local message = SGLanguage.GetMessage("stargate_address")..": "..address.." - "..SGLanguage.GetMessage("stargate_group")..": "..group.." - "..SGLanguage.GetMessage("stargate_name")..": "..name;
-							if (e:GetClass()=="stargate_universe") then
+							if (e.IsUniverseGate) then
 								message = SGLanguage.GetMessage("stargate_address")..": "..address.." - "..SGLanguage.GetMessage("stargate_type")..": "..group.." - "..SGLanguage.GetMessage("stargate_name")..": "..name;
 							end
 							draw.WordBox(8,40,ScrH()/2,message,"Default",Color(50,50,75,100),color);
 						end
-					elseif(e.IsGroupStargate and e:GetClass()!="stargate_universe") then
+					elseif(e.IsGroupStargate and not e.IsUniverseGate) then
 						local address = e:GetGateAddress();
 						if(address ~= "") then
 							local name = e:GetGateName();
@@ -297,7 +297,7 @@ end
 
 --################# Find's special DHD's which may power this gate @Mad
 function ENT:FindPowerDHD()
-	if (IsValid(self:GetNWEntity("LockedDHD")) and (not self:GetNWEntity("LockedDHD"):GetNWBool("Destroyed",false) or util.tobool(self.Entity:GetNetworkedInt("SG_ENERGY_DHD_K")))) then return {self:GetNWEntity("LockedDHD")} end
+	if (IsValid(self:GetNWEntity("LockedDHD")) and ( not self:GetClass()=="dhd_city") and (not self:GetNWEntity("LockedDHD"):GetNWBool("Destroyed",false) or util.tobool(self.Entity:GetNetworkedInt("SG_ENERGY_DHD_K")))) then return {self:GetNWEntity("LockedDHD")} end
 	if (IsValid(self:GetNWEntity("LockedMDHD"))) then return {self:GetNWEntity("LockedMDHD")} end
 	if (IsValid(self:GetNWEntity("LockedDestC"))) then return {self:GetNWEntity("LockedDestC")} end
 	local pos = self.Entity:GetPos();
@@ -311,7 +311,7 @@ function ENT:FindPowerDHD()
 	table.Add(posibble_dhd, self:FindDHD());
 
 	-- ramp energy for sgu
-	if(self.Entity:GetClass() == "stargate_universe")then
+	if(self.IsUniverseGate)then
 	    for _,v in pairs(ents.FindInSphere(self.Entity:GetPos(),100)) do
             if(IsValid(v) and not v:GetClass():find("stargate_"))then
    	            if(StarGate.RampOffset.Gates[v:GetModel()])then

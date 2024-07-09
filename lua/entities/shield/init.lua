@@ -24,7 +24,12 @@ AddCSLuaFile("modules/bullets.lua");
 include("shared.lua");
 include("modules/bullets.lua");
 
-ENT.Sounds = {Hit=Sound("shields/shield_hit.mp3")};
+ENT.Sounds = {
+	Hit=Sound("shields/shield_hit.mp3"),
+	Hit2=Sound("shields/personal_impact.wav"),
+	Hit3=Sound("weapons/underwater_explode4.wav"),
+	Hit4=Sound("shields/shield_new_impact.wav")
+};
 ENT.NotTeleportable = true;
 ENT.NoDissolve = true;
 ENT.CAP_NotSave = true;
@@ -65,7 +70,7 @@ function ENT:Initialize()
 	self.AntiNoclip = false;
 
 	self.TraceSize = Vector(self.Size, self.Size, self.Size);
-	self.Entity:SetNetworkedVector("TraceSize",self.TraceSize);
+	self.Entity:SetNWVector("TraceSize",self.TraceSize);
 
 	-- Imunity to the owner?
 	if(self.Parent.ImmuneOwner) then
@@ -212,12 +217,16 @@ function ENT:StartTouch(e)
 		end
 	end
 	-- This starts the effect on players who own the shield, but won't reflect them
+	if (e:GetClass()=="ascend_ball") then
+		self.Parent.Strength = -1
+	end
 	if(self.Parent.Containment and self.AllowContainment) then
 		self.nocollide[e] = true;
 	end
 	if(self.nocollide[e]) then
 		e.CDSIgnore = true; -- Make it immuned to damage by CDS!
 	end
+
 	if(self.Parent.ImmuneOwner and e == self.Parent.Owner) then
 		self:HitEffect(e,e:LocalToWorld(e:OBBCenter()),5);
 	elseif(self.Parent.PassingDraw and (self.nocollide[e] or (self.Parent.Containment and self.AllowContainment))) then
@@ -226,7 +235,7 @@ function ENT:StartTouch(e)
 			if(self.HasHitShield[e]) then return end;
 			self.HasHitShield[e] = true;
 			-- When something is allowed to pass the shield, shall the effect be drawn?
-			self:HitEffect(e,e:LocalToWorld(e:OBBCenter()),5);
+			self:HitEffect(e,e:LocalToWorld(e:OBBCenter()),5,true);
 		end
 	end
 end
@@ -254,7 +263,7 @@ function ENT:EndTouch(e)
 				if(self.Parent.Containment and self.AllowContainment) then
 					self:Touch(e,true);
 				elseif(self.Parent.PassingDraw) then
-					self:HitEffect(e,e:LocalToWorld(e:OBBCenter()),5);
+					self:HitEffect(e,e:LocalToWorld(e:OBBCenter()),5,true);
 				end
 			end
 		end
@@ -324,7 +333,6 @@ function ENT:Touch(e,override)
 	else
 		-- Make the shield not touching anything anymore when enegry = 0
 		if(not self.Parent.Depleted) then
-			--self.Parent:SetOverlayText("Shield (Depleted)\nSize: "..self.Size);
 			self:DrawBubbleEffect(true); -- Set turnoff effect
 			self.Parent:EmitSound(self.Parent.Sounds.Disengage,90,math.random(90,110));
 			self.Parent.Depleted = true;
@@ -412,7 +420,7 @@ function ENT:Reflect(e,do_not_draw_hit)
 end
 
 --################# Draws an hiteffect, drains energy and makes the baseprop "wobbly" @aVoN
-function ENT:HitShield(e,pos,phys,class,normal,fireFrequency)
+function ENT:HitShield(e,pos,phys,class,normal,fireFrequency,softsound)
 	-- Zapping
 	local fx = EffectData();
 	fx:SetStart(e:GetPos());
@@ -428,8 +436,15 @@ function ENT:HitShield(e,pos,phys,class,normal,fireFrequency)
 		if(phys and phys:IsValid()) then
 			strength = math.ceil(phys:GetMass()*e:GetVelocity():Length()/20000);
 		end
+
+		if (e:GetClass()=="dakara_wave") then
+			
+			strength = 1
+
+		end
+
 		-- Draw the hiteffect- But in that function.
-		self:HitEffect(e,pos,strength);
+		self:HitEffect(e,pos,strength,softsound);
 		-- Drain energy
 		if(not (e:IsNPC() or e:IsPlayer() or class=="rpg_missile")) then
 			self.Parent:Hit(strength,normal,pos,fireFrequency or 0);
@@ -438,12 +453,22 @@ function ENT:HitShield(e,pos,phys,class,normal,fireFrequency)
 end
 
 --################# Draw the Hit Effect @aVoN
-function ENT:HitEffect(e,pos,strength)
+function ENT:HitEffect(e,pos,strength,softsound)
+	if (e:GetClass()=="dakara_wave") then
+		strength = 20
+	end
 	-- Hit sound
 	local time = CurTime();
 	if((self.NextSound or 0) < time) then
-		sound.Play(self.Sounds.Hit,pos,math.random(70,100),math.random(90,110));
-		self.NextSound = time +math.random(2,3)/10;
+		if (softsound)then
+			sound.Play(self.Sounds.Hit2,pos,math.random(70,100),math.random(90,110));
+			self.NextSound = time +math.random(2,9)/10;
+		else
+			local pitch = math.random(90,110)
+			sound.Play(self.Sounds.Hit4,pos,380,pitch,1);
+			sound.Play(self.Sounds.Hit4,pos,380,pitch,1);
+			self.NextSound = time +math.random(1,2)/10;
+		end
 	end
 	-- Draw the hiteffect- But in that function.
 	local shield = self.Entity;
@@ -452,7 +477,7 @@ function ENT:HitEffect(e,pos,strength)
 			local fx = EffectData();
 			fx:SetOrigin(pos);
 			fx:SetEntity(shield);
-			fx:SetScale(strength or 0);
+			fx:SetScale(strength);
 			util.Effect("shield_hit",fx,true,true);
 			shield:DrawBubbleEffect(_,true);
 		end
@@ -525,7 +550,6 @@ function ENT:Hit(e,pos,dmg,normal,fireFrequency)
 			end
 			return true;
 		else
-			self.Parent:SetOverlayText("Shield (Depleted)\nSize: "..self.Size);
 			self:DrawBubbleEffect(true); -- Set close effect (we are depleted!
 			self.Parent:EmitSound(self.Parent.Sounds.Disengage,90,math.random(90,110));
 			self.Parent.Depleted = true;

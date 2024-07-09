@@ -25,7 +25,7 @@ ENT.AdminSpawnable = false;
 ENT.IsDHD = true;
 ENT.IsGroupDHD = true;
 
--- The directionvectors, relativly from the EntPos to to the chevrons pos - The numbers and chars behind it will aquire a human readable adress like 1B3D5F-Chevron7 - Chevron7 will always be "Â", because the gmod10 servers are on earth :D
+-- The directionvectors, relativly from the EntPos to to the chevrons pos - The numbers and chars behind it will aquire a human readable adress like 1B3D5F-Chevron7 - Chevron7 will always be "ï¿½", because the gmod10 servers are on earth :D
 ENT.ChevronPositionsGroup = {
 	-- Inner Ring
 	[0] = Vector(-5.9916, -1.4400, 52.5765),
@@ -119,7 +119,7 @@ ENT.ChevronPositionsGalaxy = {
 --################# Gets the button, a player is aiming at @aVoN
 function ENT:GetCurrentButton(p,multi)
 	local e = self.Entity;
-	if (self.Entity:GetNetworkedBool("SG_GROUP_SYSTEM")) then
+	if (self.Entity:GetNWBool("SG_GROUP_SYSTEM")) then
 		self.ChevronPositions = self.ChevronPositionsGroup;
 	else
 		self.ChevronPositions = self.ChevronPositionsGalaxy;

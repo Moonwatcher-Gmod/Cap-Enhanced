@@ -34,13 +34,13 @@ function ENT:Initialize()
 	self.ThinkTime = CurTime()+0.5;
 	self.MenuData = "0 0 0 0 5";
 
-	self.Entity:SetNetworkedBool("Kill", false);
-	self.Entity:SetNetworkedVector("Size", Vector(100,100,100));
-	self.Entity:SetNetworkedAngle("Ang", Angle(0,0,0));
-	self.Entity:SetNetworkedVector("Pos", Vector(0,0,0));
-	self.Entity:SetNetworkedVector("Col", Vector(170,189,255));
-	self.Entity:SetNetworkedString("Mod", self.Mod);
-	self.Entity:SetNetworkedString("MenuData", self.MenuData);
+	self.Entity:SetNWBool("Kill", false);
+	self.Entity:SetNWVector("Size", Vector(100,100,100));
+	self.Entity:SetNWAngle("Ang", Angle(0,0,0));
+	self.Entity:SetNWVector("Pos", Vector(0,0,0));
+	self.Entity:SetNWVector("Col", Vector(170,189,255));
+	self.Entity:SetNWString("Mod", self.Mod);
+	self.Entity:SetNWString("MenuData", self.MenuData);
 
 	self.StrengthMultiplier = {1,1,1}; -- The first argument is the strength multiplier, the second is the regeneration multiplier. The third value is the "raw" value n, set by SetMultiplier(n) This will get set by the TOOL
 	self.Strength = 100; -- Start with 100% Strength by default
@@ -57,8 +57,8 @@ function ENT:Initialize()
 
 	self.Pressed = false;
 
-	self:SetNetworkedBool("HUD_Enable", 0);
-	self:SetNetworkedInt("HUD_Percent", self.Strength);
+	self:SetNWBool("HUD_Enable", 0);
+	self:SetNWInt("HUD_Percent", self.Strength);
 
 	self.RegTime = 0;
 	self.Depleted = false;
@@ -70,7 +70,7 @@ function ENT:Initialize()
 		--self.Player:SnapEyeAngles(self.PlyOldEyeAngle);
 
 		self.Busy = false;
-		self.Entity:SetNetworkedBool("Kill", true);
+		self.Entity:SetNWBool("Kill", true);
 		if IsValid(self.Camera) then self.Camera:Remove() end
 		if IsValid(self.Shield) then self.Shield:Remove() end
 
@@ -80,7 +80,7 @@ function ENT:Initialize()
 		a:SetAngles(self:GetAngles()+self.Ang);
 		a.Parent = self;
 		if CPPI and IsValid(self.Owner) and a.CPPISetOwner then a:CPPISetOwner(self.Owner) end
-		a:SetNetworkedVector("Col",self.Entity:GetNetworkedVector("Col",Vector(100,100,100)));
+		a:SetNWVector("Col",self.Entity:GetNWVector("Col",Vector(100,100,100)));
 
 		a:Spawn();
 		a:Activate();
@@ -98,11 +98,11 @@ function ENT:Initialize()
   		numpad.OnDown(self.Owner, tonumber(args[5]), "Toggle_Shield_Core", self.Entity);
 
 		self.MenuData = args[1].." "..args[2].." "..args[3].." "..args[4].." "..args[5];
-		self.Entity:SetNetworkedString("MenuData", self.MenuData);
+		self.Entity:SetNWString("MenuData", self.MenuData);
 
 		// for tracelines
-		self.Shield:SetNetworkedBool("Immunity",self.Immunity);
-		self.Shield:SetNetworkedEntity("Own",self.Owner);
+		self.Shield:SetNWBool("Immunity",self.Immunity);
+		self.Shield:SetNWEntity("Own",self.Owner);
 
     end);
 
@@ -110,7 +110,7 @@ function ENT:Initialize()
 		self.Player:SetViewEntity(self.Player);
 		--self.Player:SnapEyeAngles(self.PlyOldEyeAngle);
 
-		self.Entity:SetNetworkedBool("Kill", true);
+		self.Entity:SetNWBool("Kill", true);
 		if IsValid(self.Camera) then self.Camera:Remove() end
 
 		if (not self.Anim) then
@@ -127,17 +127,17 @@ function ENT:Initialize()
     end);
 
 	concommand.Add("SC_Size"..self:EntIndex(),function(ply,cmd,args)
-		self.Entity:SetNetworkedVector("Size", Vector(tonumber(args[1]),tonumber(args[2]),tonumber(args[3])));
+		self.Entity:SetNWVector("Size", Vector(tonumber(args[1]),tonumber(args[2]),tonumber(args[3])));
 		self.SSize = Vector(tonumber(args[1]),tonumber(args[2]),tonumber(args[3]));
     end);
 
 	concommand.Add("SC_Angle"..self:EntIndex(),function(ply,cmd,args)
-		self.Entity:SetNetworkedAngle("Ang", Angle(tonumber(args[1]),tonumber(args[2]),tonumber(args[3])));
+		self.Entity:SetNWAngle("Ang", Angle(tonumber(args[1]),tonumber(args[2]),tonumber(args[3])));
 		self.Ang = Angle(tonumber(args[1]),tonumber(args[2]),tonumber(args[3]));
     end);
 
 	concommand.Add("SC_Pos"..self:EntIndex(),function(ply,cmd,args)
-		self.Entity:SetNetworkedVector("Pos", Vector(tonumber(args[1]),tonumber(args[2]),tonumber(args[3])));
+		self.Entity:SetNWVector("Pos", Vector(tonumber(args[1]),tonumber(args[2]),tonumber(args[3])));
 		self.Pos = Vector(tonumber(args[1]),tonumber(args[2]),tonumber(args[3]))
     end);
 
@@ -145,12 +145,12 @@ function ENT:Initialize()
 		if (args[1] == "1") then 	 self.Mod = "models/Madman07/shields/sphere.mdl";
 		elseif (args[1] == "2") then self.Mod = "models/Madman07/shields/box.mdl";
 		elseif (args[1] == "3") then self.Mod = "models/Madman07/shields/atlantis.mdl"; end
-		self.Entity:SetNetworkedString("Mod", self.Mod);
+		self.Entity:SetNWString("Mod", self.Mod);
     end);
 
 	concommand.Add("SC_Visual_Col"..self:EntIndex(),function(ply,cmd,args)
 		self.Col = Vector(tonumber(args[1]),tonumber(args[2]),tonumber(args[3]));
-		self.Entity:SetNetworkedVector("Col", self.Col);
+		self.Entity:SetNWVector("Col", self.Col);
     end);
 	
 	self:SpawnButton()
@@ -232,7 +232,7 @@ function ENT:TrueUse(ply)
 		ply:SetViewEntity(self.Camera);
 		--ply:SnapEyeAngles(Angle(0,180,0));
 
-		self.Entity:SetNetworkedBool("Kill", false);
+		self.Entity:SetNWBool("Kill", false);
 
 		umsg.Start("ShieldCorePanel",ply)
 	    umsg.Entity(self.Entity);
@@ -244,13 +244,13 @@ function ENT:TrueUse(ply)
 			fx:SetEntity(self.Entity);
 		util.Effect("shield_core_preview",fx,true,true);
 
-		//self.Entity:SetNetworkedVector("Col", Vector(170,189,255)); // shield dont want to accept colors after menu creation, lets fix it here
+		//self.Entity:SetNWVector("Col", Vector(170,189,255)); // shield dont want to accept colors after menu creation, lets fix it here
 	end
 end
 
 function ENT:EmmiterAnimation(open)
 	self.Anim = true;
-	self:SetNetworkedBool("ShouldClip", true);
+	self:SetNWBool("ShouldClip", true);
 	if timer.Exists("Anim"..self:EntIndex()) then timer.Destroy("Anim"..self:EntIndex()); end
 	if open then
 		self.Entity:SetModel("models/Madman07/destiny_emmiter/destiny_emmiter_anim.mdl");
@@ -258,14 +258,14 @@ function ENT:EmmiterAnimation(open)
 		self:ResetSequence(seq);
 		timer.Create( "Anim"..self:EntIndex(), 7, 1, function()
 			self.Anim = false;
-			self:SetNetworkedBool("ShouldClip", false);
+			self:SetNWBool("ShouldClip", false);
 		end);
 	else
 		local seq = self:LookupSequence("Close");
 		self:ResetSequence(seq);
 		timer.Create( "Anim"..self:EntIndex(), 7, 1, function()
 			self.Anim = false;
-			self:SetNetworkedBool("ShouldClip", false);
+			self:SetNWBool("ShouldClip", false);
 			self.Entity:SetModel("models/Madman07/destiny_emmiter/destiny_emmiter.mdl");
 		end);
 	end
@@ -344,7 +344,7 @@ function ENT:Think(ply)
 			if (self.Strength < 1 and not self.Depleted) then
 				self.Depleted = true;
 				self.Shield.Depleted = true;
-				self.Shield:SetNetworkedBool("depleted",true);
+				self.Shield:SetNWBool("depleted",true);
 				self.Shield:Status(false);
 				self:SetWire("Active",0);
 			end
@@ -357,7 +357,7 @@ function ENT:Think(ply)
 
 					--Engage Shield!
 					self.Shield:Status(true);
-					self.Shield:SetNetworkedBool("depleted",false); -- For the traceline class - Clientside
+					self.Shield:SetNWBool("depleted",false); -- For the traceline class - Clientside
 					self:SetWire("Active",1);
 				end
 			elseif(enabled and self.HasResourceDistribution and self.ConsumeMultiplier ~= 0) then
@@ -393,12 +393,12 @@ function ENT:ShowOutput(enabled, atl)
 	if(self.Depleted) then
 		add = 2;
 	end
-	self:SetNetworkedInt("HUD_Enable", add);
+	self:SetNWInt("HUD_Enable", add);
 	if atl then
-		self:SetNetworkedInt("HUD_Percent", 100);
+		self:SetNWInt("HUD_Percent", 100);
 		self:SetWire("Strength",100);
 	else
-		self:SetNetworkedInt("HUD_Percent", self.Strength);
+		self:SetNWInt("HUD_Percent", self.Strength);
 		self:SetWire("Strength",math.floor(self.Strength));
 	end
 end
@@ -540,12 +540,12 @@ function ENT:PostEntityPaste(ply, Ent, CreatedEntities)
 		WireLib.ApplyDupeInfo( ply, Ent, Ent.EntityMods.SCDupeInfo.WireData, function(id) return CreatedEntities[id] end)
 	end  */
 
-	self.Entity:SetNetworkedVector("Size", dupeInfo.SSize);
-	self.Entity:SetNetworkedAngle("Ang", dupeInfo.Ang);
-	self.Entity:SetNetworkedVector("Pos", dupeInfo.Pos);
-	self.Entity:SetNetworkedVector("Col", dupeInfo.Col);
-	self.Entity:SetNetworkedString("Mod", dupeInfo.Mod);
-	self.Entity:SetNetworkedString("MenuData", dupeInfo.MenuData);
+	self.Entity:SetNWVector("Size", dupeInfo.SSize);
+	self.Entity:SetNWAngle("Ang", dupeInfo.Ang);
+	self.Entity:SetNWVector("Pos", dupeInfo.Pos);
+	self.Entity:SetNWVector("Col", dupeInfo.Col);
+	self.Entity:SetNWString("Mod", dupeInfo.Mod);
+	self.Entity:SetNWString("MenuData", dupeInfo.MenuData);
 
 	self.SSize = dupeInfo.SSize;
 	self.Ang = dupeInfo.Ang;

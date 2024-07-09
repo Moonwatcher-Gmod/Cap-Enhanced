@@ -15,7 +15,7 @@ end
 --################# Think @aVoN
 function ENT:Think()
 	--###### Update the clientside self.Target (Necessary for the ENT:GetTeleportedVector function, if used clientside)
-	self.Target = self.Entity:GetNetworkedEntity("Target",self.Entity);
+	self.Target = self.Entity:GetNWEntity("Target",self.Entity);
 	--###### Clientside lights, yeah! Can be toggled by clients this causes much less lag when deactivated. Method below is from Catdaemon's harvester
 	if(not StarGate.VisualsMisc("cl_stargate_dynlights")) then return end;
 	if(not self.Entity:GetNWBool("activate_lights",false)) then return end;
@@ -268,12 +268,68 @@ usermessage.Hook( "StarGate.EventHorizon.SecretOut", function(um)
 		end)
 	end
 end)
+local wormhole_material = Material("williamdefly/wormhole")
 
-usermessage.Hook( "StarGate.EventHorizon.SecretStop", function(um)
+usermessage.Hook( "Lib.EventHorizon.WormHoleStart", function(um)
 	local e = LocalPlayer();
-	hook.Remove("PostRender","Stargate.EH.Secret");
-	hook.Remove("EntityEmitSound","Stargate.EH.Secret");
-	hook.Remove("PlayerBindPress","Stargate.EH.Secret");
-	hook.Remove("RenderScreenspaceEffects","Stargate.EH.Secret");
-	e.SGSecretEffect = false;
+	e:EmitSound("stargate/travelnew.mp3")
+	hook.Add("EntityEmitSound","Lib.EH.WormHole",function() return false end)
+	hook.Add("PlayerBindPress","Lib.EH.WormHole",function() return true end)
+	hook.Add( "HUDDrawScoreBoard", "Wormholeefffect", function()
+		
+		--wormhole_material:SetVector("$color", Vector(0, 1, 1))
+		surface.SetMaterial(wormhole_material)
+		surface.DrawTexturedRect( 0, 0, ScrW(), ScrH() )
+		wormhole_material:SetFloat("$frame", 0)
+	end )
+
 end)
+
+usermessage.Hook( "Lib.EventHorizon.WormHoleStart_video", function(um)
+	started = CurTime();
+	local e = LocalPlayer();
+	e:EmitSound("stargate/travelnew.mp3")
+	hook.Add("EntityEmitSound","Lib.EH.WormHole",function() return false end)
+	hook.Add("PlayerBindPress","Lib.EH.WormHole",function() return true end)
+	hook.Add("PreRender","Lib.EH.WormHole",function()
+		render.UpdateScreenEffectTexture()
+		render.SetMaterial(Material("williamdefly/wormhole2"))
+		render.DrawScreenQuad()
+		return true;
+	end)
+end)
+
+
+usermessage.Hook( "Lib.EventHorizon.WormHoleReset", function(um)
+	local e = LocalPlayer();
+	e:StopSound("stargate/travelnew.mp3")
+	hook.Remove("HUDDrawScoreBoard", "Wormholeefffect")
+	--hook.Remove("PreRender","Lib.EH.WormHole");
+	hook.Remove("EntityEmitSound","Lib.EH.WormHole");
+	hook.Remove("PlayerBindPress","Lib.EH.WormHole");
+end)
+
+usermessage.Hook( "Lib.EventHorizon.WormHoleOut", function(um)
+	local e = LocalPlayer();
+	e:StopSound("stargate/travelnew.mp3")
+	--hook.Remove("PreRender","Lib.EH.WormHole");
+	hook.Remove("HUDDrawScoreBoard", "Wormholeefffect")
+	hook.Remove("EntityEmitSound","Lib.EH.WormHole");
+	hook.Remove("PlayerBindPress","Lib.EH.WormHole");
+end)
+
+usermessage.Hook( "Lib.EventHorizon.WormHoleStop", function(um)
+	local e = LocalPlayer();
+	e:StopSound("stargate/travelnew.mp3")
+	hook.Remove("HUDDrawScoreBoard", "Wormholeefffect")
+	--hook.Remove("PreRender","Lib.EH.WormHole");
+	hook.Remove("EntityEmitSound","Lib.EH.WormHole");
+	hook.Remove("PlayerBindPress","Lib.EH.WormHole");
+end)
+
+
+
+--universe_travel_end.mp3
+
+
+

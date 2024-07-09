@@ -56,6 +56,10 @@ function ENT:Initialize()
 	self.Segments = {};
 	self.EffectSegments = {};
 
+	if(IsValid(self.Entity:GetPhysicsObject())) then
+		self.Entity:GetPhysicsObject():EnableMotion(false)
+	end
+
 	local block;
 	local radius = 2375;
 	local x;
@@ -63,7 +67,7 @@ function ENT:Initialize()
 	local i = 0;
 	local effblock;
 
-	timer.Create( "Spawning"..self:EntIndex(), 0.1, 72, function()
+	timer.Create( "Spawning"..self.Entity:EntIndex(), 0.1, 72, function()
 		local ent = self.Entity;
 		local ang = self.Entity:GetAngles();
 		local forw = self.Entity:GetForward();
@@ -121,12 +125,13 @@ function ENT:ChangeSystemType(groupsystem,reload)
 	end
 end
 
+
 function ENT:GateWireInputs(groupsystem)
 	self:CreateWireInputs("Dial Address","Dial String [STRING]","Dial Mode","Start String Dial","Close","Disable Autoclose","Transmit [STRING]","Disable Menu","Event Horizon Color [VECTOR]");
 end
 
 function ENT:GateWireOutputs(groupsystem)
-	self:CreateWireOutputs("Active","Open","Inbound","Dialing Address [STRING]","Dialing Mode","Active Segment","Received [STRING]");
+	self:CreateWireOutputs("Active","Open","Inbound","Dialing Address [STRING]","Dialing Mode","Active Segment","Received [STRING]","Entities On Route");
 end
 
 --################# @Madman07, Assassin21
@@ -146,9 +151,9 @@ function ENT:OnRemove()
 	self.Entity:DisActivateLights(true);
 	self:RemoveGateFromList();
 
-	if timer.Exists("LowPriorityThink"..self:EntIndex()) then timer.Remove("LowPriorityThink"..self:EntIndex()) end
-	if timer.Exists("ConvarsThink"..self:EntIndex()) then timer.Remove("ConvarsThink"..self:EntIndex()) end
-	if timer.Exists("Spawning"..self:EntIndex()) then timer.Destroy("Spawning"..self:EntIndex()); end
+	if timer.Exists("LowPriorityThink"..self.Entity:EntIndex()) then timer.Remove("LowPriorityThink"..self.Entity:EntIndex()) end
+	if timer.Exists("ConvarsThink"..self.Entity:EntIndex()) then timer.Remove("ConvarsThink"..self.Entity:EntIndex()) end
+	if timer.Exists("Spawning"..self.Entity:EntIndex()) then timer.Destroy("Spawning"..self.Entity:EntIndex()); end
 
 	for i=1, 72 do
 		if IsValid(self.Segments[1]) then
@@ -313,12 +318,12 @@ end
 --################# @Madman07 Disactivate Light Effect
 function ENT:DisActivateLights(instant,fail)
 	if (not self.Active and not fail) then return; end
-	timer.Destroy("Effectss"..self:EntIndex());
-	timer.Destroy("Effects"..self:EntIndex());
-	timer.Destroy("FadeSegmentss"..self:EntIndex());
+	timer.Destroy("Effectss"..self.Entity:EntIndex());
+	timer.Destroy("Effects"..self.Entity:EntIndex());
+	timer.Destroy("FadeSegmentss"..self.Entity:EntIndex());
 	for i=1, 72 do
 		if (IsValid(self.Entity) and IsValid(self.Segments[i])) then -- because i will use same funciton in some other place
-			self.Entity:SetNetworkedBool("chevron"..i,false);
+			self.Entity:SetNWBool("chevron"..i,false);
 		end
 		if IsValid(self.Segments[i]) then -- because i will use same funciton in some other place
 

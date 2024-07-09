@@ -41,7 +41,7 @@ SWEP.Category = SGLanguage.GetMessage("weapon_misc_cat");
 end
 SWEP.Author = "aVoN"
 SWEP.Contact = "http://forums.facepunchstudios.com/aVoN"
-SWEP.Purpose = "Ring ring ring ring ring ring ring, banaphone"
+SWEP.Purpose = "Ring ring ring ring ring ring ring, bananaphone"
 SWEP.Instructions = "Aim and bring a ringga-ding-dong"
 SWEP.Base = "weapon_base";
 SWEP.Slot = 1;

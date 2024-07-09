@@ -68,7 +68,7 @@ end
 --################### Primary Attack @Catdaemon
 function SWEP:PrimaryAttack()
 	if(not self.Owner:GetNetworkedBool("pCloaked",false)) then
-		self.Owner:SetNetworkedBool("pCloaked",true);
+		self.Owner:SetNWBool("pCloaked",true);
 		self.Owner:SetNoTarget(true);
 		self.Owner:EmitSound(self.Sounds.Engage,90,math.random(97,103));
 		self:DoCloakEffect();

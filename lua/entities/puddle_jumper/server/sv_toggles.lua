@@ -242,7 +242,7 @@ function ENT:ToggleCloak() --############# Toggle Cloak @ RononDex
 					self.CanDoCloak=true;
 					self.Cloaked = false;
                     self:ToggleButtonColor();
-					self:SetNetworkedBool("Cloaked",false);
+					self:SetNWBool("Cloaked",false);
 				end);
 			else
 				self:Status(true)
@@ -266,7 +266,7 @@ function ENT:ToggleCloak() --############# Toggle Cloak @ RononDex
 				end
 				self.AnimCloaked = true;
 				self.CanShield=false
-				self:SetNetworkedBool("Cloaked",true)
+				self:SetNWBool("Cloaked",true)
 				self.CanDoCloak=false
 				timer.Simple( 2, function() self.CanDoCloak=true end)
 			end

@@ -124,7 +124,12 @@ hook.Add("StarGate.Bullet","StarGate.EHBullet",
 						bullet.Dir = dir;
 						bullet.Src = pos+2*dir;
 						if (not IsValid(FakeBulletEntity)) then FakeBulletEntity = ents.Create("info_null"); end -- fix
-						FakeBulletEntity:FireBullets(bullet); -- FIRE ZEH MISSLES!
+						
+						if (not e:GetParent():GetClass() == "mobile_gate") then
+							FakeBulletEntity:FireBullets(bullet); -- FIRE ZEH MISSLES!
+						end
+
+
 						-- Draw the enter and passing effect on the EH
 						target:EnterEffect(pos,math.random(5,10));
 						target:EmitSound(target.Sounds.Teleport[math.random(1,#target.Sounds.Teleport)],90,math.random(90,110));

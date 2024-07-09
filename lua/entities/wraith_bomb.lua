@@ -6,6 +6,9 @@ ENT.Author = "Ronon Dex"
 ENT.Instructions= ""
 ENT.Contact = ""
 ENT.Category = "Stargate Carter Addon Pack: Weapons"
+if (SGLanguage!=nil and SGLanguage.GetMessage!=nil) then
+ENT.Category = SGLanguage.GetMessage("entity_weapon_cat");
+end
 
 ENT.Spawnable		= false
 ENT.AdminSpawnable	= false
@@ -109,7 +112,7 @@ function ENT:Detonate()
 	self.Detonated = false; -- reset old value
 	self.Charging = true;
 	self.Disabled = true;
-	self:SetNetworkedVector("shield_color",Vector(0.69,0.93,0.93))
+	self:SetNWVector("shield_color",Vector(0.69,0.93,0.93))
 	local e = self.Entity;
 	timer.Simple(self.Timer, function()
 		self.Detonated = true;

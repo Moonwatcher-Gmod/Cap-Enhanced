@@ -81,6 +81,7 @@ function ENT:OnTakeDamage(dmg)
 		if(not(self.Done)) then
 
 			self.EntHealth = self.EntHealth-(dmg:GetDamage()/10);
+			self:SetWire("Health", self.EntHealth)
 
 			if((self.EntHealth)<=300) then
 				if(self.Cloaked) then
@@ -114,4 +115,9 @@ function ENT:OnTakeDamage(dmg)
 			end
 		end
 	end
+end
+
+function ENT:HealthRepair(health)
+    self.EntHealth = health
+    self:SetWire("Health", health)
 end

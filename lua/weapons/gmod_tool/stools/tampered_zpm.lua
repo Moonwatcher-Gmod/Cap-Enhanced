@@ -10,7 +10,7 @@ TOOL.Name=SGLanguage.GetMessage("stool_tzpm");
 TOOL.ClientConVar["autoweld"] = 1;
 TOOL.ClientConVar["autolink"] = 1;
 TOOL.ClientConVar["model"] = "models/pg_props/pg_zpm/pg_zpm.mdl";
-TOOL.Entity.Class = "tampered_zpm";
+TOOL.Entity.Class = "zpm_mk3";
 TOOL.Entity.Keys = {"model"};
 TOOL.Entity.Limit = 3;
 TOOL.Topic["name"] = SGLanguage.GetMessage("stool_tampered_zpm_spawner");
@@ -29,6 +29,7 @@ function TOOL:LeftClick(t)
 	local p = self:GetOwner();
 	local model = self:GetClientInfo("model");
 	local e = self:SpawnSENT(p,t,model);
+	e.IsTampered = true
 	if(SERVER and t.Entity and t.Entity.ZPMHub) then
 		t.Entity:Touch(e);
 		weld = false;

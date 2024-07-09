@@ -104,7 +104,7 @@ function ENT:ActivateIt(bool)
 		if (IsValid(self.phys)) then
 			self.phys:Wake()
 		end
-		self:SetNetworkedBool("drawsprite", false)
+		self:SetNWBool("drawsprite", false)
 		self.Active = false
 		self:SetWire("Activated",false)
 		for _,e in pairs(self.ConstrainedEntities) do

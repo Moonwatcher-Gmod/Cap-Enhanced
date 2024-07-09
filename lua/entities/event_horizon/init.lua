@@ -115,6 +115,7 @@ BUFFER.ClipIgnore = {
 
 --################# Init @aVoN
 function ENT:Initialize()
+	self.Instancing = false
 	-- We need a "fresh" copy of sounds for this entity. Otherwise "SGA-opening-sounds" might overwrite "SG1-opening-sounds", because ENT.Sounds is global!
 	self.Sounds = table.Copy(self.Sounds);
 	local parent = self.Entity:GetParent();
@@ -163,16 +164,18 @@ function ENT:Initialize()
 	self.DoNotDestroy = {}; -- A contraption just got teleported to this event horizon but hasn't exited it yet. This prevents the receiving EH from destroying this contraption!
 	self.OpenEffect = true; -- Need to place up here so we have the variable ready
 	self:Open(); -- Let us open :D
-
+	self.timer_table = {}
 	self.Ents={};
 	self.CollisionGroup = {};
 	self.Buffer = {};
 	self.AllBuffer = {};
 	self.ClipBuffer = {};
 	self.GravBuffer = {};
+	self.RoutingPaused = false
 	self.Opened = false;
 	self.ValidOpen = false;
 	self.ModelClip = GetConVar("stargate_model_clipping"):GetBool();
+
 
 	if self.ModelClip then
 		self.PhysClip = GetConVar("stargate_physics_clipping"):GetBool();
@@ -476,6 +479,10 @@ end
 function ENT:EHDissolve(pos,radius)
 	-- The hurt will actually kill things and give credits to the stargate as killer
 	local e = ents.Create("kawoosh_hurt");
+	if (self.Instancing) then
+		e:SetInstance(self.Entity:GetInstance())
+	end
+
 	e:SetOwner(self.Entity);
 	e:SetKeyValue("Damage",10000);
 	e:SetKeyValue("DamageRadius",radius);
@@ -545,14 +552,29 @@ function ENT:DissolveEntities(pos,radius)
 				]]--
 
 				-- Do not dissolve crap!
-				if(phys:IsValid() and (class == "phys_magnet" or not class:find("phys_[^m]")) and mdl ~= "" and not mdl:find("*")) then
-					phys:EnableMotion();
-					v:SetKeyValue("targetname",name);
-					for bone=0,v:GetPhysicsObjectCount()-1 do
-						local phys = v:GetPhysicsObjectNum(bone);
-						if(phys:IsValid()) then
-							phys:SetVelocity(phys:GetVelocity()*0.04);
-							phys:EnableGravity(false);
+
+				if (self.Instancing) then
+					if(phys:IsValid() and v:GetInstance()==self.Entity:GetInstance() and (class == "phys_magnet" or not class:find("phys_[^m]")) and mdl ~= "" and not mdl:find("*")) then
+						phys:EnableMotion();
+						v:SetKeyValue("targetname",name);
+						for bone=0,v:GetPhysicsObjectCount()-1 do
+							local phys = v:GetPhysicsObjectNum(bone);
+							if(phys:IsValid()) then
+								phys:SetVelocity(phys:GetVelocity()*0.04);
+								phys:EnableGravity(false);
+							end
+						end
+					end
+				else
+					if(phys:IsValid() and (class == "phys_magnet" or not class:find("phys_[^m]")) and mdl ~= "" and not mdl:find("*")) then
+						phys:EnableMotion();
+						v:SetKeyValue("targetname",name);
+						for bone=0,v:GetPhysicsObjectCount()-1 do
+							local phys = v:GetPhysicsObjectNum(bone);
+							if(phys:IsValid()) then
+								phys:SetVelocity(phys:GetVelocity()*0.04);
+								phys:EnableGravity(false);
+							end
 						end
 					end
 				end
@@ -674,6 +696,10 @@ end
 --################# The most important part - Recognizes entering props and teleports them @RononDex
 function ENT:StartTouch(e)
 	local class = e:GetClass();
+	if (self.Instancing) then
+		if e:GetInstance() != self:GetInstance() then return end
+	end
+
  	--if (e:GetClass() == "kino_ball") then self:StartTouchPlayersNPCs(e) end
 	if self.ModelClip then
 		if(not self:GetParent().IsSupergate) then
@@ -703,6 +729,10 @@ end
 
 --################# Keeps clipping plane up to date @RononDex
 function ENT:Touch(e)
+	if (self.Instancing) then
+		if e:GetInstance() != self:GetInstance() then return end
+	end
+
 	local class = e:GetClass();
 	if self.ModelClip then
 		if not table.HasValue(BUFFER.ClipIgnore,e:GetClass()) then
@@ -726,7 +756,7 @@ function ENT:StartTouchPlayersNPCs(e,ignore)
 	if(self.Attached[e]) then return end; -- Attached props
 	if(self.ShuttingDown and not self.ShuttingDownKill) then return; end
 	if(not IsValid(e)) then return end; -- Not valid
-	if(e:IsPlayer() and (IsValid(e:GetParent()) or IsValid(e:GetVehicle()) or IsValid(e:GetNetworkedEntity("ScriptedVehicle", NULL)))) then return end; -- No teleport/kill of parented players
+	if(e:IsPlayer() and (IsValid(e:GetParent()) or IsValid(e:GetVehicle()) or IsValid(e:GetNWEntity("ScriptedVehicle", NULL)))) then return end; -- No teleport/kill of parented players
 	if(e.NotTeleportable) then return end; -- Does not want to be teleported!
 	local class = e:GetClass();
 	if(class:find("stargate")) then return end;
@@ -787,68 +817,130 @@ function ENT:StartTouchPlayersNPCs(e,ignore)
 		if(not block) then
 			target_gate = self.Target:GetParent();
 			if(IsValid(target_gate) and target_gate.IsStargate) then
-				-- Allow player with Nox hands to pass through any iris if enabled in config
-				if (not StarGate.CFG:Get("iris", "nox_bypass", false) or (not e:IsPlayer() or e:GetActiveWeapon():GetClass() ~= "nox_hands")) then
-					block = target_gate:IsBlocked();
-				end
+				block = target_gate:IsBlocked();
 			end
 			if (self:BlockedCFD(target_gate,e)) then block = false; bcfd = true; end
 		end
 		--################# Get attachments, mainly for the hook below but we need it anyway
 		local attached = self:GetEntitiesForTeleport(e);
+
 		if(attached) then
 			local allow_teleport = hook.Call("StarGate.Teleport",GAMEMODE,e,self.Entity,attached,blocked);
 			if(allow_teleport ~= nil and not allow_teleport) then return end; -- Someone does not want to teleport us! Shame on him
-			--################# Just for the show - The "gulping" effect
-			-- Before we teleport, draw the entering effect on out event horizon
-			if (not ignore) then
-				self:EnterEffectEntity(e);
-				self.Entity:EmitSound(self.Sounds.Teleport[math.random(1,#self.Sounds.Teleport)],90,math.random(90,110));
-			end
-			if (e:IsPlayer() and self.SecretDial and not ignore and self.Entity:GetForward():DotProduct(dir) >= 0) then
-				self:DoSecret(e);
-				return
-			end
-			--################# Teleport us
-			self:Teleport(e,block,attached);
-			--################# Blocked or not? Either make iris play the "blocked" sound or draw the gulping at the other end
-			if(block) then
-				if (not self.Unstable) then
-					-- Iris blocked us. Make hut-noise
-					if(IsValid(target_gate) and IsValid(target_gate.Iris) and target_gate.Iris.IsActivated) then
-						target_gate.Iris:HitIris(self:GetTeleportedVector(e:GetPos(),e:GetVelocity())); -- Tell that we hit and where and how fast
-					end
+				--################# Just for the show - The "gulping" effect
+				-- Before we teleport, draw the entering effect on out event horizon
+				if (not ignore) then
+					self:EnterEffectEntity(e);
+					self.Entity:EmitSound(self.Sounds.Teleport[math.random(1,#self.Sounds.Teleport)],90,math.random(90,110));
 				end
-			else
-				-- Needs to be delayed, or you wont hear the teleporting gulp if your a player
-				local t = self.Target
-				if (not bcfd) then
-					timer.Simple(0.05,
-						function()
-							if(IsValid(t) and IsValid(e)) then
-								t:EmitSound(self.Sounds.Teleport[math.random(1,#self.Sounds.Teleport)],90,math.random(90,110));
-								-- Draw the effect on the other eventhorizon
-								t:EnterEffectEntity(e);
+					if (e:IsPlayer() and self.SecretDial and not ignore and self.Entity:GetForward():DotProduct(dir) >= 0) then
+						self:DoSecret(e);
+			 			return
+					end
+
+
+				if (not StarGate.CFG:Get("stargate", "doWormholeSequence", false)) then
+					-- --################# Teleport us
+
+					self:Teleport(e,block,attached);
+					--################# Blocked or not? Either make iris play the "blocked" sound or draw the gulping at the other end
+					if(block) then
+						if (not self.Unstable) then
+							-- Iris blocked us. Make hut-noise
+							if(IsValid(target_gate) and IsValid(target_gate.Iris) and target_gate.Iris.IsActivated) then
+								target_gate.Iris:HitIris(self:GetTeleportedVector(e:GetPos(),e:GetVelocity())); -- Tell that we hit and where and how fast
 							end
 						end
-					);
+					end
 				end
-				if(
-					self.AutoClose and -- Disabled by config - Overrides every other setting
-					not (
-						e.NoAutoClose or -- Disabled by SENT Writer
-						table.HasValue(self.AutocloseImmunity,class) or class:find("grenade") or class:find("rpg") or e:IsWeapon() or -- Disabled by me
-						(IsValid(parent) and parent.DisAutoClose) -- Wire forbids it
-					)
-				) then
-					--################# Autoclose the gate after a delay
-					self.DoAutoClose = true;
-					self.Entity:NextThink(CurTime()+3); -- Trigger autoclose in the next 3 seconds
+
+				if (not StarGate.CFG:Get("stargate", "doWormholeSequence", false)) then
+					-- Needs to be delayed, or you wont hear the teleporting gulp if your a player
+					local t = self.Target
+					if (not bcfd) then
+						timer.Simple(0.05,
+							function()
+								if(IsValid(t) and IsValid(e)) then
+									t:EmitSound(self.Sounds.Teleport[math.random(1,#self.Sounds.Teleport)],90,math.random(90,110));
+									-- Draw the effect on the other eventhorizon
+									t:EnterEffectEntity(e);
+								end
+							end
+						);
+					end
+
+					local parent = self.Entity:GetParent();
+
+					if(
+						self.AutoClose and -- Disabled by config - Overrides every other setting
+						not (
+							e.NoAutoClose or -- Disabled by SENT Writer
+							table.HasValue(self.AutocloseImmunity,class) or class:find("grenade") or class:find("rpg") or e:IsWeapon() or -- Disabled by me
+							(IsValid(parent) and parent.DisAutoClose) -- Wire forbids it
+						)
+					) then
+
+						--################# Autoclose the gate after a delay
+						self.DoAutoClose = true;
+						self.Entity:NextThink(CurTime()+4); -- Trigger autoclose in the next 4 seconds
+
+					 end
+				end
+
+				if (StarGate.CFG:Get("stargate", "doWormholeSequence", false)) then
+					if (self.Entity:GetForward():DotProduct(dir) >= 0) then
+							self:DoWormHole(e,block,attached,bcfd,false);
+						else	
+							self:DoWormHole(e,block,attached,bcfd,true);
+					end
+				end
+		else
+				
+				self.Entity:EmitSound(self.Sounds.Teleport[math.random(1,#self.Sounds.Teleport)],90,math.random(90,110));
+				
+				if (StarGate.CFG:Get("stargate", "doWormholeSequence", false)) then	
+						
+					if (self.Entity:GetForward():DotProduct(dir) >= 0) then
+						self:DoWormHole(e,block,attached,bcfd,false);
+					else	
+						self:DoWormHole(e,block,attached,bcfd,true);
+					end
+				end
+
+
+				if (not StarGate.CFG:Get("stargate", "doWormholeSequence", false)) then		
+					--Needs to be delayed, or you wont hear the teleporting gulp if your a player
+					local t = self.Target
+					if (not bcfd) then
+						timer.Simple(0.05,
+							function()
+								if(IsValid(t) and IsValid(e)) then
+									t:EmitSound(self.Sounds.Teleport[math.random(1,#self.Sounds.Teleport)],90,math.random(90,110));
+									-- Draw the effect on the other eventhorizon
+									t:EnterEffectEntity(e);
+								end
+							end
+						);
+					end
+					local parent = self.Entity:GetParent();
+
+					if(
+						self.AutoClose and -- Disabled by config - Overrides every other setting
+						not (
+							e.NoAutoClose or -- Disabled by SENT Writer
+							table.HasValue(self.AutocloseImmunity,class) or class:find("grenade") or class:find("rpg") or e:IsWeapon() or -- Disabled by me
+							(IsValid(parent) and parent.DisAutoClose) -- Wire forbids it
+						)
+					) then
+						--################# Autoclose the gate after a delay
+						self.DoAutoClose = true;
+						self.Entity:NextThink(CurTime()+4); -- Trigger autoclose in the next 4 seconds
+					end
 				end
 			end
 		end
 	end
-end
+
 
 --################# Stops being in the eventhorizon @aVoN
 function ENT:EndTouchPlayersNPCs(e)
@@ -873,9 +965,10 @@ end
 --ENT.Buffer = {}
 --################# Stops being in the eventhorizon @aVoN,RononDex
 function ENT:EndTouch(e)
+
 	if(self.ShuttingDown) then return end; -- We are shutting down
 	if(not IsValid(e)) then return end; -- Not valid or ignore
-	if(e:IsPlayer() and (IsValid(e:GetParent()) or IsValid(e:GetVehicle()) or IsValid(e:GetNetworkedEntity("ScriptedVehicle",NULL)))) then return end;  -- No teleport/kill of parented players
+	if(e:IsPlayer() and (IsValid(e:GetParent()) or IsValid(e:GetVehicle()) or IsValid(e:GetNWEntity("ScriptedVehicle",NULL)))) then return end;  -- No teleport/kill of parented players
 	if(e.NotTeleportable) then return end; -- Does not want to be teleported!
 
 	local parent = self.Entity:GetParent();
@@ -927,7 +1020,7 @@ function ENT:EndTouch(e)
 		e.___InBuffer = true;
 		e.___EventHorizon = self;
 	end
-
+	
 	if(self.Holding[e]) then
 		if(not IsValid(e)) then
 			self.Holding[e] = nil;
@@ -938,7 +1031,7 @@ function ENT:EndTouch(e)
 			self:EndTouch(e);
 		end
 	end
-
+	
 	local attached = self:GetEntitiesForTeleport(e);
 	if(attached) then
 		for _,v in pairs(attached.Attached) do
@@ -966,6 +1059,7 @@ function ENT:EndTouch(e)
 				end
 			end
 		end
+
 		if(add) then
 			-- Nocollide the gate as long as something is in it!
 			if(IsValid(parent)) then
@@ -1021,20 +1115,40 @@ function ENT:EndTouch(e)
 			self:EnterEffectEntity(e);
 			self.Entity:EmitSound(self.Sounds.Teleport[math.random(1,#self.Sounds.Teleport)],90,math.random(90,110));
 			--################# Teleport us
-			self:Teleport(e,block,attached);
+			--Marked Moonwatcher
+
+			if (StarGate.CFG:Get("stargate", "doWormholeSequence", false)) then
+
+				if (self.Entity:GetForward():DotProduct(dir) >= 0) then
+					if (IsValid(e:GetPhysicsObject())) then
+						self:DoWormHole(e,block,attached,false,false,e:GetPhysicsObject():IsGravityEnabled());
+					else
+						self:DoWormHole(e,block,attached,false,false);
+					end
+				else
+					if (IsValid(e:GetPhysicsObject())) then
+						self:DoWormHole(e,block,attached,false,true,e:GetPhysicsObject():IsGravityEnabled());
+					else
+						self:DoWormHole(e,block,attached,false,true);
+					end
+				end
+			else
+				self:Teleport(e,block,attached);
+			end
+
 			--################# Blocked or not? Either make iris play the "blocked" sound or draw the gulping at the other end
 			local class = e:GetClass();
 			if(block) then
 				if (not self.Unstable) then
 					-- Iris blocked us. Make hut-noise
 					if(IsValid(target_gate) and IsValid(target_gate.Iris) and target_gate.Iris.IsActivated) then
-						target_gate.Iris:HitIris(self:GetTeleportedVector(e:GetPos(),e:GetVelocity())); -- Tell that we hit and where and how fast
+						--target_gate.Iris:HitIris(self:GetTeleportedVector(e:GetPos(),e:GetVelocity())); -- Tell that we hit and where and how fast
 					end
 				end
 				e.___InBuffer = false;
 				e.___EventHorizon = nil;
 			else
-				-- Needs to be delayed, or you wont hear the teleporting gulp if your a player
+				--Needs to be delayed, or you wont hear the teleporting gulp if your a player
 				local t = self.Target
 				timer.Simple(0.05,
 					function()
@@ -1055,12 +1169,13 @@ function ENT:EndTouch(e)
 									v.___dir = nil;
 								end
 							end
-							t:EmitSound(self.Sounds.Teleport[math.random(1,#self.Sounds.Teleport)],90,math.random(90,110));
+							--t:EmitSound(self.Sounds.Teleport[math.random(1,#self.Sounds.Teleport)],90,math.random(90,110));
 							-- Draw the effect on the other eventhorizon
-							t:EnterEffectEntity(e);
+							--t:EnterEffectEntity(e);
 						end
 					end
 				);
+				
 				if(
 					self.AutoClose and -- Disabled by config - Overrides every other setting
 					not (
@@ -1070,8 +1185,9 @@ function ENT:EndTouch(e)
 					)
 				) then
 					--################# Autoclose the gate after a delay
+
 					self.DoAutoClose = true;
-					self.Entity:NextThink(CurTime()+3); -- Trigger autoclose in the next 3 seconds
+					self.Entity:NextThink(CurTime()+4); -- Trigger autoclose in the next 4 seconds
 				end
 			end
 		end
@@ -1099,34 +1215,42 @@ end
 --################# For the autoclose @aVoN
 function ENT:Think()
 	if(self.DoAutoClose) then
+
 		if(not self.WaterNoClose or self:WaterLevel() < 1) then
 			-- FIXME: Add config for the autoclose
 			local gate = self.Entity:GetParent();
 			if(IsValid(gate)) then
+
 				-- Prevents some bugs
 				if(not IsValid(self.Target)) then
 					gate:DeactivateStargate();
 					return;
 				end
-				local close = true;
-				for k,v in pairs(self.Buffer) do
-					if (IsValid(v)) then
+				for k,v in pairs(self.Buffer) do					
+					if (IsValid(v)) then					
 						close = false;
 						break;
-					else
+					else	
 						self.Buffer[k] = nil;
 					end
 				end
+
 				if (IsValid(self.Target)) then
 					for k,v in pairs(self.Target.Buffer) do
 						if (IsValid(v)) then
-							close = false;
+							if ( not self.Target:GetParent():GetClass() == "stargate_sg1_hd" or not self.Target:GetParent():GetClass() == "stargate_alt_hd" ) or not self.Target:GetParent():GetClass() == "stargate_movie_hd" then
+								close = false;
+							else
+								close = true;
+							end
 							break;
 						else
 							self.Target.Buffer[k] = nil;
 						end
 					end
+					close = true
 				end
+
 				for _,e in pairs({self.Entity}) do
 					if(close) then
 						local parent = e:GetParent();
@@ -1152,7 +1276,9 @@ function ENT:Think()
 							end
 						end
 					end
+
 					if(close)then
+
 						gate:DeactivateStargate();
 					else
 						-- Check a bit more frequently now!
@@ -1177,7 +1303,6 @@ local MaxValue = {"xmax","ymax","zmax"};
 local MinValue = {"xmin","ymin","zmin"};
 --############### What happens when we first touch the EH? Clip maybe? @RononDex
 function BUFFER:StartTouch(EventHorizon,e)
-
 	if(not IsValid(e) or self:ClipShouldIgnore(e,true)) then return end; -- Not valid or ignore
 	if(not IsValid(e.___EventHorizon)) then e.___EventHorizon = EventHorizon end;
 	if(not IsValid(EventHorizon)) then return end;
@@ -1187,6 +1312,8 @@ function BUFFER:StartTouch(EventHorizon,e)
 	if (EventHorizon.AllBuffer[e:EntIndex()]) then return end
 
 	local dir = (e:GetPos()-EventHorizon:GetPos()):GetNormalized();
+	--print(EventHorizon:GetForward():DotProduct(dir))
+
 
 	if(EventHorizon:GetForward():DotProduct(dir) < 0 and e.___dir==nil) then
 		e.dir = -1;
@@ -1200,6 +1327,7 @@ function BUFFER:StartTouch(EventHorizon,e)
     /*if (IsValid(e:GetParent())) then
 		table.insert(e:GetParent().___Parents,e);
 	end */
+
 
 	if(not e:IsPlayer() and not e:IsNPC()) then
 		e.gate = EventHorizon;
@@ -1694,5 +1822,441 @@ function ENT:DoSecret(v)
 			self.Ents[k]=nil;
 		end
 	end)
+end
 
+
+function ENT:PauseAllRouting()
+	self.RoutingPaused = true
+	for timer_name, timer_data in pairs(self.timer_table) do
+		timer.Pause(timer_data) 
+	end
+end
+
+
+function ENT:ResumeAllRouting()
+	self.RoutingPaused = false
+	for timer_name, timer_data in pairs(self.timer_table) do
+    		timer.UnPause(timer_data)
+    		timer.Adjust(timer_data,timer_name/1.5)
+	end
+end
+
+
+function ENT:DoWormHole(v,block,attached,bcfd,totalkill,gravityenabled) --Let's do travel animation ! @Elanis
+
+	local gravity_wormhole = false
+	if(v:IsPlayer() and not v:Alive()) then return end -- If the player die on enter in the gate don't do all stuff or he will be blocked !
+	if(string.sub(v:GetClass(), 1, 5 )=="sg_vehicle_" and v:GetOwner():IsPlayer() and not v:GetOwner():Alive()) then return end -- Same if he die in the ship !
+	--if(table.HasValue(self.NoTouchTeleport,v:GetClass())) then  return end 
+
+	-- Kill if shutting down
+	if(self.ShuttingDown) then 
+		if(v:IsPlayer()) then
+			v:KillSilent()
+		else
+			v:Remove();
+		end
+		return;
+	end
+
+	-- Check the convars to know if we need to do the animation
+	local haveTowait = false;
+	local clientConvar = 0
+	-- ClientSide Convar
+
+
+	if(v:IsPlayer())then
+		clientConvar = v:GetInfoNum("cl_stargate_wormhole", 1 );
+
+	--elseif(IsValid(v:GetOwner())) then
+		--clientConvar = v:GetOwner():GetInfoNum("cl_stargate_wormhole", 1 );
+	end
+	
+	-- ServerSide Convar
+
+	block = false
+
+	clientConvar = 1;
+
+	if (self.Target == nil) then --You go in on the wrong gate so you die or will be removed. Exceptions to this rule can be entered in the if-statement. 
+		if ((self:GetParent():GetClass() == "stargate_virgo") and (self:GetParent().GateCaller:GetClass() == "stargate_virgo") ) then
+			self.Target = self:GetParent().GateCaller:GetChildren()[1]
+		else
+			if (v:IsPlayer()) then
+	
+				v:KillSilent()
+			else
+				v:Remove()
+			end
+		return
+		end
+	end
+
+	target_pos = self.Target:GetParent():GetPos();
+	target_ang = self.Target:GetParent():GetAngles();
+
+	-- Get informations about the entity to read them while spawning
+	local restore ={
+		MoveType=v:GetMoveType(),
+		Solid=v:GetSolid(),
+		Color = v:GetColor(),
+		Bones = self:GetBones(v),
+		RenderMode = v:GetRenderMode(),
+		Vel = v:GetVelocity(),
+		Health = v:Health(),
+	};
+
+
+	if(v:IsPlayer())then --If this is a player
+
+		if ((not hook_added) and (clientConvar==1)) then -- Hook if you die in the gate
+			hook.Add("PostPlayerDeath","Lib.EH.WormHole",function(ply)
+				umsg.Start("Lib.EventHorizon.WormHoleStop",ply);
+				umsg.End();
+			end)
+			hook_added = true
+		end
+
+		if(clientConvar==1)then
+			umsg.Start("Lib.EventHorizon.WormHoleStart",v); --Start Animation !
+			umsg.End();
+		end
+
+		restore.God = v:HasGodMode();
+		-- Make players spectate the gate
+		v.DisableSpawning = true; -- Can't spawn props
+		v.DisableSuicide = false; -- Can't suicide
+		v.DisableNoclip = true; -- Disallows him to move or change his movetypes
+		v:GodEnable() -- Can't be killed
+		v:Freeze(true) -- Can't move
+		v:DrawViewModel(false); --Hide weapons
+		v:DrawWorldModel(false); --Hide weapons
+
+		if (clientConvar==1) then
+			haveTowait = true;
+		end
+	elseif(v:GetClass()=="puddle_jumper" or v:GetClass()=="sg_vehicle_gate_glider" or v:GetClass()=="sg_vehicle_dart" )then --If it's a ship
+
+		local vehicle_pilot = v.Pilot
+
+		if (IsValid(v.Pilot)) then
+			if ((not hook_added) and (clientConvar==1)) then -- Hook if you die in the gate
+				hook.Add("PostPlayerDeath","Lib.EH.WormHole",function(vehicle_owner)
+					umsg.Start("Lib.EventHorizon.WormHoleStop",vehicle_pilot);
+					umsg.End();
+				end)
+				hook_added = true
+			end
+			if(clientConvar==1)then
+				umsg.Start("Lib.EventHorizon.WormHoleStart",vehicle_pilot); --Start Animation !
+				umsg.End();
+			end
+		end
+
+
+		v:GetClass()
+		v:SetHealth(2147483648); -- Max Gmod Life
+
+		if (clientConvar==1) then
+			haveTowait = true;
+		end
+	elseif (v:GetClass()=="prop_physics") then --If it's a prop
+		v:SetHealth(2147483648); -- Max Gmod Life
+
+		haveTowait = true;
+	elseif(v:GetClass() == "malp") then --MALP wheels dont stargate good
+		for i = 1, 6 do
+            if (IsValid(v.MalpWheels[i])) then
+                v.MalpWheels[i]:SetNotSolid(true)
+				v.MalpWheels[i]:SetRenderMode(10)
+            end
+        end
+	end
+
+	-- The entity can't be see or touched
+	v:SetRenderMode( RENDERMODE_TRANSALPHA );
+	v:SetColor(Color(0,0,0,0));
+	v:SetSolid(SOLID_NONE);
+	v:SetMoveType(MOVETYPE_NONE);
+
+	--We keep this informations in memory
+	self.Ents[v] = restore;
+
+	local k = v;
+	local v = self.Ents[k];
+	haveTowait = true
+
+	if( k:GetClass() == "npc_grenade_frag" or  k:GetClass() == "rpg_missile") then 
+
+		haveTowait = false
+	end
+
+	if(totalkill) then 
+		haveTowait = false
+		block = true
+	end
+
+	if(k:IsPlayer() and not k:Alive()) then -- If the player dies at the very very wrong moment !
+		haveTowait = false;
+	end
+	
+
+	if(gravityenabled) then
+		gravity_wormhole = true
+	end
+	if (self.Entity:GetParent():GetClass()=="mobile_gate") then
+		
+	else
+		self.Entity:GetParent().EntitiesOnRoute = self.Entity:GetParent().EntitiesOnRoute + 1
+		self.Target:GetParent().EntitiesOnRoute = self.Target:GetParent().EntitiesOnRoute + 1
+	end
+	-- It's time to move !
+	if(haveTowait)then
+		--Wait after the animation end
+		if (not k:IsPlayer() or k:IsNPC()) then	if (IsValid(k:GetPhysicsObject())) then	k:GetPhysicsObject():EnableGravity(false) end end
+	 	local temp_name = "Lib.EH.WormHoleOut,".."Gate:"..self:GetParent():EntIndex()..",Ent:"..k:EntIndex()
+	 	table.insert(self.timer_table,temp_name)
+		table.Count(self.timer_table)
+	 	timer.Create(temp_name,3.2,1, function()
+	 		table.RemoveByValue(self.timer_table,temp_name)
+	 		table.Count(self.timer_table)
+	 		self:MoveToTarget(k,v,block,attached,bcfd,gravity_wormhole)
+	 	end)
+	 	if (self.RoutingPaused) then
+	 	timer.Pause(temp_name) 
+	 	end
+	else
+		self:MoveToTarget(k,v,block,attached,bcfd,gravity_wormhole);
+	end
+end
+
+function ENT:MoveToTarget(k,v,block,attached,bcfd,gravity_wormhole)
+
+
+	local nox_type = self:GetParent().NoxDialingType
+
+	local t = self.Target
+	target_gate = self.Target:GetParent()
+	if(not block) then
+		if(IsValid(target_gate) and target_gate.IsStargate) then
+			block = target_gate:IsBlocked();
+		end
+
+		if (self:BlockedCFD(target_gate,k)) then
+		 	block = false;
+		  	CFD = true;
+	 	else
+	 		CFD = false
+	 	end
+	end
+	
+	if (k:IsPlayer()) then
+		if (StarGate.CFG:Get("stargate", "nox_bypass", false)) then
+			if (nox_type and (k:IsAdmin() or k:IsSuperAdmin()) ) then
+				block = false
+				bcfd = false
+				CFD = false
+			end
+		end
+	end
+
+	if (not IsValid(k)) then return end
+	
+	local class = k:GetClass();
+	local ent;
+
+	--if(string.sub(class, 1, 5 )=="sg_vehicle_")then --Set entity owner as current entity
+
+	if(not k:IsPlayer()) then
+		
+		if(k:GetClass()=="puddle_jumper" or k:GetClass()=="sg_vehicle_gate_glider" or k:GetClass()=="sg_vehicle_dart")then
+			if (IsValid(k.Pilot)) then
+				ent = k;
+				if (k:GetClass()=="puddle_jumper") then
+					k = ent.Pilot
+				else
+					k = ent.Pilot
+				end
+			end
+		end
+	end
+
+
+	if(k:IsPlayer())then
+		if (not IsValid(self) or not k:Alive() or self.ShuttingDown and not self.ShuttingDownKill)then
+			if (not v.God) then
+				k:GodDisable()
+			end
+			k:SetColor(v.Color);
+			k:SetRenderMode(v.RenderMode);
+			k:Freeze(false)
+			k:DrawViewModel(true);
+			k:DrawWorldModel(true);
+			k:StripWeapons();
+			k:KillSilent();
+			timer.Simple(0.2,
+				function()
+					if(k and IsValid(k)) then
+						k:SetColor(v.Color);
+						k:SetRenderMode(v.RenderMode);
+					end
+				end
+			);
+			k.DisableSpawning = nil; -- Allow him again to spawn things
+			k.DisableSuicide = nil; -- Allow him to commit suicide again
+			k.DisableNoclip = nil;
+
+			umsg.Start("Lib.EventHorizon.WormHoleReset",k);
+			umsg.End();
+			umsg.Start("Lib.EventHorizon.PlayerKill");
+			umsg.Entity(k);
+			umsg.End();
+
+			if(ent!=nil) then
+				ent:Remove(); --Delete the ship if the owner is in
+			end
+			return
+		end
+	elseif(self.ShuttingDown) then
+		k:Remove();
+	end
+	if(ent!=nil) then
+		k = ent; -- Back to the real entity if needed
+	end
+
+	if(k:IsPlayer())then
+		umsg.Start("Lib.EventHorizon.WormHoleOut",k);
+		umsg.End();
+	elseif(k:GetClass()=="puddle_jumper" or k:GetClass()=="sg_vehicle_gate_glider" or k:GetClass()=="sg_vehicle_dart")then
+
+		local vehicle_owner = k:GetVar("Owner")
+				
+		umsg.Start("Lib.EventHorizon.WormHoleOut",vehicle_owner);
+		umsg.End();
+
+		umsg.Start("Lib.EventHorizon.WormHoleReset",vehicle_owner);
+		umsg.End();
+	elseif(k:GetClass() == "malp") then --MALP wheels dont stargate good
+		for i = 1, 6 do
+            if (IsValid(k.MalpWheels[i])) then
+                k.MalpWheels[i]:SetNotSolid(false)
+				k.MalpWheels[i]:SetRenderMode(0)
+				k.MalpWheels[i]:SetPos(k:GetPos())
+            end
+        end
+	end
+
+	-- Special settings for a player
+	if(k:IsPlayer()) then
+		k:Freeze(false)
+		k:DrawViewModel(true);
+		k:DrawWorldModel(true);
+		k.DisableSpawning = nil; -- Allow him again to spawn things
+		k.DisableSuicide = nil; -- Allow him to commit suicide again
+		k.DisableNoclip = nil;
+		k:GodDisable()
+
+		if (v.God) then k:GodEnable() end
+
+		-- This is a workaround for my own scripts. Using SelectWeapon two times (or just frequently) results into a spawnlag
+		if(v.ActiveWeapon) then
+			k.DefaultWeapon = v.ActiveWeapon;
+			timer.Simple(0,function()
+				-- We found out, WeaponManager is either in the wrong addon-load-order or not installed. So select it this way!
+				if(k:IsValid() and k.DefaultWeapon) then
+					k:SelectWeapon(k.DefaultWeapon);
+					k.DefaultWeapon = nil;
+				end
+			end);
+		end
+	end
+
+	k:SetHealth(v.Health); --Reset it to its normal life
+
+	-- General settings
+	k:SetMoveType(v.MoveType);
+	k:SetSolid(v.Solid);
+	k:SetColor(v.Color);
+	k:SetRenderMode(v.RenderMode);
+	k:SetParent(nil);
+
+	-- Wake the entity up
+	if(v.MoveType==MOVETYPE_VPHYSICS) then
+		local phys=k:GetPhysicsObject();
+		if(phys:IsValid()) then
+			phys:EnableMotion(true);
+			phys:Wake();
+		end
+	end
+
+	if (IsValid(self)) then
+		self.Ents[k]=nil;
+	end
+
+	self:Teleport(k,block,attached);
+
+	--################# Blocked or not? Either make iris play the "blocked" sound or draw the gulping at the other end
+	local t = self.Target
+	target_gate = self.Target:GetParent();
+	if(block) then
+		if (not self.Unstable) then
+			-- Iris blocked us. Make hut-noise
+			if(IsValid(t) and IsValid(target_gate.Iris) and target_gate.Iris.IsActivated) then
+				target_gate.Iris:HitIris(self:GetTeleportedVector(k:GetPos(),k:GetVelocity())); -- Tell that we hit and where and how fast
+			end
+		end
+	else
+		--t:EmitSound(self.Sounds.Teleport[math.random(1,#self.Sounds.Teleport)],90,math.random(90,110));
+		-- Needs to be delayed, or you wont hear the teleporting gulp if your a player
+		
+		local t = self.Target
+		if (CFD) then 
+			t = self.Entity
+		end
+		if (bcfd and not CFD) then else
+			timer.Simple(0.05,function()
+				if(IsValid(t) and IsValid(k)) then
+					t:EmitSound(self.Sounds.Teleport[math.random(1,#self.Sounds.Teleport)],90,math.random(90,110));
+					-- Draw the effect on the other eventhorizon
+					t:EnterEffectEntity(k);
+				end
+			end);
+		end
+		--Reset his normal velocity
+		if(not k:IsPlayer()) then
+	 		k:SetVelocity(v.Vel*2); 
+	 		if (IsValid(k:GetPhysicsObject()) and IsValid(k)) then
+	 		if(k.___dir >0) then
+	 			if (gravity_wormhole) then
+	 				k:GetPhysicsObject():EnableGravity(true)
+	 			end
+	 		end
+		end
+	end 
+	if(CFD) and (k:IsPlayer() or k:IsNPC()) then
+		k:SetPos(self.Entity:GetParent():GetPos() + self.Entity:GetParent():GetForward()*30 + self.Entity:GetParent():GetUp()*-80)
+	elseif (k:IsPlayer() or k:IsNPC()) then
+		k:SetPos(self.Target:GetParent():GetPos() + self.Target:GetParent():GetForward()*30 + self.Target:GetParent():GetUp()*-80)
+	end
+
+	local parent = self.Entity:GetParent();
+	-- Disabled by config - Overrides every other setting
+	if(self.AutoClose and not (
+			k.NoAutoClose or -- Disabled by SENT Writer
+			table.HasValue(self.AutocloseImmunity,class) or class:find("grenade") or class:find("rpg") or k:IsWeapon() or -- Disabled by me
+			(IsValid(parent) and parent.DisAutoClose) -- Wire forbids it
+		)) 
+	then
+		--################# Autoclose the gate after a delay
+		self.DoAutoClose = true;
+		self.Entity:NextThink(CurTime()+6); -- Trigger autoclose in the next 6 seconds
+	end
+
+	end
+	if (self.Entity:GetParent():GetClass()=="mobile_gate") then
+
+	else
+		self.Entity:GetParent().EntitiesOnRoute = self.Entity:GetParent().EntitiesOnRoute - 1
+		self.Target:GetParent().EntitiesOnRoute = self.Target:GetParent().EntitiesOnRoute - 1
+	end
 end

@@ -81,7 +81,8 @@ function ENT:Initialize()
 	self.SpinLight = 1;
 	self.AtlType = false;
 	self.AtlTypeAct = false;
-	self.FasterDial = false; 
+	self.FasterDial = false;
+	self.Owner = nil
 
 	timer.Create("AtlTypeThink"..self:EntIndex(), 5.0, 0, function() if IsValid(self) then self:AtlTypeThink() end end);
 end
@@ -135,11 +136,11 @@ function ENT:ChangeSystemType(groupsystem)
 end
 
 function ENT:GateWireInputs(groupsystem)
-	self:CreateWireInputs("Dial Address","Dial String [STRING]","Dial Mode","Start String Dial","Close","Disable Autoclose","Transmit [STRING]","Turn on ring light","Activate chevron numbers [STRING]","Disable Menu","Atlantis Type","Alternative Slow Dial","Event Horizon Type [STRING]","Event Horizon Color [VECTOR]");
+	self:CreateWireInputs("Dial Address","Dial String [STRING]","Dial Mode","Start String Dial","Close","Disable Autoclose","Transmit [STRING]","Turn on ring light","Activate chevron numbers [STRING]","Disable Menu","Atlantis Type","Alternative Slow Dial","Event Horizon Type [STRING]","Event Horizon Color [VECTOR]","TargetGate [ENTITY]","Switch Gate","Pause Routing","Resume Routing");
 end
 
 function ENT:GateWireOutputs(groupsystem)
-	self:CreateWireOutputs("Active","Open","Inbound","Chevron","Chevron Locked","Chevrons [STRING]","Active Glyph","Dialing Address [STRING]","Dialing Mode","Dialing Symbol [STRING]","Dialed Symbol [STRING]","Atlantis Type","Alternative Slow Dial","Received [STRING]");
+	self:CreateWireOutputs("Active","Open","Inbound","Chevron","Chevron Locked","Chevrons [STRING]","Active Glyph","Dialing Address [STRING]","Dialing Mode","Dialing Symbol [STRING]","Dialed Symbol [STRING]","Atlantis Type","Alternative Slow Dial","Received [STRING]","Entities On Route");
 end
 
 --################# Either allow the player to spawn this or not
@@ -315,6 +316,26 @@ function ENT:TriggerInput(k,v,mobile,mdhd)
 		self.FasterDial = util.tobool(v);
 		self.Entity:SetNWBool("FasterDial",util.tobool(v));
 		self:SetWire("Alternative Slow Dial",util.tobool(v));
+	elseif (k == "TargetGate") then
+		if (IsValid(v)) then
+			self.TargetGate = v
+		else
+			self.TargetGate = nil
+		end
+	elseif (k == "Switch Gate") then
+		if (v == 42) then
+			if (IsValid(self.TargetGate)) then
+				self:ControlledJump(self.TargetGate)
+			end
+		end
+	elseif(k == "Pause Routing" and self.Active and IsValid(self.EventHorizon)) then
+		if (v >= 1) then
+			self.EventHorizon:PauseAllRouting()
+		end
+	elseif(k == "Resume Routing" and self.Active and IsValid(self.EventHorizon)) then
+		if (v >= 1) then
+			self.EventHorizon:ResumeAllRouting()
+		end
 	end
 end
 
@@ -325,7 +346,7 @@ function ENT:ActivateChevron(chev,b,inbound,body,fasterdial)
 		if(b) then
 			if (IsValid(self.Chevron[chev])) then
 				self.Chevron[chev]:Fire("skin",3);
-				self.Entity:SetNetworkedBool("chevron"..chev,true); -- Dynamic light of the chevron
+				self.Entity:SetNWBool("chevron"..chev,true); -- Dynamic light of the chevron
 			else
 				self.Entity:Sparks(chev);
 			    timer.Simple(0.1, function()

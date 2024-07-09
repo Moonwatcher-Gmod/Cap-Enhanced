@@ -57,7 +57,7 @@ ENT.SpritePositions = {
 function ENT:Initialize()
 	self.Emitter = ParticleEmitter(self.Entity:GetPos());
 	self.DestinyConsoleRange = StarGate.CFG:Get("destiny_console","range",1000);
-	self.Entity:SetNetworkedBool( "Smoke", false );
+	self.Entity:SetNWBool( "Smoke", false );
 	local snd = "stargate/universe/steam.wav";
 	local parsedsound = snd:Trim()
 	util.PrecacheSound(parsedsound)

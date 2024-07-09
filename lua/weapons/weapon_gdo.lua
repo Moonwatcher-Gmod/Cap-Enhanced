@@ -47,17 +47,15 @@ SWEP.WElements = {
 }
 
 if SERVER then
+	function SWEP:OnDrop()
+		self:SetNWBool("WorldNoDraw",false);
+		return true;
+	end
 
-function SWEP:OnDrop()
-	self:SetNWBool("WorldNoDraw",false);
-	return true;
-end
-
-function SWEP:Equip()
-	self:SetNWBool("WorldNoDraw",true);
-	return true;
-end
-
+	function SWEP:Equip()
+		self:SetNWBool("WorldNoDraw",true);
+		return true;
+	end
 end
 
 SWEP.gate = nil
@@ -65,24 +63,22 @@ SWEP.gate = nil
 local function SendCode(EntTable)
 	if (CLIENT) then return end
 	if(not IsValid(EntTable.Owner)) then return end
-	local code = EntTable.Owner:GetInfo("cl_weapon_gdo_iriscode"):gsub("[^1-9]","")
+	local code = EntTable.Owner:GetInfo("cl_weapon_gdo_iriscode"):gsub("[^0-9]","")
 	if (not IsValid(EntTable.gate) or not IsValid(EntTable.gate.Target)) then return end
 	local gate_pos = EntTable.gate.Target:GetPos()
 	local iris_comp = EntTable:FindEnt(gate_pos, true)
-	
 	if IsValid(iris_comp) then
-	
 		local answer = iris_comp:RecieveIrisCode(code)
 		local answ = iris_comp.GDOText;
 		if answer == 1 then
 			if (answ and answ!="") then
-				EntTable:SetNetworkedString("gdo_textdisplay", answ);
+				EntTable:SetNWString("gdo_textdisplay", answ);
 			else
-				EntTable:SetNetworkedString("gdo_textdisplay", "OPEN");
+				EntTable:SetNWString("gdo_textdisplay", "OPEN");
 			end
 		elseif answer == 0 then
 			if (answ and answ!="") then
-				EntTable:SetNetworkedString("gdo_textdisplay", answ);
+				EntTable:SetNWString("gdo_textdisplay", answ);
 			else
 				EntTable:SetNWString("gdo_textdisplay", "WRONG");
 			end
@@ -92,7 +88,7 @@ local function SendCode(EntTable)
 			EntTable:SetNWString("gdo_textdisplay", "ERROR");
 		else
 			if (answ and answ!="") then
-				EntTable:SetNetworkedString("gdo_textdisplay", answ);
+				EntTable:SetNWString("gdo_textdisplay", answ);
 			else
 				EntTable:SetNWString("gdo_textdisplay", "STAND-BY");
 			end
@@ -121,11 +117,13 @@ local function SendCode(EntTable)
 				end
 				if (IsValid(ent) and IsValid(ent.Owner) and ent.Stand and IsValid(ent.gate) and IsValid(ent.gate.Target) and ent.gate.IsOpen) then
 					if (not ent.gate.Target:IsBlocked(1,1) and answer!=3) then
-						if (IsValid(iris_comp) and iris_comp.GDOText and iris_comp.GDOText!="") then
-							ent:SetNWString("gdo_textdisplay", iris_comp.GDOText);
-						else
-							ent:SetNWString("gdo_textdisplay", "OPEN");
-						end
+						timer.Simple(0.5,function() --So the Iris Computer can change the GDO text after it receives a code
+							if (IsValid(iris_comp) and iris_comp.GDOText and iris_comp.GDOText!="") then
+								ent:SetNWString("gdo_textdisplay", iris_comp.GDOText);
+							else
+								ent:SetNWString("gdo_textdisplay", "OPEN");
+							end
+						end)
 						timer.Remove("GDOTimer"..id);
 						timer.Simple(5, function() if (IsValid(ent)) then ent:SetNWString("gdo_textdisplay", "GDO"); ent.Stand = false; end end);
 					end
@@ -191,7 +189,7 @@ function SWEP:PrimaryAttack()
 		self.Owner:SetAnimation(ACT_VM_PRIMARYATTACK);
 		self.Weapon:SendWeaponAnim(ACT_VM_PRIMARYATTACK)
 		timer.Simple(self.Primary.Delay+1, function() if IsValid(self) then SendCode(self) end end)
-		timer.Simple(2, function() if IsValid(self) then self:SetNWString("gdo_textdisplay",self.Owner:GetInfo("cl_weapon_gdo_iriscode"):gsub("[^1-9]","")) end end);
+		timer.Simple(2, function() if IsValid(self) then self:SetNWString("gdo_textdisplay",self.Owner:GetInfo("cl_weapon_gdo_iriscode"):gsub("[^0-9]","")) end end);
 		timer.Simple(self.Primary.Delay+5, function() if (IsValid(self) and not self.Stand) then self:SetNWString("gdo_textdisplay", "GDO") end end);
 	end
 end
@@ -331,14 +329,14 @@ function VGUI:Init()
     image:LoadTGAImage("materials/gui/cap_logo.tga", "MOD");
 
 	local code = vgui.Create( "DTextEntry" , DermaPanel )
-	code:SetText(GetConVarString("cl_weapon_gdo_iriscode"):gsub("[^1-9]",""))
+	code:SetText(GetConVarString("cl_weapon_gdo_iriscode"):gsub("[^0-9]",""))
 	code:SetPos( 15, 40)
 	code:SetSize(200, 20)
 	code:SetTooltip("Type the IDC here (Numbers only!).")
  	code.OnTextChanged = function(TextEntry)
  		local pos = TextEntry:GetCaretPos();
  		local len = TextEntry:GetValue():len();
-		local letters = TextEntry:GetValue():gsub("[^1-9]","");
+		local letters = TextEntry:GetValue():gsub("[^0-9]","");
 		TextEntry:SetText(letters);
 		TextEntry:SetCaretPos(math.Clamp(pos - (len-#letters),0,letters:len())); -- Reset the caretpos!
 	end

@@ -13,6 +13,7 @@ TOOL.ClientConVar["model"] = "models/iziraider/destinybutton/destinybutton.mdl";
 TOOL.List = "ControllerModels";
 list.Set(TOOL.List,"models/iziraider/destinybutton/destinybutton.mdl",{});
 list.Set(TOOL.List,"models/boba_fett/props/buttons/atlantis_button.mdl",{});
+list.Set(TOOL.List,"models/soren/atlantis_button_v2/atlantis_button_v2.mdl",{});
 list.Set(TOOL.List,"models/madman07/ring_panel/goauld_panel.mdl",{Angle=Angle(270,0,0),Position=Vector(0,0,-12)});
 list.Set(TOOL.List,"models/zsdaniel/ori-ringpanel/panel.mdl",{Angle=Angle(270,0,0),Position=Vector(0,0,-5)});
 list.Set(TOOL.List,"models/madman07/ring_panel/ancient/panel.mdl",{Angle=Angle(270,0,0),Position=Vector(0,0,-10)});

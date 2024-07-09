@@ -143,7 +143,7 @@ function SWEP:PrimaryAttack()
 						end
 					end
 					if (self.Owner:Alive()) then
-						self.Owner:SetNetworkedBool("SGAdrenaline_Heal", true);
+						self.Owner:SetNWBool("SGAdrenaline_Heal", true);
 					end
 				end
 			end
@@ -177,13 +177,13 @@ if (SERVER) then
 	-- don't know why, but if set this on clien it wont send to server, so this is workaround.
 	net.Receive("SGAdrenaline.Reset",function(len,ply)
 		if (IsValid(ply)) then
-			ply:SetNetworkedBool("SGAdrenaline_Heal", false)
+			ply:SetNWBool("SGAdrenaline_Heal", false)
 		end
 	end)
 
 	local function playerDies( victim, weapon, killer )
 		if (victim:GetNetworkedBool("SGAdrenaline_Heal", false)) then
-			victim:SetNetworkedBool("SGAdrenaline_Heal", false);
+			victim:SetNWBool("SGAdrenaline_Heal", false);
 		end
 	end
 	hook.Add( "PlayerDeath", "StarGate.Adrenaline", playerDies )

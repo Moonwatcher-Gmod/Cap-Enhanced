@@ -56,13 +56,14 @@ function ENT:Initialize()
 	self.Entity:PhysicsInit(SOLID_VPHYSICS);
 	self.Entity:SetMoveType(MOVETYPE_VPHYSICS);
 	self.Entity:SetSolid(SOLID_VPHYSICS);
-	self.Entity:SetNetworkedBool("on",false);
+	self.Entity:SetNWBool("on",false);
 	-- Use the StarGate Pack's config @aVoN
 	self.MaxEnts = StarGate.CFG:Get("harvester","max_ents",5);
 	self.AllowConstrained = StarGate.CFG:Get("harvester","allow_constrained",false);
 	self.AllowPlayers = StarGate.CFG:Get("harvester","allow_players",true);
 	self.AllowFrozen = StarGate.CFG:Get("harvester","allow_frozen",false);
 	self.ConsumeEnergy = StarGate.CFG:Get("harvester","energy",100);
+	self.DisplayVisuals = StarGate.CFG:Get("harvester","harvester_visuals",false);
 	self.Disallowed = {};
 	for _,v in pairs(StarGate.CFG:Get("harvester","disallowed_entities",""):TrimExplode(",")) do
 		self.Disallowed[v] = true;
@@ -131,7 +132,7 @@ function ENT:TurnOn(b)
 	local state = self.Entity:GetNetworkedBool("on");
 	if(b and not state) then
 		if(self:GetResource("energy",self.ConsumeEnergy) < self.ConsumeEnergy) then return end;
-		self.Entity:SetNetworkedBool("on",true);
+		self.Entity:SetNWBool("on",true);
 		self.Sound:Play();
 		self.Sound:SetSoundLevel(85);
 		--self.Sound:ChangeVolume(100,1);
@@ -164,6 +165,19 @@ function ENT:Spit(override)
 			self.Entity:EmitSound(self.Sounds.Spit,90,130);
 			-- Special settings for a player
 			if(k:IsPlayer()) then
+
+				umsg.Start("Lib.remolecularize",k);
+				umsg.End();
+
+				if (self.DisplayVisuals) then
+				umsg.Start("Lib.harverster_display_visual_off",k);
+				umsg.End();
+				end
+
+
+
+
+
 				k:SetParent(nil);
 				k.DisableSpawning = nil; -- Allow him again to spawn things
 				k.DisableSuicide = nil; -- Allow him to commit suicide again
@@ -276,7 +290,7 @@ function ENT:Think()
 	if(self.Entity:GetNWBool("on") and table.Count(self.Ents) < self.MaxEnts) then
 		if(self:GetResource("energy",self.ConsumeEnergy) < self.ConsumeEnergy) then
 			self:ShowOutput(false);
-			self.Entity:SetNetworkedBool("on",false);
+			self.Entity:SetNWBool("on",false);
 			self.Sound:Stop();
 			return;
 		end
@@ -322,6 +336,20 @@ function ENT:Think()
 						end
 						-- Make players spectate the harvester
 						if(v:IsPlayer()) then
+
+							hook.Add("PostPlayerDeath","Lib.data",function(v)
+								umsg.Start("Lib.remolecularize",v);
+								umsg.End();
+							end)
+
+							umsg.Start("Lib.demolecularize",v); --Start Animation !
+							umsg.End();
+							if (self.DisplayVisuals) then
+								umsg.Start("Lib.harverster_display_visual_on",v); --Start Animation !
+								umsg.End();
+							end
+
+
 							v.DisableSpawning = true; -- Can't spawn props
 							v.DisableSuicide = true; -- Can't suicide
 							v.DisableNoclip = true; -- Disallows him to move or change his movetypez
@@ -450,3 +478,44 @@ function ENT:Draw()
 end
 
 end
+
+
+usermessage.Hook( "Lib.demolecularize", function(um)
+	started = CurTime();
+	local e = LocalPlayer();
+	
+	hook.Add("EntityEmitSound","Lib.data",function() return false end)
+	hook.Add("PlayerBindPress","Lib.data",function() return true end)
+	--hook.Add( "HUDPaintBackground", "HUDPaintBackground_harvester", function()
+
+		--surface.SetMaterial(Material("moonwatcher/datastream"))
+		--surface.DrawTexturedRect( 0, 0, ScrW(), ScrH() )
+	--end )
+end)
+
+usermessage.Hook( "Lib.remolecularize", function(um)
+	local e = LocalPlayer();
+
+	--hook.Remove("HUDPaintBackground", "HUDPaintBackground_harvester");
+	hook.Remove("EntityEmitSound","Lib.data");
+	hook.Remove("PlayerBindPress","Lib.data");
+end)
+
+
+
+usermessage.Hook( "Lib.harverster_display_visual_on", function(um)
+	started = CurTime();
+	local e = LocalPlayer();
+	
+	hook.Add( "HUDPaintBackground", "HUDPaintBackground_harvester", function()
+
+		surface.SetMaterial(Material("moonwatcher/datastream"))
+		surface.DrawTexturedRect( 0, 0, ScrW(), ScrH() )
+	end )
+end)
+
+usermessage.Hook( "Lib.harverster_display_visual_off", function(um)
+	local e = LocalPlayer();
+	
+	hook.Remove("HUDPaintBackground", "HUDPaintBackground_harvester");
+end)

@@ -192,7 +192,7 @@ stool_naq_bottle_fulldesc = This is the Naquadah bottle, this tool requires Spac
 // Naquada Generator MK1/MK2
 stool_naq_gen_mks_spawner = Naquada Generator Spawner
 stool_naq_gen_mks_create = Creates a Naquada Generator
-stool_naq_gen_mks_desc = Left click, to spawn a Naquada Generator. Right ñlick - refill 25%% (once in 30 seconds).
+stool_naq_gen_mks_desc = Left click, to spawn a Naquada Generator. Right ï¿½lick - refill 25%% (once in 30 seconds).
 stool_naq_gen_mks_undone = Naquada Generator removed
 stool_naq_gen_mks_cleanup = Naquada Generator
 stool_naq_gen_mks_cleaned = Removed all Naquada Generators
@@ -412,6 +412,17 @@ stool_zpm_mk3_cleaned = Removed all Zero Point Modules
 stool_zpm_mk3_limit = Hit the Zero Point Module limit
 stool_zpm_mk3_fulldesc = This is the Zpm MK3, this tool requires SpaceBuild or the Environments addon. If you don't have it, this Zpm MK3 is quite useless for you.
 stool_zpm_mk3_capacity = Capacity:
+
+// ZPM MK IV
+stool_zpm_mk4_spawner = ZPM MK IV Spawner
+stool_zpm_mk4_create = Creates a Zero Point Module
+stool_zpm_mk4_desc = Left click, to spawn a ZPM MK IV
+stool_zpm_mk4_undone = Zero Point Module removed
+stool_zpm_mk4_cleanup = Zero Point Modules
+stool_zpm_mk4_cleaned = Removed all Zero Point Modules
+stool_zpm_mk4_limit = Hit the Zero Point Module limit
+stool_zpm_mk4_fulldesc = This is the Zpm MK4, this tool requires SpaceBuild or the Environments addon. If you don't have it, this Zpm MK4 is quite useless for you.
+stool_zpm_mk4_capacity = Capacity:
 
 // SGC Screens
 stool_sgcscreen_spawner = SGC Screen Spawner

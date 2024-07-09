@@ -205,7 +205,7 @@ if SERVER then
 
 		if (Data and Data.GateSpawnerSpawned and Data.GateSpawnerID) then
 			ent.GateSpawnerSpawned = true;
-			ent:SetNetworkedBool("GateSpawnerSpawned",true);
+			ent:SetNWBool("GateSpawnerSpawned",true);
 			ent.GateSpawnerID = Data.GateSpawnerID;
 		end
 
@@ -226,7 +226,7 @@ if SERVER then
 			numpad.OnUp(ply, tbl["iKeyUp"][2], 'GoStop', ent)
 			numpad.OnUp(ply, tbl["iKeyDown"][2], 'GoStop', ent)
 			ent.StartVector=ent:WorldToLocal(Pos-Vector(0,0,1))
-			ent:SetNetworkedVector("startvector", ent.StartVector)
+			ent:SetNWVector("startvector", ent.StartVector)
 		elseif (IsValid(ent:GetPhysicsObject())) then
 			ent:GetPhysicsObject():SetMass(200)
 		end

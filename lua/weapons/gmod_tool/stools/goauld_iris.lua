@@ -10,9 +10,12 @@ TOOL.Name=SGLanguage.GetMessage("stool_giris");
 TOOL.ClientConVar["toggle"] = KEY_PAD_2;
 TOOL.ClientConVar["activate"] = KEY_B;
 TOOL.ClientConVar["deactivate"] = KEY_C;
+TOOL.ClientConVar["r"] = 255;
+TOOL.ClientConVar["g"] = 255;
+TOOL.ClientConVar["b"] = 255;
 
 TOOL.Entity.Class = "goauld_iris";
-TOOL.Entity.Keys = {"toggle","activate","deactivate","IsActivated"}; -- These keys will get saved from the duplicator
+TOOL.Entity.Keys = {"toggle","activate","deactivate","IsActivated","r","g","b"}; -- These keys will get saved from the duplicator
 TOOL.Entity.Limit = 5;
 TOOL.Topic["name"] = SGLanguage.GetMessage("stool_goauld_iris_spawner");
 TOOL.Topic["desc"] = SGLanguage.GetMessage("stool_goauld_iris_create");
@@ -29,6 +32,9 @@ function TOOL:LeftClick(t)
 	local toggle = self:GetClientNumber("toggle");
 	local activate = self:GetClientNumber("activate");
 	local deactivate = self:GetClientNumber("deactivate");
+	local r = self:GetClientNumber("r");
+	local g = self:GetClientNumber("g");
+	local b = self:GetClientNumber("b");
 	if(not IsValid(t.Entity) or not t.Entity.IsStargate) then
 	    p:SendLua("GAMEMODE:AddNotify(SGLanguage.GetMessage(\"stool_stargate_iris_err\"), NOTIFY_ERROR, 5); surface.PlaySound( \"buttons/button2.wav\" )");
 	    return
@@ -47,6 +53,8 @@ function TOOL:LeftClick(t)
 	if(not self:CheckLimit()) then return false end;
 	local e = self:SpawnSENT(p,t,toggle,activate,deactivate);
 	if (not IsValid(e)) then return end
+	e:SetNWVector("shield_color", Vector(r,g,b))
+	e:SetNWVector("Col",Vector(r,g,b))
 	local stargate = false;
 	if(IsValid(t.Entity) and t.Entity.IsStargate) then
 		for _,v in pairs(ents.FindInSphere(t.Entity:GetPos(),10)) do
@@ -105,6 +113,16 @@ function TOOL:ControlsPanel(Panel)
 		Command="goauld_iris_activate",
 		Label2=SGLanguage.GetMessage("stool_deactivate"),
 		Command2="goauld_iris_deactivate",
+	});
+	Panel:AddControl("Color",{
+		Label = SGLanguage.GetMessage("Shield Iris Color"),
+		Red = "goauld_iris_r",
+		Green = "goauld_iris_g",
+		Blue = "goauld_iris_b",
+		ShowAlpha = 0,
+		ShowHSV = 1,
+		ShowRGB = 1,
+		Multiplier = 255,
 	});
 end
 

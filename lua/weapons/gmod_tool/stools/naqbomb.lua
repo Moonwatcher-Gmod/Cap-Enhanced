@@ -5,6 +5,8 @@
 if (StarGate==nil or StarGate.CheckModule==nil or not StarGate.CheckModule("entweapon") or SGLanguage==nil or SGLanguage.GetMessage==nil) then return end
 include("weapons/gmod_tool/stargate_base_tool.lua");
 
+
+
 TOOL.Category="Weapons";
 TOOL.Name=SGLanguage.GetMessage("stool_naq_bomb");
 TOOL.ClientConVar["detonationCode"] = "";
@@ -57,7 +59,10 @@ function TOOL:LeftClick(t)
 	if (not IsValid(e)) then return end
 	if (cart and model=="models/markjaw/gate_buster.mdl") then e:SetPos(e:GetPos()+Vector(0,0,25)) end
 	e:Setup(detcode, abcode, yield, time, hud, cart, p)
-
+	self.Instancing = false
+	if (self.Instancing) then
+		e:SetInstance(p:GetInstance())
+	end
 	if (weld and not cart) then local c = self:Weld(e,t.Entity,true);
 	else local c = self:Weld(e,t.Entity,false); end
 

@@ -39,7 +39,7 @@ function ENT:Initialize()
 
 	self.Enabled = false;
 	self.RayModel = {};
-	self:SetNetworkedBool("DoClientSide", false);
+	self:SetNWBool("DoClientSide", false);
 end
 
 -----------------------------------COLLISION SCALE----------------------------------

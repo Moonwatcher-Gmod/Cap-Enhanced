@@ -181,8 +181,8 @@ function ENT:Initialize()
 	self.Entity:SetMoveType(MOVETYPE_VPHYSICS);
 	self.Entity:SetSolid(SOLID_VPHYSICS);
 	self.Entity:SetUseType(SIMPLE_USE);
-	self.Entity:SetNetworkedString("ADDRESS","");
-	self.Entity:SetNetworkedBool("Draw",true);
+	self.Entity:SetNWString("ADDRESS","");
+	self.Entity:SetNWBool("Draw",true);
 
 	self.CantDial = false;
 	self.Snd = false;
@@ -223,7 +223,7 @@ function ENT:PressButton(button)
 	if (not table.HasValue(self.Buttons,button) or self.CantDial) then return end
 
 	self.CantDial = true;
-	self.Entity:SetNetworkedString("ADDRESS",tostring(button));
+	self.Entity:SetNWString("ADDRESS",tostring(button));
 
 	self:SetWire(tostring(button),1);
 	self:SetWire("Button Pressed",button);
@@ -247,7 +247,7 @@ function ENT:PressButton(button)
 		if (IsValid(self.Entity)) then
 			self.Entity:Fire("skin",self.SkinOff);
 			self.CantDial = false;
-			self.Entity:SetNetworkedString("ADDRESS","");
+			self.Entity:SetNWString("ADDRESS","");
 			self:SetWire(tostring(button),0);
 			self:SetWire("Button Pressed",-1);
 		end
@@ -268,7 +268,7 @@ function ENT:TriggerInput(name,value)
         end
 	elseif (name == "NoDraw") then
 		if (value > 0) then
-            self.Entity:SetNetworkedBool("Draw", false)
+            self.Entity:SetNWBool("Draw", false)
         else
             self.Entity:SetNWBool("Draw", true)
         end

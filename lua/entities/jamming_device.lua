@@ -56,8 +56,13 @@ end
 
 function ENT:TriggerInput(variable, value)
 	if (variable == "Activate") then
-		self.IsEnabled = util.tobool(value)
-		if (self.IsEnabled) then
+		if(value <= 0) then
+			self.IsEnabled = false
+		else
+			self.IsEnabled = true
+		end
+
+		if(self.IsEnabled) then
 			self:SetWire("Activated",1);
 		else
 			self:SetWire("Activated",0);
@@ -86,7 +91,7 @@ function ENT:ShowOutput(active)
 end
 
 function ENT:SetOverlayText( text )
-       self:SetNetworkedString( "GModOverlayText", text )
+       self:SetNWString( "GModOverlayText", text )
 end
 
 -----------------------------------USE---------------------------------

@@ -120,7 +120,7 @@ function ENT:Enter(p) --####### Get in @RononDex
 
 	if(not(self.Inflight) and self.CanUse) then
 		p:SetNetworkedEntity(self.Vehicle,self); --Set a networked entity as the name of the vehicle
-		p:SetNetworkedBool("Flying"..self.Vehicle,true); --Set a bool on the player
+		p:SetNWBool("Flying"..self.Vehicle,true); --Set a bool on the player
 		p:Spectate(OBS_MODE_CHASE); --Spectate the vehicle
 		p:DrawWorldModel(false);
 		p:DrawViewModel(false);
@@ -159,7 +159,7 @@ function ENT:Exit(kill) --####### Get out @RononDex
 		self.Pilot:DrawViewModel(true);
 		self.Pilot:DrawWorldModel(true);
 		self.Pilot:Spawn();
-		self.Pilot:SetNetworkedBool("Flying"..self.Vehicle,false);
+		self.Pilot:SetNWBool("Flying"..self.Vehicle,false);
 		self.Pilot:SetPos(self.ExitPos or self:GetPos());
 		self.Pilot:SetParent();
 		self.Pilot:SetMoveType(MOVETYPE_WALK);
@@ -390,7 +390,7 @@ function ENT:PostEntityPaste(ply, Ent, CreatedEntities)
 	if (IsValid(ply)) then
 		local PropLimit = GetConVar("CAP_ships_max"):GetInt()
 		if(ply:GetCount("CAP_ships")+1 > PropLimit) then
-			ply:SendLua("GAMEMODE:AddNotify(SGLanguage.GetMessage(\"entity_limit_ships\"), NOTIFY_ERROR, 5); surface.PlaySound( \"buttons/button2.wav\" )");
+			ply:SendLua("GAMEMODE:AddNotify(\"Ships limit reached!\", NOTIFY_ERROR, 5); surface.PlaySound( \"buttons/button2.wav\" )");
 			Ent:Remove();
 			return
 		end

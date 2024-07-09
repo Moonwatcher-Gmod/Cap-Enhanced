@@ -24,7 +24,7 @@ function ENT:Initialize()
 	
 	self:SetNWBool("On",false);
 	
-	self:CreateWireInputs("On","Disable Use","Brightness","Size","RGB [VECTOR]","R","G","B");
+	self:CreateWireInputs("On","Disable Use","Brightness","Size","RGB [VECTOR]");
 	self:CreateWireOutputs("Active");
 	
 	if(self.Phys:IsValid()) then
@@ -93,12 +93,6 @@ function ENT:TriggerInput(k,v)
 		self:SetBrightness(v);
 	elseif(k=="Size") then
 		self:SetLightSize(v);
-	elseif(k=="R") then
-		self:SetLightColour(v,g,b);
-	elseif(k=="G") then
-		self:SetLightColour(r,v,b);
-	elseif(k=="B") then
-		self:SetLightColour(r,g,v);
 	elseif(k=="RGB") then
 		self:SetLightColour(v.x,v.y,v.z);
 	end

@@ -66,7 +66,7 @@ if SERVER then
 										bullet.Dir		= (v:LocalToWorld(v:OBBCenter()) - self:GetPos()):GetNormal();
 										bullet.Spread		= Vector(0.01,0.01,0.01);
 										bullet.Num		= 1;
-										bullet.Damage		= 200;
+										bullet.Damage		= 20;
 										bullet.Force		= 55;
 										bullet.Tracer		= 1;
 										bullet.TracerName	= "zat_tracer";
@@ -294,8 +294,8 @@ if SERVER then
 		end
 
 		local fx = EffectData()
-		fx:SetStart( Ent:GetPos() )
-		fx:SetOrigin( Ent:GetPos() )
+		fx:SetStart( self:GetPos() )
+		fx:SetOrigin( self:GetPos() )
 		fx:SetScale( 10 )
 		fx:SetMagnitude( 10 )
 		fx:SetEntity( Ent )

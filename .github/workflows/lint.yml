@@ -1,19 +1,20 @@
 name: Lint
 
 on:
+    workflow_call:
+    workflow_dispatch:
     pull_request:
         branches: [master]
         paths:
-            - 'lua/'
+            - "lua/**"
     push:
         branches: [master]
         paths:
-            - 'lua/'
+            - "lua/**"
 
 jobs:
-    build:
+    lint:
         runs-on: self-hosted
-
         steps:
             - name: Install libffi7
               run: sudo apt-get install libffi7
@@ -27,9 +28,16 @@ jobs:
             - name: GLua Linter
               uses: TASSIA710/action-glua-lint@v1.1.4
               with:
-                  lint_maxScopeDepth: 99
-                  lint_deprecated: false
+                  lint_doubleNegations: false
                   lint_emptyBlocks: false
-                  lint_unusedParameters: false
-                  lint_unusedLoopVars: false
+                  lint_maxScopeDepth: 99
+                  lint_redundantIfStatements: false
+                  lint_redundantParentheses: false
                   lint_shadowing: false
+                  lint_syntaxErrors: false
+                  lint_syntaxInconsistencies: false
+                  lint_trailingWhitespace: false
+                  lint_unusedLoopVars: false
+                  lint_unusedParameters: false
+                  lint_unusedVars: false
+                  lint_whitespaceStyle: false

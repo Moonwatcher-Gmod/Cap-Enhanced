@@ -91,7 +91,7 @@ end
 __e2setcost( 5 )
 
 e2function void entity:stargateSetGroup(string group)
-	if not IsValid(this) or not this.IsStargate or not this:CAP_CanModify(self.player) or not(isOwner(self,this) or self.player:IsAdmin()) then return end
+	if not IsValid(this) or not this.IsStargate or not this:CAP_CanModify(self.player) or not(isOwner(self,this)) then return end
 	this:SetGateGroup(group)
 end
 
@@ -143,7 +143,7 @@ e2function number wirelink:stargatePrivate()
 end
 
 e2function void entity:stargateSetPrivate(number bool)
-	if not IsValid(this) or not this.IsStargate or not this:CAP_CanModify(self.player) or not(isOwner(self,this) or self.player:IsAdmin()) then return end
+	if not IsValid(this) or not this.IsStargate or not this:CAP_CanModify(self.player) or not(isOwner(self,this)) then return end
 	this:SetPrivate(bool)
 end
 
@@ -173,7 +173,7 @@ e2function number wirelink:stargateLocal()
 end
 
 e2function void entity:stargateSetLocal(number bool)
-	if not IsValid(this) or not this.IsStargate or not this:CAP_CanModify(self.player) or not(isOwner(self,this) or self.player:IsAdmin()) then return end
+	if not IsValid(this) or not this.IsStargate or not this:CAP_CanModify(self.player) or not(isOwner(self,this)) then return end
 	this:SetLocale(bool)
 end
 
@@ -203,7 +203,7 @@ e2function number wirelink:stargateBlocked()
 end
 
 e2function void entity:stargateSetBlocked(number bool)
-	if not IsValid(this) or not this.IsStargate or not this:CAP_CanModify(self.player) or not(isOwner(self,this) or self.player:IsAdmin()) then return end
+	if not IsValid(this) or not this.IsStargate or not this:CAP_CanModify(self.player) or not(isOwner(self,this)) then return end
 	this:SetBlocked(bool)
 end
 
@@ -233,7 +233,7 @@ e2function number wirelink:stargateGalaxy()
 end
 
 e2function void entity:stargateSetGalaxy(number bool)
-	if not IsValid(this) or not this.IsStargate or not this:CAP_CanModify(self.player) or not(isOwner(self,this) or self.player:IsAdmin()) then return end
+	if not IsValid(this) or not this.IsStargate or not this:CAP_CanModify(self.player) or not(isOwner(self,this)) then return end
 	this:SetGalaxy(bool)
 end
 
@@ -242,7 +242,6 @@ e2function void wirelink:stargateSetGalaxy(number bool)
 	this:SetGalaxy(bool)
 end
 
-/* I think this function is like exploit - we can openiris from target gate for example... So i disable it.
 e2function entity entity:stargateTarget()
 	if not IsValid(this) or not this.IsStargate or not(isOwner(self,this) or self.player:IsAdmin()) then return nil end
 	if (IsValid(this.Target) and (not this.Target:GetPrivate() or isOwner(self.Target,this) or self.player:IsAdmin())) then
@@ -251,15 +250,6 @@ e2function entity entity:stargateTarget()
 		return nil
 	end
 end
-
-e2function entity wirelink:stargateTarget()
-	if not IsValid(this) or not this.IsStargate or not(isOwner(self,this) or self.player:IsAdmin()) then return nil end
-	if (IsValid(this.Target) and (not this.Target:GetPrivate() or isOwner(self.Target,this) or self.player:IsAdmin())) then
-		return this.Target
-	else
-		return nil
-	end
-end */
 
 e2function number entity:stargateOpen()
 	if not IsValid(this) or not this.IsStargate or not(isOwner(self,this) or self.player:IsAdmin()) then return -1 end
@@ -389,102 +379,6 @@ end
 
 -- Not sure, but probably this functions is shit... also workaround for gatespawner
 -- or maybe this will start new era for e2 coders not sure...
-
-__e2setcost( 5 )
-
-e2function number wirelink:stargateGetWire(string name)
-	if not IsValid(this) or not this.GetWire or not this.CreateWireInputs then return -1 end
-	local ret = this:GetWire(name,-1,true);
-	if (type(ret)=="number") then
-		return ret;
-	end
-	return -1;
-end
-
-e2function string wirelink:stargateGetWireString(string name)
-	if not IsValid(this) or not this.GetWire or not this.CreateWireInputs then return "" end
-	local ret = this:GetWire(name,"",true);
-	if (type(ret)=="string") then
-		return ret;
-	end
-	return "";
-end
-
-e2function vector wirelink:stargateGetWireVector(string name)
-	if not IsValid(this) or not this.GetWire or not this.CreateWireInputs then return Vector(0,0,0) end
-	local ret = this:GetWire(name,"",true);
-	if (type(ret)=="Vector") then
-		return ret
-	end
-	return Vector(0, 0, 0)
-end
-
-e2function entity wirelink:stargateGetWireEntity(string name)
-	if not IsValid(this) or not this.GetWire or not this.CreateWireInputs then return NULL end
-	local ret = this:GetWire(name,NULL,true);
-	if (IsValid(ret)) then
-		return ret;
-	end
-	return NULL
-end
-
-e2function number wirelink:stargateGetWireInput(string name)
-	if not IsValid(this) or not this.GetWire or not this.CreateWireInputs then return -1 end
-	local ret = this:GetWire(name,-1);
-	if (type(ret)=="number") then
-		return ret;
-	end
-	return -1;
-end
-
-e2function string wirelink:stargateGetWireStringInput(string name)
-	if not IsValid(this) or not this.GetWire or not this.CreateWireInputs then return "" end
-	local ret = this:GetWire(name,"");
-	if (type(ret)=="string") then
-		return ret;
-	end
-	return "";
-end
-
-e2function vector wirelink:stargateGetWireVectorInput(string name)
-	if not IsValid(this) or not this.GetWire or not this.CreateWireInputs then return Vector(0,0,0) end
-	local ret = this:GetWire(name,"");
-	if (type(ret)=="Vector") then
-		return ret
-	end
-	return Vector(0, 0, 0);
-end
-
-e2function entity wirelink:stargateGetWireEntityInput(string name)
-	if not IsValid(this) or not this.GetWire or not this.CreateWireInputs then return NULL end
-	local ret = this:GetWire(name,NULL);
-	if (IsValid(ret)) then
-		return ret;
-	end
-	return NULL;
-end
-
-e2function void wirelink:stargateSetWire(string name, number value)
-	if not IsValid(this) or not this.SetWire or not this.CreateWireInputs then return end
-	this:SetWire(name,value,true);
-end
-
-e2function void wirelink:stargateSetWire(string name, string value)
-	if not IsValid(this) or not this.SetWire or not this.CreateWireInputs then return end
-	this:SetWire(name,value,true);
-end
-
-e2function void wirelink:stargateSetWire(string name, vector value)
-	if not IsValid(this) or not this.SetWire or not this.CreateWireInputs then return end
-	this:SetWire(name,Vector(value[1],value[2],value[3]),true);
-end
-
-e2function void wirelink:stargateSetWire(string name, entity value)
-	if not IsValid(this) or not this.SetWire or not this.CreateWireInputs then return end
-	this:SetWire(name,value,true);
-end
-
--- end
 
 __e2setcost( 5 )
 
@@ -745,37 +639,38 @@ end
 
 __e2setcost( 50 )
 
-e2function number stargateIsInJamming(vector from)
+e2function number isJammed(vector pos)
 	local radius = 1024; -- max range of jamming, we will adjust it later
-	local jaiming_online = 0;
-	for _,v in pairs(ents.FindInSphere(from,  radius)) do
+	local jamming_online = 0;
+	for _,v in pairs(ents.FindInSphere(pos, radius)) do
 		if IsValid(v) and v.CapJammingDevice then
 			if v.IsEnabled then
-				local dist = from:Distance(v:GetPos());
-				if (dist < v.Size) then  -- ow jaiming, we cant do anything
-					jaiming_online = 1
+				local dist = pos:Distance(v:GetPos());
+				if (dist <= v.Size) then  -- ow jamming, we cant do anything
+					jamming_online = 1
 				end
 			end
 		end
 	end
-	return jaiming_online;
+	return jamming_online;
 end
 
-e2function number stargateIsInJamming(vector from, entity player)
-	if (not IsValid(player) or not player:IsPlayer()) then return -1 end
+__e2setcost( 50 )
+
+e2function number stargateIsInJamming(vector pos)
 	local radius = 1024; -- max range of jamming, we will adjust it later
-	local jaiming_online = 0;
-	for _,v in pairs(ents.FindInSphere(from,  radius)) do
+	local jamming_online = 0;
+	for _,v in pairs(ents.FindInSphere(pos,  radius)) do
 		if IsValid(v) and v.CapJammingDevice then
 			if v.IsEnabled then
-				local dist = from:Distance(v:GetPos());
-				if (dist < v.Size) then  -- ow jaiming, we cant do anything
-					if not (v.Immunity and v.Owner == player) then jaiming_online = 1 end
+				local dist = pos:Distance(v:GetPos());
+				if (dist <= v.Size) then  -- ow jamming, we cant do anything
+					jamming_online = 1
 				end
 			end
 		end
 	end
-	return jaiming_online;
+	return jamming_online;
 end
 
 __e2setcost( 1 )
@@ -990,3 +885,10 @@ e2function table entity:stargateAtlantisTPAddressList()
 end
 
 __e2setcost( nil )
+
+e2function number entity:hasATA()
+	if(IsValid(this) and this:IsPlayer()) then
+		return this:GetNWInt('ATAGene',0)
+	end
+end
+__e2setcost(5)

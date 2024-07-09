@@ -46,6 +46,7 @@ ENT.Sounds = {
 	Slow=Sound("AlexALX/stargate/gate_roll_long.wav"),
 	Chev9Dial=Sound("stargate/universe/fail3.wav"),
 	OnButtonLock=Sound("stargate/stargate/dhd/dhd_usual_dial.wav"),
+	NewRollSound=Sound("moonwatcher/stargate/addtional_roll_sound.wav")
 }
 
 ENT.SGCChevron = {
@@ -270,11 +271,11 @@ function ENT:ChangeSystemType(groupsystem,reload)
 end
 
 function ENT:GateWireInputs(groupsystem)
-	self:CreateWireInputs("Dial Address","Dial String [STRING]","Dial Mode","Start String Dial","Close","Disable Autoclose","Transmit [STRING]","Rotate Ring","Ring Speed Mode","Chevron Encode","Chevron 7 Lock","Encode Symbol [STRING]","Lock Symbol [STRING]","Activate chevron numbers [STRING]","SGC Type","9 Chevron Mode","Set Point of Origin","Disable Menu","Event Horizon Type [STRING]","Event Horizon Color [VECTOR]");
+	self:CreateWireInputs("Dial Address","Dial String [STRING]","Dial Mode","Start String Dial","Close","Disable Autoclose","Transmit [STRING]","Rotate Ring","Ring Speed Mode","Chevron Encode","Chevron 7 Lock","Encode Symbol [STRING]","Lock Symbol [STRING]","Activate chevron numbers [STRING]","SGC Type","9 Chevron Mode","Set Point of Origin","Disable Menu","Event Horizon Type [STRING]","Event Horizon Color [VECTOR]","TargetGate [ENTITY]","Switch Gate");
 end
 
 function ENT:GateWireOutputs(groupsystem)
-	self:CreateWireOutputs("Active","Open","Inbound","Chevron","Chevron Locked","Chevrons [STRING]","Ring Symbol [STRING]","Ring Rotation","Earth Point of Origin","Dialing Address [STRING]","Dialing Mode","Dialing Symbol [STRING]","Dialed Symbol [STRING]","SGC Type","9 Chevron Mode","Received [STRING]");
+	self:CreateWireOutputs("Active","Open","Inbound","Chevron","Chevron Locked","Chevrons [STRING]","Ring Symbol [STRING]","Ring Rotation","Earth Point of Origin","Dialing Address [STRING]","Dialing Mode","Dialing Symbol [STRING]","Dialed Symbol [STRING]","SGC Type","9 Chevron Mode","Received [STRING]","Entities On Route");
 end
 
 function ENT:WireOrigin()
@@ -332,10 +333,10 @@ function ENT:AddRing()
 end
 
 function ENT:ActivateRingSound(pitch)
- 	util.PrecacheSound(self.Sounds.Slow);
-	self.RingSound = CreateSound(self.Entity, self.Sounds.Slow);
+ 	util.PrecacheSound(self.Sounds.NewRollSound);
+	self.RingSound = CreateSound(self.Entity, self.Sounds.NewRollSound);
 	self.RingSound:ChangePitch(pitch,0);
-   	self.RingSound:SetSoundLevel(94);
+   	self.RingSound:SetSoundLevel(130);
 	self.RingSound:PlayEx(1,pitch);
 end
 
@@ -723,6 +724,19 @@ function ENT:TriggerInput(k,v,mobile,mdhd)
 			self.WireLockSymbol = v;
 			self.Entity:SetWire("Dialing Symbol",v);
 		end
+	elseif (k == "TargetGate") then
+
+			if (IsValid(v)) then
+				self.TargetGate = v
+			else
+				self.TargetGate = nil
+			end
+	elseif (k == "Switch Gate") then
+		if (v == 42) then
+			if (IsValid(self.TargetGate)) then
+				self:ControlledJump(self.TargetGate)
+			end
+		end
 	end
 end
 
@@ -758,7 +772,7 @@ function ENT:ActivateChevron(chev,b)
 		if(b) then
 			if (IsValid(self.Chevron[chev])) then
 				self.Chevron[chev]:Fire("skin",5);
-				self.Entity:SetNetworkedBool("chevron"..chev,true); -- Dynamic light of the chevron
+				self.Entity:SetNWBool("chevron"..chev,true); -- Dynamic light of the chevron
 			else
 				self.Entity:Sparks(chev);
 			    timer.Simple(0.1, function()

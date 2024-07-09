@@ -46,7 +46,7 @@ function ENT:Initialize()
 	self.EHOpen = false;
 	self.GateActive = false;
 	self.Jamming = false;
-	self.Entity:SetNetworkedInt("timer",0);
+	self.Entity:SetNWInt("timer",0);
     self.Entity:SetNWInt("closetimer",0);
 	self.Entity:SetNWInt("deactivetimer",0);
 	self:IdleSound()
@@ -76,7 +76,7 @@ function ENT:GateWireInputs(groupsystem)
 end
 
 function ENT:GateWireOutputs(groupsystem)
-	self:CreateWireOutputs("Active","Open","Chevron","Chevron Locked","Earth Point of Origin","Dialing Address [STRING]","Dialing Mode","Received [STRING]");
+	self:CreateWireOutputs("Active","Open","Chevron","Chevron Locked","Earth Point of Origin","Dialing Address [STRING]","Dialing Mode","Received [STRING]","Entities On Route");
 end
 
 function ENT:WireOrigin()

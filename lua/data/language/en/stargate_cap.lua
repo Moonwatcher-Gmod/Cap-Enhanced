@@ -62,10 +62,12 @@ entity_cfd = CFD
 entity_cfd_full = Call Forwarding Device
 entity_dest_console = Destiny Console
 entity_dest_timer = Destiny Timer
+entity_destiny_node = Destiny Node
 entity_kino_dis = Kino Dispenser
 entity_lant_holo = Lantean Holo
 entity_malp = MALP
 entity_mcd = MCD
+entity_imcd = IMCD
 entity_mcd_full = Molecular Construction Device
 entity_shield_core = Shield Core
 entity_ship_hangar = Ships Hangar
@@ -172,6 +174,7 @@ stool_atlantis_hub = Atlantis ZPM Hub
 stool_naq_gen = Naquada Generator MK1/MK2
 stool_sgc_hub = SGC ZPM Hub
 stool_zpm_mk3 = ZPM MK III
+stool_zpm_mk4 = ZPM MK IV
 stool_naq_bottle = Naquadah Bottle
 
 // Stool Names - Weapons
@@ -449,6 +452,7 @@ vis_kawoosh_mat_desc = Frame Burst: Nil, Just changes the Material of the Kawoos
 vis_stargate_eff = Draw Open/Close Effects
 vis_stargate_eff_desc = %s, can prevent game crash in mp (for tests)
 vis_shield_bubble = Shield Bubble
+vis_shield_design = New Shield Bubble Design
 vis_hit_refl = Hit Refraction
 vis_hit_eff = Hit Effect
 vis_cloak_pass = Draw Effect when passing Field
@@ -483,10 +487,6 @@ vis_sm_laser = Small lasers
 vis_charge_up = Charge up rings
 vis_refl_sphere = Refraction spheres
 vis_reset_menu = Reset stargate menu
-
-// client settings
-cl_sets_title = Client Settings
-cl_sets_dropweapon = Drop weapon on G key (impulse 102)
 
 // keybinder
 key_move_title = Movement

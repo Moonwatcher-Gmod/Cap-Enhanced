@@ -40,6 +40,12 @@ ENT.Tools = {
 		"weapon_physcannon",
 		"tool_npc_eof",
 		"nox_hands",
+		"none",
+		"weapon_empty_hands",
+		"hands",
+		"holstered",
+		"weapon_fists",
+		"tollan_hands",
 	}
 
 -----------------------------------INIT----------------------------------
@@ -75,7 +81,12 @@ end
 
 function ENT:TriggerInput(variable, value)
 	if (variable == "Activate") then
-		self.IsEnabled = util.tobool(value)
+		if(value <= 0) then
+			self.IsEnabled = false
+		else
+			self.IsEnabled = true
+		end
+		
 		if (self.IsEnabled) then
 			self:SetWire("Activated",1);
 		else
@@ -103,10 +114,10 @@ function ENT:Think()
 					local allow = hook.Call("StarGate.TollanDisabler.CanBlockWeapon",nil,v,active,self);
 					if (allow==false) then continue end
 					local weps = v:GetWeapons() or {};
-					if (not table.HasValue(weps,"weapon_physgun")) then
-						v:Give("weapon_physgun");
+					if (not table.HasValue(weps,"tollan_hands")) then
+						v:Give("tollan_hands");
 					end
-					v:SelectWeapon("weapon_physgun");
+					v:SelectWeapon("tollan_hands");
 				end
 
 			end
@@ -114,7 +125,7 @@ function ENT:Think()
 
 	end
 
-	self.Entity:NextThink(CurTime()+0.25);
+	self.Entity:NextThink(CurTime()+0.15);
 	return true
 end
 

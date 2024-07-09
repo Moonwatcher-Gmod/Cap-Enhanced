@@ -376,10 +376,14 @@ function ENT:TeleportEntity(t,base,basedata)
 		end
 		if(e:IsNPC()) then ang.Delta.p = 0 ang.Delta.r = 0 end -- Remove roll and pitch from NPCs
 		e:SetAngles(ang.Old + ang.Delta + Angle(0,180,0));
+
 		e:SetVelocity(-1*vel.Old+vel.New) -- Substract old velocity and add the new
+
+		--e:SetVelocity(vel.Old-vel.Old)
 		-- Because this doesn't have always an effect, we also apply force
 		if(phys:IsValid()) then
 			local ma = phys:GetMass();
+			--print(e:GetVelocity())
 			timer.Simple(0.05,function() if phys:IsValid() then phys:ApplyForceCenter(vel.New*ma) end end); -- Apply power so it has velocity again
 		end
 

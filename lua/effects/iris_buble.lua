@@ -5,7 +5,7 @@
 */
 
 EFFECT.Materiala = Material("effects/shielda");
-EFFECT.Materialb = Material("effects/shieldb");
+EFFECT.Materialb = Material("effects/shieldb_v2");
 
 function EFFECT:Init(data)
 
@@ -15,9 +15,11 @@ function EFFECT:Init(data)
 	self.Grow = true;
 	self.Multiply = 0;
 	self.Created = CurTime();
+	self.Color = e:GetNetworkedVector("shield_color",Vector(200,100,0));
+	--self.Color = Color(color.x,color.y,color.z);
 	self:SetModel(Model("models/Madman07/shields/goauld_iris.mdl"));
 	self:SetPos(e:GetPos());
-	self:SetColor(Color(200,100,0,1));
+	self:SetColor(Color(self.Color.x,self.Color.y,self.Color.z,1));
 	self:SetRenderMode(RENDERMODE_GLOW);
 	local offset = Vector(1,1,1)*100000000000;
 	self:SetRenderBounds(-1*offset,offset); -- FIX
@@ -59,7 +61,7 @@ function EFFECT:Render()
 
 	if(self.Multiply >= 0) then
 		local alpha = math.Clamp(math.Clamp(math.sin(self.Multiply*math.pi)*1.3,0,1)*70,1,70);
-		self:SetColor(Color(200,100,0,alpha*2));
+		self:SetColor(Color(self.Color.x,self.Color.y,self.Color.z,alpha*4));
 
 		render.MaterialOverride(self.Materiala);
 		self:DrawModel();

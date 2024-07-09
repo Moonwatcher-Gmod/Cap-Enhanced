@@ -74,7 +74,7 @@ function TOOL:LeftClick(t)
 	local always_down = self:GetClientNumber("always_down");
 	-- Update!
 	if(t.Entity and t.Entity:GetClass() == self.Entity.Class) then
-		t.Entity:SetNetworkedBool("always_down",util.tobool(always_down));
+		t.Entity:SetNWBool("always_down",util.tobool(always_down));
 		-- THIS FUNCTIONS SAVES THE MODIFIED KEYS TO THE SENT, SO THEY ARE AVAILABLE WHEN COPIED WITH DUPLICATOR!
 		t.Entity:UpdateKeys(_,_,always_down,_);
 		return true;

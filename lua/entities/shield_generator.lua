@@ -53,10 +53,11 @@ function ENT:Initialize()
 	self.StrengthConfigMultiplier = StarGate.CFG:Get("shield","strength_multiplier",1); -- Doing this value higher will make the shiels stronger (look at the config)
 	self.MaxSize = StarGate.CFG:Get("shield","max_size",2048)
 	self.Size = 80;
+	self.BubbleDesign = "Version2"
 	self.RestoreThresold = StarGate.CFG:Get("shield","restore_thresold",15); -- Which powerlevel has the shield to reach again until it works again?
 	self:AddResource("energy",1);
-	self:CreateWireInputs("Activate","Strength","Disable Use","Disable Sound","Allowed Players [ARRAY]","Frequency","Fire Frequency");
-	self:CreateWireOutputs("Active","Strength","Players Allowed [ARRAY]");
+	self:CreateWireInputs("Activate","Strength","Size","Atlantis Mode","Disable Use","Disable Sound","Allowed Players [ARRAY]","Frequency","Fire Frequency");
+	self:CreateWireOutputs("Active","Strength","Size","Players Allowed [ARRAY]");
 	self:SetWire("Strength",self.Strength);
 	self.AllowedPlayers = {};
 	self.Entity:SetUseType(SIMPLE_USE);
@@ -64,10 +65,13 @@ function ENT:Initialize()
 	self.SndDisable=0 --variable for Disabling sound @KvasirSG
 	self.Frequency=0;
 	self.FireFrequency = 0;
+	self.Atlantis = false
 	if(self.Phys:IsValid()) then
 		self.Phys:Wake();
 		self.Phys:SetMass(10);
 	end
+	self.AlwaysVisible = 0
+	--StarGate.AutoLinkToPowerSource(self)
 end
 
 --################# Prevent PVS bug/drop of all networkes vars (Let's hope, it works) @aVoN
@@ -76,12 +80,13 @@ function ENT:UpdateTransmitState() return TRANSMIT_ALWAYS end;
 --################# Sets some NW Floats for the shield color @aVoN
 function ENT:SetShieldColor(r,g,b)
 	self.ShieldColor = Vector(r or 1,g or 1,b or 1);
-	self:SetNetworkedVector("shield_color",self.ShieldColor);
+	self:SetNWVector("shield_color",self.ShieldColor);
 end
 
 --################# Avoids crashing a server with to huge size @aVoN
 function ENT:SetSize(size)
-	self.Size = math.Clamp(size,1,self.MaxSize);
+	self.Size = math.Clamp(size,100,self.MaxSize);
+	self:SetWire("Size",self.Size)
 end
 
 --################# Is the shield enabled? @aVoN
@@ -153,7 +158,7 @@ function ENT:Status(b,nosound)
 					self:ShowOutput(true);
 					if(not nosound) then
 						if(self.SndDisable==0) then
-							self:EmitSound(self.Sounds.Engage,90,math.random(90,110));
+							self:EmitSound(self.Sounds.Engage,90,math.random(70,90));
 						end
 					end
 					return;
@@ -169,7 +174,7 @@ function ENT:Status(b,nosound)
 			self:ShowOutput(false);
 			if(not nosound and not self.Depleted) then
 				if(self.SndDisable==0) then
-					self:EmitSound(self.Sounds.Disengage,90,math.random(90,110));
+					self:EmitSound(self.Sounds.Disengage,90,math.random(75,100));
 				end
 			end
 		end
@@ -184,8 +189,20 @@ end
 
 --################# Think @aVoN
 function ENT:Think()
-	local enabled = self:Enabled();
-	self:Regenerate(enabled);
+	local enabled = self:Enabled()
+	self:Regenerate(enabled)
+
+	if(self.Atlantis) then
+		local energy = self:GetResource("energy");
+		self.Strength = 100
+		if(energy <= 1000) then -- minimal energy for making it work
+			self:Status(false);
+			self.Strength = 0
+			self.Depleted = true
+			return
+		end
+	end
+
 	if(self.Depleted) then
 		-- Reenable shielt - It was depleted before (But alter the Thresold, so people wont have it up so fast again or need to wait ages)
 		if(self.Strength >= math.Clamp(self.RestoreThresold/self.StrengthMultiplier[2],3,40)) then
@@ -204,7 +221,7 @@ function ENT:Think()
 				self.Shield:AddAthmosphere();
 			end
 		end
-	elseif(enabled and self.HasResourceDistribution and self.ConsumeMultiplier ~= 0) then
+	elseif(enabled and self.HasResourceDistribution and self.ConsumeMultiplier ~= 0 and !self.Atlantis) then
 		-- Consume energy
 		local energy = self:GetResource("energy");
 		-- Make the shield consume more power depending on it's strength
@@ -215,9 +232,12 @@ function ENT:Think()
 			return;
 		end
 	end
+
 	self:SetWire("Strength",self.Strength);
 	self:ShowOutput(enabled);
 	self.Entity:NextThink(CurTime()+0.5);
+
+
 	return true;
 end
 
@@ -231,7 +251,11 @@ function ENT:ShowOutput(enabled)
 	if(self.Depleted) then
 		add = "Depleted";
 	end
-	self:SetOverlayText("Shield ("..add..")\n"..math.floor(self.Strength).."%\nSize: "..self.Size);
+	self.Entity:SetNWString("Active", add)
+	self.Entity:SetNWString("Strength", self.Strength)
+	self.Entity:SetNWString("Size", self.Size)
+
+
 end
 
 --################# Set's the strengthg multiplier which is necessary for the shields regeneration time and strength @aVoN
@@ -269,7 +293,15 @@ function ENT:Hit(strength,normal,pos,fireFrequency)
 		--end
 	end
 	-- Take strength
-	self.Strength = math.Clamp(self.Strength-2*math.Clamp(strength,1,20)/(self.StrengthMultiplier[1]*self.StrengthConfigMultiplier*divisor),0,100);
+	if self.Atlantis then
+		local energy = self:GetResource("energy");
+		
+		local take_energy = 200*strength/(self.StrengthMultiplier[1]*self.StrengthConfigMultiplier*divisor)*StarGate.CFG:Get("shield_core","atlantis_hit",50);
+		self:ConsumeResource("energy",math.Clamp(take_energy,1,energy));
+	else
+		self.Strength = math.Clamp(self.Strength-2*math.Clamp(strength,1,20)/(self.StrengthMultiplier[1]*self.StrengthConfigMultiplier*divisor),0,100);
+	end
+	
 	if(StarGate.CFG:Get("shield","apply_force",false)) then
 		-- Make us bounce around
 		self.Phys:ApplyForceOffset(-1*normal*strength*100*self.Phys:GetMass()/self.StrengthMultiplier[1],pos);
@@ -314,6 +346,17 @@ function ENT:TriggerInput(k,v)
 		end
 	elseif(k=="Strength") then
 		self:SetMultiplier(math.Clamp(v,-5,5));
+	elseif(k == "Size") then
+		self:SetSize(v)
+	elseif(k=="Atlantis Mode") then
+		if(v > 0) then
+			self.Atlantis = true
+		else
+			if(self.Atlantis == true) then
+				self.Strength = 0
+				self.Atlantis = false
+			end
+		end
 	elseif(k=="Disable Sound") then
 		if(v>0) then
 			self.SndDisable=1
@@ -357,7 +400,67 @@ hook.Add("StarGate.SatBlast.DamageEnt","CAP.Shield.Nuke",cap_shield_nuke);
 end
 
 if CLIENT then
+	ENT.RenderGroup = RENDERGROUP_OPAQUE; -- This FUCKING THING avoids the clipping bug I have had for ages since stargate BETA 1.0. DAMN!
+ 	
+ 	ENT.Zpm_hud = surface.GetTextureID("VGUI/resources_hud/tier_7")
+ 	function ENT:Initialize()
+        self.Entity:SetNWString("Active", "Inactive")
+        self.Entity:SetNWString("Strength", 0)
+        self.Entity:SetNWString("Size", 0)
+    end
 
-ENT.RenderGroup = RENDERGROUP_OPAQUE; -- This FUCKING THING avoids the clipping bug I have had for ages since stargate BETA 1.0. DAMN!
+    function ENT:Draw()
+        self.Entity:DrawModel()
+        hook.Remove("HUDPaint", tostring(self.Entity) .. "ShieldGen")
+        if (not StarGate.VisualsMisc("cl_draw_huds", true)) then return end
 
+        if (LocalPlayer():GetEyeTrace().Entity == self.Entity and EyePos():Distance(self.Entity:GetPos()) < 1024) then
+            hook.Add("HUDPaint", tostring(self.Entity) .. "ShieldGen", function()
+                local w = 0
+                local h = 260
+                surface.SetTexture(self.Zpm_hud)
+                surface.SetDrawColor(Color(255, 255, 255, 255))
+                surface.DrawTexturedRect(ScrW() / 2 + 6 + w, ScrH() / 2 - 50 - h, 180, 360)
+                surface.SetFont("center2")
+                surface.SetFont("header")
+                draw.DrawText("Shield", "center2", ScrW() / 2 + 68 + w, ScrH() / 2 + 38 - h, Color(255, 255, 255, 255), 0)
+                draw.DrawText("Status", "center2", ScrW() / 2 + 45 + w, ScrH() / 2 + 65 - h, Color(209, 238, 238, 255), 0)
+                draw.DrawText("Strength", "center2", ScrW() / 2 + 45 + w, ScrH() / 2 + 115 - h, Color(209, 238, 238, 255), 0)
+                draw.DrawText("Size", "center2", ScrW() / 2 + 45 + w, ScrH() / 2 + 165 - h, Color(209, 238, 238, 255), 0)
+
+                if (IsValid(self.Entity)) then
+                    Active = self.Entity:GetNetworkedString("Active")
+                    Strength = self.Entity:GetNWString("Strength")
+                    Size = self.Entity:GetNWString("Size")
+                else
+                    Active = ""
+                    Strength = 0
+                    Size = 0
+                end
+
+                surface.SetFont("center")
+                local color = Color(0, 255, 0, 255)
+
+                if (Active == "Off" or Active == "Depleted") then
+                    color = Color(255, 0, 0, 255)
+                end
+
+                if (tonumber(Strength) > 0) then
+                    Strength = string.format("%4.2f", Strength)
+                end
+
+                if (tonumber(Size) > 0) then
+                    Size = string.format("%4.0f", Size)
+                end
+
+                draw.SimpleText(Active, "center", ScrW() / 2 + 45 + w, ScrH() / 2 + 85 - h, color, 0)
+                draw.SimpleText(tostring(Strength).."%", "center", ScrW() / 2 + 46 + w, ScrH() / 2 + 135 - h, Color(255, 255, 255, 255), 0)
+                draw.SimpleText(tostring(Size), "center", ScrW() / 2 + 43 + w, ScrH() / 2 + 185 - h, Color(255, 255, 255, 255), 0)
+            end)
+        end
+    end
+
+    function ENT:OnRemove()
+        hook.Remove("HUDPaint", tostring(self.Entity) .. "ShieldGen")
+    end
 end

@@ -2,7 +2,7 @@
 if (StarGate==nil or StarGate.CheckModule==nil or not StarGate.CheckModule("extra") or SGLanguage==nil or SGLanguage.GetMessage==nil) then return end
 include("weapons/gmod_tool/stargate_base_tool.lua");
 
-TOOL.Category="Ramps";
+TOOL.Category="Ramps"
 TOOL.Name=SGLanguage.GetMessage("stool_nanim_ramps");
 TOOL.ClientConVar["autoweld"] = 1;
 

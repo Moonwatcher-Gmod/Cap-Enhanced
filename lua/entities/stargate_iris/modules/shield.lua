@@ -2,7 +2,7 @@ ANIM.Model = "models/zup/stargate/sga_shield.mdl";
 ANIM.Sounds = {
 	Open=Sound("stargate/iris_atlantis_open.mp3"),
 	Close=Sound("stargate/iris_atlantis_close.mp3"),
-	Hit=Sound("stargate/iris_atlantis_hit.mp3"),
+	Hit=Sound("stargate/shield/hit.wav"),
 	Idle=Sound("stargate/iris_atlantis_loop.wav"),
 	OpenEnergy=Sound("stargate/iris_open_atlantis.mp3"),
 	Fail=Sound("buttons/button19.wav"),
@@ -10,7 +10,7 @@ ANIM.Sounds = {
 
 --################# Init function - Do we need to do anything if we init? @aVoN
 function ANIM:Init()
-	self.Entity:SetNoDraw(true);
+	self.Entity:SetNoDraw(false);
 	local e = ents.Create("prop_dynamic_override");
 	e:SetModel(self.Model);
 	e:SetPos(self.Entity:GetPos());
@@ -33,6 +33,7 @@ function ANIM:Close()
 	self.IdleSound = CreateSound(self.Entity,self.Sounds.Idle);
 	local snd = self.IdleSound;
 	local e = self.Entity;
+	
 	timer.Remove(id);
 	timer.Create(id,1.5,1,
 		function()
@@ -43,6 +44,7 @@ function ANIM:Close()
 	);
 	self:SetBusy(0.7);
 end
+
 
 --################# Open the Shield (aka Deactivate) @aVoN
 function ANIM:Open(energy)
@@ -60,9 +62,15 @@ function ANIM:Open(energy)
 	self:SetBusy(0.7);
 end
 
+
+
+
 --################# Iris got Hit - Do something @aVoN
 function ANIM:Hit(e,pos,velo)
-	self.Entity:EmitSound(self.Sounds.Hit,90,math.random(98,103));
+	local shieldsounds={"stargate/shield/hit.mp3","stargate/shield/hit_2.mp3"};
+	Hit = Sound(table.Random(shieldsounds));
+	self.Entity:EmitSound(Hit,100,math.random(98,103));
+	
 end
 
 --################# Called, if you remove this thing @aVoN
@@ -72,3 +80,4 @@ function ANIM:Remove()
 		self.Entity:StopSound(v);
 	end
 end
+

@@ -30,7 +30,7 @@ ENT.Sounds = {}
 
 function ENT:Initialize()
   -- Bomb starts disarmed
-  self:SetNetworkedInt("State", 1) --  1 = Idle ,  2 = Armed,  3 = Charging
+  self:SetNWInt("State", 1) --  1 = Idle ,  2 = Armed,  3 = Charging
   self.charge = 0
 
   -- Set up physics for entity
@@ -39,6 +39,8 @@ function ENT:Initialize()
 	self.Entity:PhysicsInit(SOLID_VPHYSICS)
 	self.Entity:SetMoveType(MOVETYPE_VPHYSICS)
 	self.Entity:SetSolid(SOLID_VPHYSICS)
+   self.EntHealth = 500
+   self.MaxHealth = self.EntHealth
 
    -- Set up wire inputs and outputs
 	if(self.HasWire) then
@@ -128,7 +130,7 @@ function ENT:AbortDetonation(code)
 	--if(not self.malfunctioning) then
       self:SetNWInt("State", 2)
       self.charge = 0
-	  self.Entity:SetNetworkedInt("BombOverlayTime",0)
+	  self.Entity:SetNWInt("BombOverlayTime",0)
 
       if(self.HasWire) then
          self:SetWire("Charging", 0)
@@ -191,11 +193,16 @@ concommand.Add("AbortDetonation", ReceiveAbortCommand)
 
 function ENT:OnTakeDamage(damageInfo)
     if self:GetNWInt("State", 1) == 4 then return end
-	self.Entity:SetHealth(self.Entity:Health() - damageInfo:GetDamage())
+	self.EntHealth = self.EntHealth - damageInfo:GetDamage()
 
-    if(self.Entity:Health() <= 0) then
+    if(self.EntHealth < 1) then
         self:Destruct()
     end
+end
+
+function ENT:HealthRepair(health)
+   self.EntHealth = health
+   self:SetWire("Health", health)
 end
 
 function ENT:Damage()
@@ -203,10 +210,6 @@ function ENT:Damage()
    effectInfo:SetStart(self.Entity:GetPos())
 
    util.Effect("StunstickImpact", effectInfo)
-end
-
-function ENT:Repair()
-    self.Entity:SetHealth(self.Entity:GetMaxHealth())
 end
 
 -- Destroy bomb (without detonating warhead)
@@ -266,23 +269,22 @@ end
 function ENT:Think()
 
    if(self:GetNWInt("State", 1) == 3) then
-		self.Entity:SetNetworkedString("BombOverlay","Charging!")
+		self.Entity:SetNWString("BombOverlay","Charging!")
 		self:Charge()
 		local explodetime = self.chargeTime * ((100-self.charge)/100)+1;
-		self.Entity:SetNetworkedInt("BombOverlayTime",explodetime)
+		self.Entity:SetNWInt("BombOverlayTime",explodetime)
    elseif(self.malfunctioned) then
       self:StartDetonation()
    else
-	  self.Entity:SetNetworkedString("BombOverlay","Armed")
+	  self.Entity:SetNWString("BombOverlay","Armed")
    end
 
-   if(self.Entity:Health() < self.Entity:GetMaxHealth()) then
-      if(self.Entity:Health() <= 0) then
+   if(self.EntHealth < self.MaxHealth) then
+      if(self.EntHealth < 1) then
          self:Destruct()
-      elseif(math.random(1, self.Entity:Health()) == 1) then
+      elseif(math.random(1, self.EntHealth) <= 5) then
          self.malfunctioned = true
       end
-
       -- Display damage effects
       self:Damage()
    end
@@ -326,10 +328,6 @@ end
 end
 
 if CLIENT then
-
-if (SGLanguage!=nil and SGLanguage.GetMessage!=nil) then
-language.Add("naquadah_bomb", SGLanguage.GetMessage("entity_naq_bomb"))
-end
 
 local cycleInterval = 0.5
 
@@ -417,13 +415,13 @@ function ENT:CreateCodeWindow()
    local CodeWindow = vgui.Create("DFrame")
    CodeWindow:SetDeleteOnClose(true)
    if (self:GetNWInt("State",0)==3) then
-   	CodeWindow:SetTitle(SGLanguage.GetMessage("naq_bomb_menu_01a"))
+   	CodeWindow:SetTitle("Enter Detonation Code")
 
-   	CodeWindow.CodeBoxLabel = Label(SGLanguage.GetMessage("naq_bomb_menu_02a").." ", CodeWindow)
+   	CodeWindow.CodeBoxLabel = Label("Abort Code:".." ", CodeWindow)
    else
-   	CodeWindow:SetTitle(SGLanguage.GetMessage("naq_bomb_menu_01"))
+   	CodeWindow:SetTitle("Enter Detonation Code")
 
-   	CodeWindow.CodeBoxLabel = Label(SGLanguage.GetMessage("naq_bomb_menu_02").." ", CodeWindow)
+   	CodeWindow.CodeBoxLabel = Label("Detonation Code:".." ", CodeWindow)
    end
    CodeWindow.CodeBoxLabel:SetPos(padding, padding + 50)
    CodeWindow.CodeBoxLabel:SetContentAlignment(ALIGN_RIGHT)

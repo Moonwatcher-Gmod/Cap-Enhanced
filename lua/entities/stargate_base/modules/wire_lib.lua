@@ -241,10 +241,10 @@ function ENT:WireGetAddresses()
 						local group = v:GetGateGroup();
 						local locale = v:GetLocale();
 						local ent = self.Entity;
-						if(address != "" and group != "" and IsValid(ent) and (not locale and not ent:GetLocale() or (ent:GetGateGroup() == group or v:GetClass()=="stargate_universe" and ent:GetClass()=="stargate_universe")) and (address!=ent:GetGateAddress() or group!=ent:GetGateGroup())) then
+						if(address != "" and group != "" and IsValid(ent) and (not locale and not ent:GetLocale() or (ent:GetGateGroup() == group or v.IsUniverseGate and ent.IsUniverseGate)) and (address!=ent:GetGateAddress() or group!=ent:GetGateGroup())) then
 							local range = (ent:GetPos() - v:GetPos()):Length();
 							local c_range = ent:GetNetworkedInt("SGU_FIND_RANDE"); -- GetConVar("stargate_sgu_find_range"):GetInt();
-							if (ent:GetGateGroup() != group and (v:GetClass()!="stargate_universe" or ent:GetClass()!="stargate_universe") or c_range > 0 and range>c_range and ent:GetGateGroup():len()==3) then
+							if (ent:GetGateGroup() != group and (not v.IsUniverseGate or not ent.IsUniverseGate) or c_range > 0 and range>c_range and ent:GetGateGroup():len()==3) then
 								if (locale or ent:GetLocale()) then	continue end
 								if (ent:GetGateGroup():len()==3 and group:len()==3 or ent:GetGateGroup():len()==2 and group:len()==2) then
 									address = address..group:sub(1,1);
@@ -274,7 +274,7 @@ function ENT:WireGetAddresses()
 						if(address != "" and group != "" and IsValid(ent) and (address!=ent:GetGateAddress() or group!=ent:GetGateGroup())) then
 							local range = (ent:GetPos() - v:GetPos()):Length();
 							local c_range = ent:GetNetworkedInt("SGU_FIND_RANDE"); -- GetConVar("stargate_sgu_find_range"):GetInt();
-							if ((ent:GetGateGroup() == group or v:GetClass()=="stargate_universe" and ent:GetClass()=="stargate_universe") and (range<=c_range and ent:GetGateGroup():len()==3 or ent:GetGateGroup():len()==2 or c_range == 0 and ent:GetGateGroup():len()==3)) then
+							if ((ent:GetGateGroup() == group or v.IsUniverseGate and ent.IsUniverseGate) and (range<=c_range and ent:GetGateGroup():len()==3 or ent:GetGateGroup():len()==2 or c_range == 0 and ent:GetGateGroup():len()==3)) then
 								local name = v:GetGateName();
 								if(name == "") then name = "N/A" end;
 								local blocked = 0;
@@ -296,7 +296,7 @@ function ENT:WireGetAddresses()
 						local range = (g:GetPos() - v:GetPos()):Length();
 						local c_range = g:GetNetworkedInt("SGU_FIND_RANDE");
 					    if(v:GetGalaxy() or g:GetGalaxy() or
-						   v:GetClass()=="stargate_universe" and g:GetClass()=="stargate_universe" and
+						   v.IsUniverseGate and g.IsUniverseGate and
 						   c_range > 0 and range>c_range)then
 						    address = address.."@";
 					    end
@@ -305,12 +305,12 @@ function ENT:WireGetAddresses()
 							address = address[1];
 						end
 						if(#address == 7 and g:GetGalaxy() and v:GetGalaxy() and ((v:GetClass() ~= "stargate_atlantis" and g:GetClass() ~= "stargate_atlantis") and
-							(v:GetClass() ~= "stargate_universe" and g:GetClass() ~= "stargate_universe")))then
+							(not v.IsUniverseGate and not g.IsUniverseGate)))then
 							address = string.Explode("@",tostring(address));
 							address = address[1];
 						end
-						if((v:GetClass() == "stargate_universe" and g:GetClass() ~= "stargate_universe") or --#address == 7 and
-							(v:GetClass() ~= "stargate_universe" and g:GetClass() == "stargate_universe"))then
+						if((v.IsUniverseGate and not g.IsUniverseGate) or --#address == 7 and
+							(not v.IsUniverseGate and g.IsUniverseGate))then
 							address = string.Explode("@",tostring(address));
 							address = address[1].."@!";
 						end

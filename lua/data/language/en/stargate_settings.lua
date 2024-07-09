@@ -253,12 +253,10 @@ sg_sets[stargate][res_trans_interval] = Resource transfer interval
 sg_sets[stargate][res_trans_interval][desc] = Resource transfer cycle inteval in seconds, 0 - unlimited
 sg_sets[stargate][res_classes] = Allowed resource classes
 sg_sets[stargate][res_classes][desc] = Allowed resource classes to transfer, separate by comma, keep empty to allow any resources\nexample usage: water,oxygen,heavy water
-
-// Iris
-sg_sets[iris] = Iris
-sg_sets[iris][nox_bypass] = Nox Hands Bypass
-sg_sets[iris][nox_bypass][desc] = Allow anyone with Nox Hands equipped to bypass an iris
-
+sg_sets[stargate][doWormholeSequence] = Wormhole Sequence
+sg_sets[stargate][doWormholeSequence][desc] = Do traversal sequence and delay
+sg_sets[stargate][nox_bypass] = Nox Hands Bypass
+sg_sets[stargate][nox_bypass][desc] = Allow admins with Nox Hands equipped to bypass an iris completely
 // Stargate gatespawner config
 sg_sets[gatespawner] = Gatespawner
 sg_sets[gatespawner][spawn_iris] = Spawn iris on gatespawner gates
@@ -296,6 +294,26 @@ sg_sets[zpm_mk3][capacity] = Capacity
 sg_sets[zpm_mk3][capacity][desc] = How much Zero-Point-Energy can the ZPM hold? Also affects for tampered zpm.
 sg_sets[zpm_mk3][energy_capacity] = Energy capacity
 sg_sets[zpm_mk3][energy_capacity][desc] = How much Zero-Point-Energy can a ZPM convert to "normal" energy?
+sg_sets[zpm_mk3][explode] = Explode
+sg_sets[zpm_mk3][explode][desc] = Should zpm explode without hub?
+
+// ZPMMK4
+sg_sets[zpm_mk4] = ZPM MK4 (Zero Point Module)
+sg_sets[zpm_mk4][desc] = Note: changing this values may break energy balance for stargate 8 and 9 chevron dialling.
+sg_sets[zpm_mk4][capacity] = Capacity
+sg_sets[zpm_mk4][capacity][desc] = How much Zero-Point-Energy can the ZPM hold?
+sg_sets[zpm_mk4][energy_capacity] = Energy capacity
+sg_sets[zpm_mk4][energy_capacity][desc] = How much Zero-Point-Energy can a ZPM convert to "normal" energy?
+sg_sets[zpm_mk4][explode] = Explode
+sg_sets[zpm_mk4][explode][desc] = Should zpm explode without hub?
+
+// Power cell
+sg_sets[powercell_small] = Small Powercell
+sg_sets[powercell_small][capacity] = Capacity
+sg_sets[powercell_small][capacity][desc] = How much energy can the Powercell hold?
+sg_sets[powercell_small][energy_capacity] = Energy capacity
+sg_sets[powercell_small][energy_capacity][desc] = How much energy can the powercell produce?
+
 
 // Tampered ZPM
 sg_sets[tampered_zpm] = Tampered ZPM
@@ -371,6 +389,8 @@ sg_sets[harvester][allow_frozen] = Pickup frozen stuff
 sg_sets[harvester][allow_frozen][desc] = Can the harvester pickup frozen stuff?
 sg_sets[harvester][disallowed_entities] = Disallowed entities
 sg_sets[harvester][disallowed_entities][desc] = These ENTs are never able to get suckup
+sg_sets[harvester][harvester_visuals] = Haverster: Visual effect
+sg_sets[harvester][harvester_visuals][desc] = Display visual effect on players screen when in the harvester?
 
 // Cloaking Device
 sg_sets[cloaking] = Cloaking Device (stool)
@@ -436,10 +456,6 @@ sg_sets[naq_gen_mk2][nuke_explode][desc] = Nuke explosion when overloaded/damage
 sg_sets[ring] = Rings
 sg_sets[ring][classnames] = Disallowed entities
 sg_sets[ring][classnames][desc] = These entity types are disallowed to teleportation
-sg_sets[ring][class] = Rings to fire laser
-sg_sets[ring][class][desc] = Possible values (separe with a coma): ancient | goauld
-sg_sets[ring][code] = Rings fire code
-sg_sets[ring][code][desc] = Secret code to dial with panel to fire with laser, Set it to -1 or 0 to disable it
 
 // Ring panels
 sg_sets[ring_panel] = Ring panels
@@ -468,6 +484,23 @@ sg_sets[mcd][speed] = Speed
 sg_sets[mcd][speed][desc] = Creating speed in percent
 sg_sets[mcd][check_rights] = Check Rights
 sg_sets[mcd][check_rights][desc] = Check for player group access rights for spawning devices.
+
+//IMCD
+sg_sets[imcd] = IMCD (Industrial Molecular Construction Device)
+sg_sets[imcd][allow_tzmp] = Allow Tampered ZPM
+sg_sets[imcd][allow_tzmp][desc] = Allow Tampered ZPM spawning (random with chance setting).
+sg_sets[imcd][tzmp_chance] = Spawn chance
+sg_sets[imcd][tzmp_chance][desc] = if chance = 2, then this means 50%%, 3 will mean 33%%, etc. 1 = always.
+sg_sets[imcd][speed] = Speed
+sg_sets[imcd][speed][desc] = Creating speed in percent
+sg_sets[imcd][check_rights] = Check Rights
+sg_sets[imcd][check_rights][desc] = Check for player group access rights for spawning devices.
+
+sg_sets[imcd][require_energy] = Require energy?
+sg_sets[imcd][require_energy][desc] = Should the IMCD require energy?
+
+
+
 
 // TAC
 sg_sets[tac] = TAC (Tacluchnatagamuntoron)
@@ -543,3 +576,16 @@ sg_sets[cap_misc][ship_shield] = Allow ship shields
 sg_sets[cap_misc][ship_shield][desc] = Allow shields on cap ships?
 sg_sets[cap_misc][cfgbackup] = Config backups
 sg_sets[cap_misc][cfgbackup][desc] = How many store config backups? Use 0 to disable.
+sg_sets[cap_misc][disable_rings] = Disable rings
+sg_sets[cap_misc][disable_rings][desc] = Should rings be disabled?
+
+// CAP enhanced Miscellaneous
+sg_sets[cap_enhanced_cfg] = CAP Enhanced Miscellaneous
+sg_sets[cap_enhanced_cfg][allow_overload] = Allow Overload
+sg_sets[cap_enhanced_cfg][allow_overload][desc] = Should the ZPM-hub be able to overload?
+sg_sets[cap_enhanced_cfg][hub_advbuttons] = Atlantis hub: Advanced button mode
+sg_sets[cap_enhanced_cfg][hub_advbuttons][desc] = Should the atlantis hub use individual buttons on the device?
+sg_sets[cap_enhanced_cfg][harvester_visuals] = Haverster digital visuals
+sg_sets[cap_enhanced_cfg][harvester_visuals][desc] = Should the harvester display screen overlay when harvested?
+sg_sets[cap_enhanced_cfg][ATA_gene_active] = ATA Gene feature
+sg_sets[cap_enhanced_cfg][ATA_gene_active][desc] = Should certain lantean objects require the ATA gene?

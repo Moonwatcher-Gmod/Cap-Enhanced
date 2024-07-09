@@ -29,6 +29,7 @@ ENT.Sounds={
 	PressDest=Sound("door/dest_door_button.wav"),
 	LockedDest=Sound("gmod4phun/dest_door_lock_new.wav"),
 	PressAtl=Sound("door/atlantis_door_chime.wav"),
+	LockedAtl=Sound("door/atlantis_door_fail.wav"),
 	PressGoa=Sound("button/ring_button1.mp3"),
 	PressGoa2=Sound("button/ring_button2.mp3"),
 	PressOri=Sound("button/ancient_button1.wav"),
@@ -44,21 +45,48 @@ function ENT:Initialize()
 	self.Entity:SetSolid(SOLID_VPHYSICS);
 	self.Entity:SetUseType(SIMPLE_USE);
 
-	self:CreateWireInputs( "Press" );
+	
 	self:CreateWireOutputs( "Pressed" );
+	if (self.Entity:GetModel() == "models/soren/atlantis_button_v2.mdl") then
+		self:CreateWireInputs("Press","Open Panel");
+		self.PanelOpen = false
+	else
+		self:CreateWireInputs("Press");
+	end
 	self.Pressed = false;
 	self.Atlantis = false;
 
 	if (self.Entity:GetModel() == "models/iziraider/destinybutton/destinybutton.mdl") then self.Entity.TypeS = 1;
 	elseif (self.Entity:GetModel() == "models/boba_fett/props/buttons/atlantis_button.mdl") then self.Entity.TypeS = 2;
+	elseif (self.Entity:GetModel() == "models/soren/atlantis_button_v2.mdl") then self.Entity.TypeS = 2;
 	elseif (self.Entity:GetModel() == "models/madman07/ring_panel/goauld_panel.mdl") then self.Entity.TypeS = 3;
 	elseif (self.Entity:GetModel() == "models/madman07/ring_panel/ancient/panel.mdl") then self.Entity.TypeS = 4;
+
+	elseif (self.Entity:GetModel() == "models/elan/scpsl/doors/panels/button_panel.mdl") then self.Entity.TypeS = 1;
+	elseif (self.Entity:GetModel() == "models/elan/scpsl/doors/panels/elevator_panel.mdl") then self.Entity.TypeS = 1;
+	elseif (self.Entity:GetModel() == "models/elan/scpsl/doors/panels/keycard_panel.mdl") then self.Entity.TypeS = 1;
+	elseif (self.Entity:GetModel() == "models/elan/scpsl/doors/panels/touch_panel.mdl") then self.Entity.TypeS = 1;
 	else self.Entity.TypeS = 5; end
+end
+
+function ENT:Think()
+	self:NextThink( CurTime() )
+		return true 
 end
 
 function ENT:TriggerInput(variable, value)
 	if (variable == "Press" and value > 0) then
 		self:PressButton();
+	end
+	if (variable == "Open Panel") then
+		self:SetPlaybackRate(1)
+		if (value > 0 and self.PanelOpen == false) then
+			self:ResetSequence(self:LookupSequence("Open"))
+			self.PanelOpen = true
+		elseif(value <= 0 and self.PanelOpen == true) then
+			self:ResetSequence(self:LookupSequence("Close"))
+			self.PanelOpen = false
+		end
 	end
 end
 
@@ -80,6 +108,8 @@ function ENT:PressButton()
 			elseif frame.Lockdown then
 				self.Entity:SetSkin(3);
 			end
+		else
+			self.Entity:SetSkin(1);
 		end
 	else
 		self.Entity:SetSkin(1);
@@ -104,6 +134,8 @@ function ENT:PressButton()
 				no_sound = true
 				self.Entity:EmitSound(self.Sounds.LockedDest,100,math.random(90,110));
 			end
+		else
+			self.Entity:EmitSound(self.Sounds.PressDest,100,math.random(90,110));
 		end
 	elseif (self.TypeS == 3) then
 		local SoundToPlay = math.random(0,1)
@@ -119,7 +151,19 @@ function ENT:PressButton()
 		else
 			self.Entity:EmitSound(self.Sounds.PressOri2,100,math.random(90,110));
 		end
-	else self.Entity:EmitSound(self.Sounds.PressAtl,100,math.random(90,110)); end
+	else
+		local frame = self:FindDoor()
+		if IsValid(frame) then
+			if not frame.Lockdown then
+				self.Entity:EmitSound(self.Sounds.PressAtl,100,math.random(90,110));
+			elseif frame.Lockdown then
+				no_sound = true
+				self.Entity:EmitSound(self.Sounds.LockedAtl,100);
+			end
+		else
+			self.Entity:EmitSound(self.Sounds.PressAtl,100,math.random(90,110));
+		end
+	end
 
 	if (self.Atlantis and IsValid(self.AtlTP) and self.AtlTP.Busy) then return end
 

@@ -54,7 +54,7 @@ function ENT:Initialize()
 
 	self.Entity:EmitSound(self.Sounds.Shoot,100,math.random(98,102));
 
-	self.Entity:SetNetworkedInt("blast_radius", 0);
+	self.Entity:SetNWInt("blast_radius", 0);
 	self.Entities = {}
 
 	local shake = ents.Create("env_shake")
@@ -84,7 +84,7 @@ end
 function ENT:Think()
 
 	self.Radius = self.Radius + 100;
-	self.Entity:SetNetworkedInt("blast_radius", self.Radius);
+	self.Entity:SetNWInt("blast_radius", self.Radius);
 
 	for k,v in pairs(ents.FindInSphere(self.Entity:GetPos(), self.Radius )) do
 		if IsValid(v) then
@@ -156,9 +156,6 @@ end
 
 if CLIENT then
 
-if (SGLanguage!=nil and SGLanguage.GetMessage!=nil) then
-language.Add("sat_blast_wave",SGLanguage.GetMessage("sat_blask_wave"));
-end
 
 function ENT:Initialize()
 

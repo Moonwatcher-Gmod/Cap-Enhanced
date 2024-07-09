@@ -86,7 +86,7 @@ function ENT:UpdateTransmitState() return TRANSMIT_ALWAYS end;
 --################# Sets some NW Floats for the shield color @aVoN
 function ENT:SetShieldColor(r,g,b)
 	self.ShieldColor = Vector(r or 1,g or 1,b or 1);
-	self:SetNetworkedVector("shield_color",self.ShieldColor);
+	self:SetNWVector("shield_color",self.ShieldColor);
 end
 
 --################# Avoids crashing a server with to huge size @aVoN

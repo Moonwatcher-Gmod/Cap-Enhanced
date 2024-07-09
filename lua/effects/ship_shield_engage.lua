@@ -81,14 +81,16 @@ end
 --################# Think @aVoN
 function EFFECT:Think()
 	if self.IsJumper then
-		local status = self.Parent:GetNWBool("shield_jumper_open");
-		if self.JumperLast != status then
-			if status then
-				self.Entity:SetModel("models/Madman07/shields/jumper_shield_open.mdl");
-			else
-			self.Entity:SetModel("models/Madman07/shields/jumper_shield_close.mdl");
+		if(IsValid(self.Parent)) then
+			local status = self.Parent:GetNWBool("shield_jumper_open");
+			if self.JumperLast != status then
+				if status then
+					self.Entity:SetModel("models/Madman07/shields/jumper_shield_open.mdl");
+				else
+				self.Entity:SetModel("models/Madman07/shields/jumper_shield_close.mdl");
+				end
+				self.JumperLast = status;
 			end
-			self.JumperLast = status;
 		end
 	end
 

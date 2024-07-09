@@ -188,6 +188,7 @@ function ENT:Initialize()
 	self.IsConcept = false;
 	self.RingInbound = false;
 	hook.Add("Tick", self, self.RingTickSG1);
+	self.TargetGate = nil
 	
 	-- Cache for tickrate rate calculations, save some CPU time
 	self.tickRateRelation = 66.666668156783 / (1 / engine.TickInterval())
@@ -269,11 +270,12 @@ function ENT:ChangeSystemType(groupsystem,reload)
 end
 
 function ENT:GateWireInputs(groupsystem)
-	self:CreateWireInputs("Dial Address","Dial String [STRING]","Dial Mode","Start String Dial","Close","Disable Autoclose","Transmit [STRING]","Rotate Ring","Ring Speed Mode","Chevron Encode","Chevron 7 Lock","Encode Symbol [STRING]","Lock Symbol [STRING]","Activate chevron numbers [STRING]","SGC Type","9 Chevron Mode","Set Point of Origin","Disable Menu","Event Horizon Type [STRING]","Event Horizon Color [VECTOR]");
+	self:CreateWireInputs("Dial Address","Dial String [STRING]","Dial Mode","Start String Dial","Close","Disable Autoclose","Transmit [STRING]","Rotate Ring","Ring Speed Mode","Chevron Encode","Chevron 7 Lock","Encode Symbol [STRING]","Lock Symbol [STRING]","Activate chevron numbers [STRING]","SGC Type","9 Chevron Mode","Set Point of Origin","Disable Menu","Event Horizon Type [STRING]","Event Horizon Color [VECTOR]","TargetGate [ENTITY]","Switch Gate");
+	--self:CreateWireInputs("Dial Address","Dial String [STRING]","Dial Mode","Start String Dial","Close","Disable Autoclose","Transmit [STRING]","Rotate Ring","Ring Speed Mode","Chevron Encode","Chevron 7 Lock","Encode Symbol [STRING]","Lock Symbol [STRING]","Activate chevron numbers [STRING]","SGC Type","9 Chevron Mode","Set Point of Origin","Disable Menu","Event Horizon Type [STRING]","Event Horizon Color [VECTOR]","TargetGate [ENTITY]","Switch Gate","Pause Routing","Resume Routing");
 end
 
 function ENT:GateWireOutputs(groupsystem)
-	self:CreateWireOutputs("Active","Open","Inbound","Chevron","Chevron Locked","Chevrons [STRING]","Ring Symbol [STRING]","Ring Rotation","Earth Point of Origin","Dialing Address [STRING]","Dialing Mode","Dialing Symbol [STRING]","Dialed Symbol [STRING]","SGC Type","9 Chevron Mode","Received [STRING]");
+	self:CreateWireOutputs("Active","Open","Inbound","Chevron","Chevron Locked","Chevrons [STRING]","Ring Symbol [STRING]","Ring Rotation","Earth Point of Origin","Dialing Address [STRING]","Dialing Mode","Dialing Symbol [STRING]","Dialed Symbol [STRING]","SGC Type","9 Chevron Mode","Received [STRING]","Entities On Route");
 end
 
 function ENT:WireOrigin()
@@ -299,6 +301,7 @@ function ENT:SpawnFunction(p,t)
 	e:CartersRamps(t);
 	e:SetWire("Dialing Mode",-1);
 	return e;
+
 end
 
 --################# Creates the ring for the gate @aVoN
@@ -361,8 +364,20 @@ function ENT:ActivateRing(b,loop,fast,dir)
 				--self.LockValues = {29.2,27.8};
 			elseif (self.RingSpeed == 3) then
 				self.Ring.Entity:SetKeyValue("maxspeed",60);
-				pitch = 106;
+				pitch = 107;
 				--self.LockValues = {34.6,33.3};
+			elseif (self.RingSpeed == 4) then
+				self.Ring.Entity:SetKeyValue("maxspeed",75);
+				pitch = 112;
+			elseif (self.RingSpeed == 5) then
+				self.Ring.Entity:SetKeyValue("maxspeed",90);
+				pitch = 117;
+			elseif (self.RingSpeed == 6) then
+				self.Ring.Entity:SetKeyValue("maxspeed",105);
+				pitch = 122;
+			elseif (self.RingSpeed == 7) then
+				self.Ring.Entity:SetKeyValue("maxspeed",120);
+				pitch = 127;
 			elseif (self.RingSpeed == -1) then
 				self.Ring.Entity:SetKeyValue("maxspeed",7.5);
 				pitch = 93;
@@ -652,6 +667,14 @@ function ENT:TriggerInput(k,v,mobile,mdhd)
 		if (v >= 1) then
 			self:Chevron7Lock();
 		end
+	-- elseif(k == "Pause Routing" and self.Active and IsValid(self.EventHorizon)) then
+	-- 	if (v >= 1) then
+	-- 		self.EventHorizon:PauseAllRouting()
+	-- 	end
+	-- elseif(k == "Resume Routing" and self.Active and IsValid(self.EventHorizon)) then
+	-- 	if (v >= 1) then
+	-- 		self.EventHorizon:ResumeAllRouting()
+	-- 	end
 	elseif(k == "Ring Speed Mode" and IsValid(self.Ring) and not self.Active and (not self.NewActive or self.WireManualDial)) then
 		if (v == 1) then
 			self.RingSpeed = 1;
@@ -667,12 +690,40 @@ function ENT:TriggerInput(k,v,mobile,mdhd)
 				if (self.Ring.WireMoving) then self.Ring:Fire("start","",0); end
 				if (self.RingSound) then self.RingSound:ChangePitch(102,0); end
 			end
-		elseif (v >= 3) then
+		elseif (v == 3) then
 			self.RingSpeed = 3;
 			if (not self.NewActive or self.WireManualDial) then
 				self.Ring.Entity:SetKeyValue("maxspeed",60);
 				if (self.Ring.WireMoving) then self.Ring:Fire("start","",0); end
-				if (self.RingSound) then self.RingSound:ChangePitch(106,0); end
+				if (self.RingSound) then self.RingSound:ChangePitch(107,0); end
+			end
+		elseif (v == 4) then
+			self.RingSpeed = 4;
+			if (not self.NewActive or self.WireManualDial) then
+				self.Ring.Entity:SetKeyValue("maxspeed",75);
+				if (self.Ring.WireMoving) then self.Ring:Fire("start","",0); end
+				if (self.RingSound) then self.RingSound:ChangePitch(112,0); end
+			end
+		elseif (v == 5) then
+			self.RingSpeed = 5;
+			if (not self.NewActive or self.WireManualDial) then
+				self.Ring.Entity:SetKeyValue("maxspeed",90);
+				if (self.Ring.WireMoving) then self.Ring:Fire("start","",0); end
+				if (self.RingSound) then self.RingSound:ChangePitch(117,0); end
+			end
+		elseif (v == 6) then
+			self.RingSpeed = 6;
+			if (not self.NewActive or self.WireManualDial) then
+				self.Ring.Entity:SetKeyValue("maxspeed",105);
+				if (self.Ring.WireMoving) then self.Ring:Fire("start","",0); end
+				if (self.RingSound) then self.RingSound:ChangePitch(122,0); end
+			end
+		elseif (v >= 7) then
+			self.RingSpeed = 7;
+			if (not self.NewActive or self.WireManualDial) then
+				self.Ring.Entity:SetKeyValue("maxspeed",120);
+				if (self.Ring.WireMoving) then self.Ring:Fire("start","",0); end
+				if (self.RingSound) then self.RingSound:ChangePitch(127,0); end
 			end
 		elseif (v <= -1) then
 			self.RingSpeed = -1;
@@ -731,6 +782,19 @@ function ENT:TriggerInput(k,v,mobile,mdhd)
 			self.WireLockSymbol = v;
 			self.Entity:SetWire("Dialing Symbol",v);
 		end
+	elseif (k == "TargetGate") then
+
+			if (IsValid(v)) then
+				self.TargetGate = v
+			else
+				self.TargetGate = nil
+			end
+	elseif (k == "Switch Gate") then
+		if (v >= 1) then
+			if (IsValid(self.TargetGate)) then
+				self:ControlledJump(self.TargetGate)
+			end
+		end
 	end
 end
 
@@ -766,7 +830,7 @@ function ENT:ActivateChevron(chev,b)
 		if(b) then
 			if (IsValid(self.Chevron[chev])) then
 				self.Chevron[chev]:Fire("skin",1);
-				self.Entity:SetNetworkedBool("chevron"..chev,true); -- Dynamic light of the chevron
+				self.Entity:SetNWBool("chevron"..chev,true); -- Dynamic light of the chevron
 			else
 				self.Entity:Sparks(chev);
 			    timer.Simple(0.1, function()

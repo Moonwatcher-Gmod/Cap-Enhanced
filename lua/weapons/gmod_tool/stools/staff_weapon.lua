@@ -82,7 +82,7 @@ function TOOL:LeftClick(t)
 	local add_cannon_velocity = self:GetClientNumber("add_cannon_velocity");
 	if(t.Entity and t.Entity:GetClass() == self.Entity.Class) then
 		t.Entity.Color = Color(r,g,b,255);
-		t.Entity:SetNetworkedBool("shaft",util.tobool(shaft));
+		t.Entity:SetNWBool("shaft",util.tobool(shaft));
 		t.Entity.DrawExplosion = util.tobool(explosion);
 		t.Entity.ColorizeExplosion = util.tobool(explosion_colorize);
 		t.Entity.AddCannonVelocity = util.tobool(add_cannon_velocity);

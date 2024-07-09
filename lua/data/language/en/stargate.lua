@@ -75,6 +75,7 @@ stargate_c_tool_20d = Disable DHD
 stargate_c_tool_21 = Event horizon type
 stargate_c_tool_21_sg1 = Standard (SG1)
 stargate_c_tool_21_universe = Universe
+stargate_c_tool_21_universe_v2 = Universe_v2
 stargate_c_tool_21_infinity = Infinity
 stargate_c_tool_22 = Alternative slow dial
 stargate_c_tool_22d = Disable alternative slow dial

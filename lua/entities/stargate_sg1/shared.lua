@@ -15,6 +15,20 @@ ENT.EventHorizonData = {
 	NNFix = 1,
 }
 
+-- StarGate.RegisterEventHorizon("sghd_2",{
+-- 	ID=14,
+-- 	Name="SG-HD",
+-- 	Material="event_horizon_sg/effect_01.vmt",
+-- 	UnstableMaterial="event_horizon_sg/effect_shock_hd.vmt",
+-- 	LightColor={
+-- 		r = Vector(20,40),
+-- 		g = Vector(60,80),
+-- 		b = Vector(150,230),
+-- 		sync = false, -- sync random (for white), will be used only first value from this table (r)
+-- 	},
+-- 	Color=Color(255,255,255),
+-- })
+
 ENT.DialSlowDelay = 2.0
 
 ENT.StargateRingRotate = true

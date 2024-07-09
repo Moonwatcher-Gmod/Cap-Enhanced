@@ -1,4 +1,4 @@
-EFFECT.Dakara = Material("effects/dakara");
+--EFFECT.Dakara = Material("effects/dakara");
 
 function EFFECT:Init(data)
 	self.Ent 	= data:GetEntity();
@@ -8,10 +8,12 @@ function EFFECT:Init(data)
 	self.Rad	= 0;
 	self.Rel	= 0;
 	self.cycleInterval = 0.1;
-	self.ExpansionRate = 100;
+	self.ExpansionRate = 400;
 	self.Fraction = (self.ExpansionRate/self.cycleInterval)/512;
 
 	self.Entity:SetModel(Model("models/Madman07/shields/sphere.mdl"));
+	--self.Entity:SetColor( Color( 0, 235, 255, 225 ) ) 
+	--self.Entity:SetRenderMode( RENDERMODE_TRANSCOLOR )
 	if (IsValid(self.Ent)) then self.Entity:SetPos(self.Ent:GetPos()); end
 
 	self.Entity:SetRenderBounds(-Vector(1,1,1)*100000000,Vector(1,1,1)*100000000);

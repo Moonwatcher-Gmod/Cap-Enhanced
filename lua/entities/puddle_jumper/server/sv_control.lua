@@ -7,7 +7,7 @@ function ENT:ExitJumper() --################# Get out the jumper@RononDex
 		self.Pilot:DrawViewModel(true)
 		self.Pilot:DrawWorldModel(true)
 		self.Pilot:Spawn()
-		self.Pilot:SetNetworkedBool("isFlyingjumper",false)
+		self.Pilot:SetNWBool("isFlyingjumper",false)
 		self.Pilot:SetPos(self:GetPos()+self:GetForward()*15+self:GetUp()*-40)
 		self.AllowActivation=false
 		self.Pilot:SetHealth(self.health)
@@ -42,7 +42,7 @@ function ENT:ExitJumper() --################# Get out the jumper@RononDex
 		self.Accel.RIGHT = 0;
 		self.Accel.UP = 0;
 
-		self:SetNetworkedBool("JumperInflight",false);
+		self:SetNWBool("JumperInflight",false);
 
 		self:SpawnToggleButton(self.Owner);
 		self:SpawnBulkHeadDoor(nil,self.Owner);
@@ -56,8 +56,21 @@ function ENT:ExitJumper() --################# Get out the jumper@RononDex
 		self:ToggleRotorwash(false);
 
 		if(self.epodo) then
-			self:TogglePods()
+			self.CanDoPods = false
+			self.sequence = self:LookupSequence("epodc")
+			self:EmitSound(self.Sounds.EnginePodClose,100,100)
+			self.Roll = 0
+			self:RemoveDrones()
+			self.CloakPods = false;
+			timer.Simple( 1, function()
+				self.epodo = false
+			end)
+		
+			self:ResetSequence(self.sequence)
+			self:SetPlaybackRate(0.9)
+			self.NextUse.EnginePods = CurTime() + self:SequenceDuration(self.sequence)
 		end
+
 		timer.Simple( 0.75, function()
 			self.AllowActivation = true
 		end);
@@ -121,8 +134,7 @@ end
 
 function ENT:EnterJumper(ply) --############### Get in the jumper @ RononDex
 
-	if(self.AllowActivation) then
-
+	if(self.AllowActivation and ply:GetNWInt("ATAGene",0) == 1) then
 		self:GetPhysicsObject():Wake()
 		self:GetPhysicsObject():EnableMotion(true)
 		self.Inflight = true
@@ -159,9 +171,9 @@ function ENT:EnterJumper(ply) --############### Get in the jumper @ RononDex
 		ply:Spectate( OBS_MODE_CHASE )
 		ply:StripWeapons()
 
-		ply:SetNetworkedBool("isFlyingjumper",true)
+		ply:SetNWBool("isFlyingjumper",true)
 		ply:SetNetworkedEntity("jumper",self)
-		self:SetNetworkedBool("JumperInflight",true);
+		self:SetNWBool("JumperInflight",true);
         self.PlayerColor = ply:GetColor() or Color(255,255,255,255);
 		ply:SetRenderMode(RENDERMODE_TRANSALPHA);
 		ply:SetColor(Color(255,255,255,0));
@@ -169,7 +181,7 @@ function ENT:EnterJumper(ply) --############### Get in the jumper @ RononDex
 		ply:SetMoveType(MOVETYPE_OBSERVER);		
 		ply:SetCollisionGroup(COLLISION_GROUP_WEAPON);
 		ply:SetEyeAngles(self:GetAngles());
-        if(!self.Cloaked) then self:SpawnPilot(self:GetPos()+self:GetForward()*47.5+self:GetUp()*-17.5+self:GetRight()*32.5) end;
+        if(!self.Cloaked) then self:SpawnPilot(self:GetPos()+self:GetForward()*47.5+self:GetUp()*-17.5+self:GetRight()*-32.5) end;
 		ply:Flashlight(false);
 		
 	end

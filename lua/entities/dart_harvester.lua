@@ -58,7 +58,7 @@ function ENT:Initialize()
 	self.Entity:PhysicsInit(SOLID_VPHYSICS);
 	self.Entity:SetMoveType(MOVETYPE_VPHYSICS);
 	self.Entity:SetSolid(SOLID_VPHYSICS);
-	self.Entity:SetNetworkedBool("on",false);
+	self.Entity:SetNWBool("on",false);
 	-- Use the StarGate Pack's config @aVoN
 	self.MaxEnts = StarGate.CFG:Get("harvester","max_ents",5);
 	self.AllowConstrained = StarGate.CFG:Get("harvester","allow_constrained",false);
@@ -86,7 +86,7 @@ end
 function ENT:TurnOn(b)
 	local state = self.Entity:GetNetworkedBool("on");
 	if(b and not state) then
-		self.Entity:SetNetworkedBool("on",true);
+		self.Entity:SetNWBool("on",true);
 		self.Sound:Play();
 		self.Sound:SetSoundLevel(85);
 		self.Entity:NextThink(CurTime());

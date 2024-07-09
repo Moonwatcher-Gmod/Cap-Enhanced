@@ -15,5 +15,5 @@ ENT.RenderGroup = RENDERGROUP_BOTH
 ENT.AutomaticFrameAdvance = true
 
 function ENT:GetTraceSize()
-	return self.Entity:GetNetworkedVector("TraceSize",Vector(1,1,1));
+	return self.Entity:GetNWVector("TraceSize",Vector(1,1,1));
 end

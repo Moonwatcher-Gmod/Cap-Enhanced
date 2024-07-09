@@ -14,396 +14,389 @@
 
 	You should have received a copy of the GNU General Public License
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
-]]--
-
+]]
+--
 ENT.Type = "anim"
 ENT.Base = "sg_vehicle_base"
-
 ENT.PrintName = "Wraith Dart"
-ENT.Author	= "RononDex"
-ENT.Contact	= ""
-ENT.Purpose	= ""
-ENT.Instructions= ""
-
-list.Set("CAP.Entity", ENT.PrintName, ENT);
+ENT.Author = "RononDex"
+ENT.Contact = ""
+ENT.Purpose = ""
+ENT.Instructions = ""
+ENT.Category = "Ships"
+if (SGLanguage!=nil and SGLanguage.GetMessage!=nil) then
+ENT.Category = SGLanguage.GetMessage("entity_ships_cat");
+end
+list.Set("CAP.Entity", ENT.PrintName, ENT)
 
 if SERVER then
+    --########Header########--
+    if (StarGate == nil or StarGate.CheckModule == nil or not StarGate.CheckModule("ship")) then return end
+    AddCSLuaFile()
+    ENT.Model = Model("models/Madman07/wraith_dart/wraith_dart.mdl")
 
---########Header########--
-if (StarGate==nil or StarGate.CheckModule==nil or not StarGate.CheckModule("ship")) then return end
-AddCSLuaFile()
+    ENT.Sounds = {
+        Railgunsound = Sound("weapons/wraith_dart_shoot.mp3")
+    }
 
-ENT.Model = Model("models/Madman07/wraith_dart/wraith_dart.mdl")
+    --######## Pretty useless unless we can spawn it @RononDex
+    function ENT:SpawnFunction(p, tr)
+        if (not tr.HitWorld) then return end
+        local PropLimit = GetConVar("CAP_ships_max"):GetInt()
 
-ENT.Sounds = {
-	Railgunsound = Sound("weapons/wraith_dart_shoot.mp3"),
-}
+        if (p:GetCount("CAP_ships") + 1 > PropLimit) then
+            p:SendLua("GAMEMODE:AddNotify(Ships limit reached!, NOTIFY_ERROR, 5); surface.PlaySound( \"buttons/button2.wav\" )")
 
-function ENT:SpawnFunction(p, tr) --######## Pretty useless unless we can spawn it @RononDex
-	if (!tr.HitWorld) then return end
-	local PropLimit = GetConVar("CAP_ships_max"):GetInt()
-	if(p:GetCount("CAP_ships")+1 > PropLimit) then
-		p:SendLua("GAMEMODE:AddNotify(SGLanguage.GetMessage(\"entity_limit_ships\"), NOTIFY_ERROR, 5); surface.PlaySound( \"buttons/button2.wav\" )");
-		return
-	end
+            return
+        end
 
-	local e = ents.Create("sg_vehicle_dart")
-	e:SetPos(tr.HitPos+Vector(0,0,90))
-	e:SetAngles(Angle(0,p:GetAimVector():Angle().Yaw,0))	
-	e:Spawn()
-	e:SetModelScale(0.65,0) //Resize the Dart so It can go through the gate
-	e:Activate()
-	
-	e:SetWire("Health",e:GetNetworkedInt("health"));
-	p:AddCount("CAP_ships", e)
-	return e
-end
+        local e = ents.Create("sg_vehicle_dart")
+        e:SetPos(tr.HitPos + Vector(0, 0, 90))
+        e:SetAngles(Angle(0, p:GetAimVector():Angle().Yaw, 0))
+        e:Spawn()
+        e:SetVar("Owner", p)
+        e:Activate()
+        p:AddCount("CAP_ships", e)
 
-function ENT:Initialize() --######## What happens when it first spawns(Set Model, Physics etc.) @RononDex
+        return e
+    end
 
-	self:SetModel(self.Model)
-	self:PhysicsInit(SOLID_VPHYSICS)
-	self:SetMoveType(MOVETYPE_VPHYSICS)
-	self:SetSolid(SOLID_VPHYSICS)
-	self.EntHealth = 500
-	self:SetNetworkedInt("health",self.EntHealth)
-	self.Roll=0
-	self.On=0
-	self:SetUseType(SIMPLE_USE)
-	self.Vehicle="Dart"
-	self.ExitPos=self:GetPos()+Vector(0,0,80)
-	self:StartMotionController()
-	self:SpawnHarvester()
-	self.Delay=10
+    --######## What happens when it first spawns(Set Model, Physics etc.) @RononDex
+    function ENT:Initialize()
+        self:SetModel(self.Model)
+        self:PhysicsInit(SOLID_VPHYSICS)
+        self:SetMoveType(MOVETYPE_VPHYSICS)
+        self:SetSolid(SOLID_VPHYSICS)
+        self.EntHealth = 500
+        self.MaxHealth = self.EntHealth
+        self.Roll = 0
+        self.On = 0
+        self:SetUseType(SIMPLE_USE)
+        self.Vehicle = "Dart"
+        self.ExitPos = self:GetPos() + Vector(0, 0, 80)
+        self:StartMotionController()
+        self:SpawnHarvester()
+        self.Delay = 10
+        --######### Flight Vars
+        self.Accel = {}
+        self.Accel.FWD = 0
+        self.Accel.RIGHT = 0
+        self.Accel.UP = 0
+        self.ForwardSpeed = 2000
+        self.BackwardSpeed = 0
+        self.UpSpeed = 750
+        self.MaxSpeed = 2500
+        self.RightSpeed = 750
+        self.Accel.SpeedForward = 20
+        self.Accel.SpeedRight = 10
+        self.Accel.SpeedUp = 10
+        self.RollSpeed = 5
+        self.Roll = 0
+        self.Hover = true
+        self.GoesRight = true
+        self.GoesUp = true
+        self.CanRoll = true
+        self.ShootingCann = 1
+        self:CreateWireOutputs("Health")
+        self:SetWire("Health", self.EntHealth)
+        self.ShouldRotorwash = true
+        local phys = self:GetPhysicsObject()
+        phys:Wake()
+        phys:EnableMotion(true)
 
-	--######### Flight Vars
-	self.Accel = {}
-	self.Accel.FWD = 0
-	self.Accel.RIGHT = 0
-	self.Accel.UP = 0
-	self.ForwardSpeed = 2000
-	self.BackwardSpeed = 0
-	self.UpSpeed=750
-	self.MaxSpeed = 2500
-	self.RightSpeed = 750
-	self.Accel.SpeedForward = 20
-	self.Accel.SpeedRight = 10
-	self.Accel.SpeedUp = 10
-	self.RollSpeed = 5
-	self.Roll=0
-	self.Hover=true
-	self.GoesRight=true
-	self.GoesUp=true
-	self.CanRoll=true
-	self.ShootingCann = 1
-	self:CreateWireOutputs("Health");
-	self.ShouldRotorwash = true;
+        if (phys:IsValid()) then
+            phys:Wake()
+            phys:SetMass(10000) --@Madman07 well i set model mass for 1500
+        end
 
-	local phys = self:GetPhysicsObject()
-	phys:Wake()
-	phys:EnableMotion(true)
-	if(phys:IsValid()) then
-		phys:Wake()
-		phys:SetMass(10000) --@Madman07 well i set model mass for 1500
-	end
+        timer.Create("SGDartHealthRegen" .. self:EntIndex(), 1, 0, function()
+            if (not IsValid(self)) then return end
+            self.EntHealth = math.Clamp(self.EntHealth + 2.5, 0, 500)
+            self:SetWire("Health", self.EntHealth)
+        end)
+    end
 
-	timer.Create("SGDartHealth"..self:EntIndex(),1,0,function()
-		if (not IsValid(self)) then return end
-		local health = self:GetNetworkedInt("health");
-		health = health + 2.5;
-		if (health > 500) then health = 500; end
-		self:SetNetworkedInt("health", health);
-		self:SetWire("Health",health);
-	end);
-end
+    --########## Darts aren't invincible are they? @RononDex
+    function ENT:OnTakeDamage(dmg)
+        self.EntHealth = self.EntHealth - dmg:GetDamage()
+        self:SetWire("Health", self.EntHealth)
 
-function ENT:OnTakeDamage(dmg) --########## Darts aren't invincible are they? @RononDex
+        if ((self.EntHealth - dmg:GetDamage()) <= 0) then
+            self:Bang() -- Go boom
+        end
+    end
 
-	local health=self:GetNetworkedInt("health")
-	self:SetNetworkedInt("health",health-dmg:GetDamage()) -- Sets heath(Takes away damage from health)
-	self:SetWire("Health",health-dmg:GetDamage());
+    function ENT:HealthRepair(health)
+        self.EntHealth = health
+        self:SetWire("Health", health)
+    end
 
-	if((health-dmg:GetDamage())<=0) then
-		self:Bang() -- Go boom
-	end
-end
+    function ENT:OnRemove()
+        timer.Remove("SGDartHealthRegen" .. self:EntIndex())
+        self.BaseClass.OnRemove(self)
+    end
 
-function ENT:OnRemove()
-	timer.Remove("SGDartHealth"..self:EntIndex());
-	self.BaseClass.OnRemove(self)
-end --For some reason, it doesn't automatically use this function from the base so we have to tell it to
+    --For some reason, it doesn't automatically use this function from the base so we have to tell it to
+    --####### Now let me think... @RononDex
+    function ENT:Think()
+        self.BaseClass.Think(self) --Retrieve stuff from the base
+        self.ExitPos = self:GetPos() + self:GetRight() * 120 --Where we get out
 
-function ENT:Think() --####### Now let me think... @RononDex
+        if (self.StartDelay) then
+            self.Delay = math.Approach(self.Delay, 3, 2)
+        end
 
-	self.BaseClass.Think(self) --Retrieve stuff from the base
-	self.ExitPos=self:GetPos()+self:GetRight()*120 --Where we get out
+        if (self.Delay >= 3) then
+            self.StartDelay = false
+        end
 
-	if(self.StartDelay) then
-		self.Delay = math.Approach(self.Delay,3,2)
-	end
+        if (IsValid(self.Pilot)) then
+            if (not (self.Inflight)) then return end
 
-	if(self.Delay>=3) then
-		self.StartDelay=false
-	end
+            if (self.Delay >= 3) then
+                if (self.Pilot:KeyDown(self.Vehicle, "FIRE")) then
+                    self.Delay = 0
+                    self.StartDelay = true
+                    self:FireTurrets()
+                end
+            end
 
-	if(IsValid(self.Pilot)) then
-		if(not(self.Inflight)) then return end
-		if(self.Delay>=3) then
-			if(self.Pilot:KeyDown(self.Vehicle,"FIRE")) then
-				self.Delay=0
-				self.StartDelay=true
-				self:FireTurrets()
-			end
-		end
+            if (self.Pilot:KeyDown(self.Vehicle, "SUCK") and IsValid(self.Harvester)) then
+                self.Harvester:TurnOn(true)
+            end
 
-		if(self.Pilot:KeyDown(self.Vehicle,"SUCK") and IsValid(self.Harvester)) then
-			self.Harvester:TurnOn(true)
-		end
+            if (self.Pilot:KeyDown(self.Vehicle, "DHD")) then
+                self:OpenDHD(self.Pilot)
+            end
 
-		if(self.Pilot:KeyDown(self.Vehicle,"DHD")) then
-			self:OpenDHD(self.Pilot)
-		end
+            if (self.Pilot:KeyDown(self.Vehicle, "SPIT") and IsValid(self.Harvester)) then
+                self.Harvester:Spit()
+            end
+        end
 
-		if(self.Pilot:KeyDown(self.Vehicle,"SPIT") and IsValid(self.Harvester)) then
-			self.Harvester:Spit()
-		end
-	end
+        self.Entity:NextThink(CurTime() + 0.25)
 
-	self.Entity:NextThink(CurTime()+0.25);
-	return true
-end
+        return true
+    end
 
+    function ENT:SpawnHarvester()
+        if (not (IsValid(self))) then return end
+        local data = self:GetAttachment(self:LookupAttachment("Suck")) --@Madman07
+        if (not (data and data.Pos)) then return end
+        local e = ents.Create("dart_harvester")
+        e:SetModel("models/miriam/minidrone/minidrone.mdl")
+        e:SetPos(data.Pos)
+        e:SetAngles(self:GetAngles() + Angle(0, 0, 180))
+        e:SetOwner(self)
+        e:SetParent(self)
+        e:Spawn()
+        e:Activate()
+        e:GetPhysicsObject():EnableCollisions(false)
+        e:SetColor(Color(255, 255, 255, 1))
+        e:SetRenderMode(RENDERMODE_TRANSALPHA)
+        self.Harvester = e
+        self.Harvester.MaxEnts = 10
+        self.Harvester.Disallowed = {}
+        table.insert(self.Harvester.Disallowed, "sg_vehicle_*")
+    end
 
-function ENT:SpawnHarvester()
+    --####### Fire!@ Madman07
+    function ENT:FireTurrets()
+        local data
 
-	if(not(IsValid(self))) then return end
+        if (self.ShootingCann == 1) then
+            data = self:GetAttachment(self:LookupAttachment("FireL"))
+        elseif (self.ShootingCann == 2) then
+            data = self:GetAttachment(self:LookupAttachment("FireR"))
+        end
 
-	local data = self:GetAttachment(self:LookupAttachment("Suck")) --@Madman07
-	if(not (data and data.Pos)) then return end
+        if (not (data and data.Pos)) then return end
+        -- local fx = EffectData();
+        -- fx:SetStart(data.Pos);
+        -- fx:SetAngles(Angle(0,95,math.random(175,195)));
+        -- fx:SetRadius(80);
+        -- util.Effect("avon_energy_muzzle",fx,true)
+        local e = ents.Create("energy_pulse")
 
-	local e = ents.Create("dart_harvester")
-	e:SetModel("models/miriam/minidrone/minidrone.mdl")
-	e:SetPos(data.Pos)
-	e:SetAngles(self:GetAngles()+Angle(0,0,180))
-	e:SetOwner(self)
-	e:SetParent(self)
-	e:Spawn()
-	e:Activate()
-	e:GetPhysicsObject():EnableCollisions(false)
-	e:SetColor(Color(255,255,255,1))
-	e:SetRenderMode(RENDERMODE_TRANSALPHA)
-	self.Harvester=e
-	self.Harvester.MaxEnts = 10
-	self.Harvester.Disallowed={};
-	table.insert(self.Harvester.Disallowed, "sg_vehicle_*");
-end
+        e:PrepareBullet(self:GetForward(), 10, 16000, 10, {self.Entity})
 
-function ENT:FireTurrets() --####### Fire!@ Madman07
-	local data;
+        e:SetPos(data.Pos - self:GetForward() * 100)
+        e:SetOwner(self)
+        e.Owner = self
+        e:Spawn()
+        e:Activate()
+        e:SetRenderMode(RENDERMODE_TRANSALPHA)
+        e:SetColor(Color(0, 95, math.random(175, 195), 255))
+        self:EmitSound(self.Sounds.Railgunsound, 100, 100)
+        self.ShootingCann = self.ShootingCann + 1
 
-	if (self.ShootingCann == 1) then
-		data = self:GetAttachment(self:LookupAttachment("FireL"))
-	elseif (self.ShootingCann == 2) then
-		data = self:GetAttachment(self:LookupAttachment("FireR"))
-	end
-	if(not (data and data.Pos)) then return end
+        if (self.ShootingCann == 3) then
+            self.ShootingCann = 1
+        end
+    end
 
-	-- local fx = EffectData();
-		-- fx:SetStart(data.Pos);
-		-- fx:SetAngles(Angle(0,95,math.random(175,195)));
-		-- fx:SetRadius(80);
-	-- util.Effect("avon_energy_muzzle",fx,true)
+    --######### @ aVoN
+    function ENT:StargateCheck()
+        local gate = self:FindGate(5000)
+        self.NearValidStargate = false
 
-	local e = ents.Create("energy_pulse");
-	e:PrepareBullet(self:GetForward(), 10, 16000, 10, {self.Entity});
-	e:SetPos(data.Pos-self:GetForward()*100);
-	e:SetOwner(self);
-	e.Owner = self;
-	e:Spawn();
-	e:Activate();
-	e:SetRenderMode(RENDERMODE_TRANSALPHA)
-	e:SetColor(Color(0,95,math.random(175,195),255));
-	self:EmitSound(self.Sounds.Railgunsound,100,100)
+        if IsValid(gate) then
+            if gate.IsStargate then
+                if gate.Outbound then
+                    self.NearValidStargate = true
+                end
+            end
+        end
+    end
 
-	self.ShootingCann = self.ShootingCann + 1;
-	if (self.ShootingCann == 3) then self.ShootingCann = 1; end
-end
+    --######### @ aVoN
+    function ENT:OpenDHD(p)
+        if (not IsValid(p)) then return end
+        local e = self:FindGate(5000)
+        if (not IsValid(e)) then return end
+        if (hook.Call("StarGate.Player.CanDialGate", GAMEMODE, p, e) == false) then return end
+        net.Start("StarGate.VGUI.Menu")
+        net.WriteEntity(e)
+        net.WriteInt(1, 8)
+        net.Send(p)
+    end
 
-function ENT:StargateCheck()  --######### @ aVoN
-	local gate = self:FindGate(5000)
-	self.NearValidStargate = false
-	if IsValid(gate) then
-		if gate.IsStargate then
-			if gate.Outbound then
-				self.NearValidStargate = true
-			end
-		end
-	end
-end
+    --######### @ aVoN
+    function ENT:FindGate(dist)
+        local gate
+        local pos = self:GetPos()
 
-function ENT:OpenDHD(p)   --######### @ aVoN
-	if(not IsValid(p)) then return end;
-	local e = self:FindGate(5000);
-	if(not IsValid(e)) then return end;
-	if(hook.Call("StarGate.Player.CanDialGate",GAMEMODE,p,e) == false) then return end;
-	net.Start("StarGate.VGUI.Menu");
-	net.WriteEntity(e);
-	net.WriteInt(1,8);
-	net.Send(p);
-end
+        for _, v in pairs(ents.FindByClass("stargate_*")) do
+            if (not v.IsStargate or v.IsSupergate) then continue end
+            local sg_dist = (pos - v:GetPos()):Length()
 
-function ENT:FindGate(dist)  --######### @ aVoN
-	local gate;
-	local pos = self:GetPos();
-	for _,v in pairs(ents.FindByClass("stargate_*")) do
-		if (not v.IsStargate or v.IsSupergate) then continue end
-		local sg_dist = (pos - v:GetPos()):Length();
-		if(dist >= sg_dist) then
-			dist = sg_dist;
-			gate = v;
-		end
-	end
-	return gate;
-end
+            if (dist >= sg_dist) then
+                dist = sg_dist
+                gate = v
+            end
+        end
 
+        return gate
+    end
 
-function ENT:Power(supply)
-	/*if(StarGate.RDThree()) then
+    function ENT:Power(supply)
+        --[[if(StarGate.RDThree()) then
 		RD.Link(self.Harvester,supply)
 	else
 		Dev_Link(self.Harvester,supply)
-	end*/
-end
+	end]]
+    end
 
-if (StarGate and StarGate.CAP_GmodDuplicator) then
-	duplicator.RegisterEntityClass( "sg_vehicle_dart", StarGate.CAP_GmodDuplicator, "Data" )
-end
-
+    if (StarGate and StarGate.CAP_GmodDuplicator) then
+        duplicator.RegisterEntityClass("sg_vehicle_dart", StarGate.CAP_GmodDuplicator, "Data")
+    end
 end
 
 if CLIENT then
+    if (StarGate == nil or StarGate.KeyBoard == nil or StarGate.KeyBoard.New == nil) then return end
+    --########## Keybinder stuff
+    local KBD = StarGate.KeyBoard:New("Dart")
+    --Navigation
+    KBD:SetDefaultKey("FWD", StarGate.KeyBoard.BINDS["+forward"] or "W") -- Forward
+    KBD:SetDefaultKey("SPD", StarGate.KeyBoard.BINDS["+speed"] or "SHIFT") --  Boost
+    KBD:SetDefaultKey("UP", StarGate.KeyBoard.BINDS["+jump"] or "SPACE")
+    KBD:SetDefaultKey("DOWN", StarGate.KeyBoard.BINDS["+duck"] or "CTRL")
+    KBD:SetDefaultKey("LEFT", StarGate.KeyBoard.BINDS["+moveleft"] or "A")
+    KBD:SetDefaultKey("RIGHT", StarGate.KeyBoard.BINDS["+moveright"] or "D")
+    --Roll
+    KBD:SetDefaultKey("RL", "MWHEELDOWN") -- Roll left
+    KBD:SetDefaultKey("RR", "MWHEELUP") -- Roll right
+    KBD:SetDefaultKey("RROLL", "MOUSE3") -- Reset Roll
+    --Attack
+    KBD:SetDefaultKey("FIRE", StarGate.KeyBoard.BINDS["+attack"] or "MOUSE1") -- Fire
+    --Special Actions
+    KBD:SetDefaultKey("SUCK", "C") --  Cull
+    KBD:SetDefaultKey("SPIT", "ALT") -- UnCull
+    KBD:SetDefaultKey("DHD", "R") -- DHD
+    --View
+    KBD:SetDefaultKey("Z+", "UPARROW")
+    KBD:SetDefaultKey("Z-", "DOWNARROW")
+    KBD:SetDefaultKey("A+", "LEFTARROW")
+    KBD:SetDefaultKey("A-", "RIGHTARROW")
+    KBD:SetDefaultKey("BOOM", "BACKSPACE")
+    KBD:SetDefaultKey("EXIT", StarGate.KeyBoard.BINDS["+use"] or "E")
 
-if (SGLanguage!=nil and SGLanguage.GetMessage!=nil) then
-ENT.Category = SGLanguage.GetMessage("entity_ships_cat");
-ENT.PrintName = SGLanguage.GetMessage("entity_dart");
-end
+    ENT.Sounds = {
+        Engine = Sound("vehicles/DartEngine.wav")
+    }
 
-if (StarGate==nil or StarGate.KeyBoard==nil or StarGate.KeyBoard.New==nil) then return end
+    function ENT:Initialize()
+        self.BaseClass.Initialize(self)
+        LocalPlayer().Missiles = 0
+        self.Dist = -650
+        self.UDist = 190
+        self.KBD = self.KBD or KBD:CreateInstance(self)
+        self.Vehicle = "Dart"
+    end
 
---########## Keybinder stuff
-local KBD = StarGate.KeyBoard:New("Dart")
---Navigation
-KBD:SetDefaultKey("FWD",StarGate.KeyBoard.BINDS["+forward"] or "W") -- Forward
-KBD:SetDefaultKey("SPD",StarGate.KeyBoard.BINDS["+speed"] or "SHIFT") --  Boost
-KBD:SetDefaultKey("UP",StarGate.KeyBoard.BINDS["+jump"] or "SPACE")
-KBD:SetDefaultKey("DOWN",StarGate.KeyBoard.BINDS["+duck"] or "CTRL")
-KBD:SetDefaultKey("LEFT",StarGate.KeyBoard.BINDS["+moveleft"] or "A")
-KBD:SetDefaultKey("RIGHT",StarGate.KeyBoard.BINDS["+moveright"] or "D")
---Roll
-KBD:SetDefaultKey("RL","MWHEELDOWN") -- Roll left
-KBD:SetDefaultKey("RR","MWHEELUP") -- Roll right
-KBD:SetDefaultKey("RROLL","MOUSE3") -- Reset Roll
---Attack
-KBD:SetDefaultKey("FIRE",StarGate.KeyBoard.BINDS["+attack"] or "MOUSE1") -- Fire
---Special Actions
-KBD:SetDefaultKey("SUCK","C") --  Cull
-KBD:SetDefaultKey("SPIT","ALT") -- UnCull
-KBD:SetDefaultKey("DHD","R") -- DHD
---View
-KBD:SetDefaultKey("Z+","UPARROW")
-KBD:SetDefaultKey("Z-","DOWNARROW")
-KBD:SetDefaultKey("A+","LEFTARROW")
-KBD:SetDefaultKey("A-","RIGHTARROW")
+    function ENT:Effects()
+        local pos = self:GetPos() + self:GetForward() * -100 + self:GetUp() * 25
+        local data = self:GetAttachment(self:LookupAttachment("Engine")) --@Madman07
+        if (not (data and data.Pos)) then return end
+        local p = LocalPlayer()
+        local dart = p:GetNetworkedEntity("ScriptedVehicle", NULL)
+        local roll = math.Rand(-90, 90)
+        local normal = (self.Entity:GetForward() * -1):GetNormalized()
 
-KBD:SetDefaultKey("BOOM","BACKSPACE")
-KBD:SetDefaultKey("EXIT",StarGate.KeyBoard.BINDS["+use"] or "E")
+        if ((dart) and (dart:IsValid() and (dart == self))) then
+            if (StarGate.VisualsShips("cl_dart_heatwave")) then
+                local heatwv = self.FXEmitter:Add("sprites/heatwave", data.Pos)
+                heatwv:SetVelocity(normal * 2)
+                heatwv:SetDieTime(0.2)
+                heatwv:SetStartAlpha(255)
+                heatwv:SetEndAlpha(255)
+                heatwv:SetStartSize(50)
+                heatwv:SetEndSize(18)
+                heatwv:SetColor(0, 95, 155)
+                heatwv:SetRoll(roll)
+            end
+        end
+        --self.FXEmitter:Finish()
+    end
 
-ENT.Sounds={
-	Engine=Sound("vehicles/DartEngine.wav"),
-}
+    function ENT:Draw()
+        local p = LocalPlayer()
+        local dart = p:GetNetworkedEntity("ScriptedVehicle", NULL)
+        self.BaseClass.Draw(self)
 
-function ENT:Initialize( )
-	self.BaseClass.Initialize(self)
-	LocalPlayer().Missiles=0
-	self.Dist=-650
-	self.UDist=190
-	self.KBD = self.KBD or KBD:CreateInstance(self)
-	self.Vehicle="Dart"
-end
+        if ((dart) and (dart:IsValid())) then
+            if (p:KeyDown("Dart", "FWD")) then
+                self:Effects(true)
+            else
+                self:Effects(false)
+            end
+        end
+    end
 
-function ENT:Effects()
+    --######## Mainly Keyboard stuff @RononDex
+    function ENT:Think()
+        self.BaseClass.Think(self)
+        local p = LocalPlayer()
+        local dart = p:GetNetworkedEntity("ScriptedVehicle", NULL)
 
-	local pos = self:GetPos()+self:GetForward()*-100+self:GetUp()*25
-	local data = self:GetAttachment(self:LookupAttachment("Engine")) --@Madman07
-	if(not (data and data.Pos)) then return end
+        if ((dart) and ((dart) == self) and (dart:IsValid())) then
+            self.KBD:SetActive(true)
+        else
+            self.KBD:SetActive(false)
+        end
 
-	local p = LocalPlayer()
-	local dart = p:GetNetworkedEntity("ScriptedVehicle", NULL)
-	local roll = math.Rand(-90,90)
-	local normal = (self.Entity:GetForward() * -1):GetNormalized()
+        if ((dart) and ((dart) == self) and (dart:IsValid())) then
+            if (p:KeyDown("Dart", "Z+")) then
+                self.Dist = self.Dist - 5
+            elseif (p:KeyDown("Dart", "Z-")) then
+                self.Dist = self.Dist + 5
+            end
 
-	if((dart)and(dart:IsValid()and(dart==self))) then
-
-		if(StarGate.VisualsShips("cl_dart_heatwave")) then
-			local heatwv = self.FXEmitter:Add("sprites/heatwave",data.Pos)
-			heatwv:SetVelocity(normal*2)
-			heatwv:SetDieTime(0.2)
-			heatwv:SetStartAlpha(255)
-			heatwv:SetEndAlpha(255)
-			heatwv:SetStartSize(50)
-			heatwv:SetEndSize(18)
-			heatwv:SetColor(0,95,155)
-			heatwv:SetRoll(roll)
-		end
-	end
-	--self.FXEmitter:Finish()
-end
-
-function ENT:Draw()
-
-	local p = LocalPlayer()
-	local dart = p:GetNetworkedEntity("ScriptedVehicle", NULL)
-
-	self.BaseClass.Draw(self)
-
-	if((dart)and(dart:IsValid())) then
-		if(p:KeyDown("Dart","FWD")) then
-			self:Effects(true)
-		else
-			self:Effects(false)
-		end
-	end
-end
-
---######## Mainly Keyboard stuff @RononDex
-function ENT:Think()
-
-	self.BaseClass.Think(self)
-
-	local p = LocalPlayer()
-	local dart = p:GetNetworkedEntity("ScriptedVehicle", NULL)
-
-	if((dart)and((dart)==self)and(dart:IsValid())) then
-		self.KBD:SetActive(true)
-	else
-		self.KBD:SetActive(false)
-	end
-
-	if((dart)and((dart)==self)and(dart:IsValid())) then
-
-		if(p:KeyDown("Dart","Z+")) then
-			self.Dist = self.Dist-5
-		elseif(p:KeyDown("Dart","Z-")) then
-			self.Dist = self.Dist+5
-		end
-
-		if(p:KeyDown("Dart","A+")) then
-			self.UDist=self.UDist+5
-		elseif(p:KeyDown("Dart","A-")) then
-			self.UDist=self.UDist-5
-		end
-	end
-
-end
-
+            if (p:KeyDown("Dart", "A+")) then
+                self.UDist = self.UDist + 5
+            elseif (p:KeyDown("Dart", "A-")) then
+                self.UDist = self.UDist - 5
+            end
+        end
+    end
 end

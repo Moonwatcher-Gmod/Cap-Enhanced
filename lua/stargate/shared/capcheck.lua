@@ -50,14 +50,7 @@ if (SERVER) then
 	util.AddNetworkString( "CL_CAP_ERROR" );
 end                                                                     
 
-StarGate.CAP_WS_ADDONS = {[180088121]="Carter Addon Pack: Atlantis", [180088756]="Carter Addon Pack: CapBuild", [180092028]="Carter Addon Pack: CatWalkBuild", [180094475]="Carter Addon Pack: DHD",
-	[180095275]="Carter Addon Pack: DHD Extra", [180095434]="Carter Addon Pack: Extra Materials", [180095783]="Carter Addon Pack: Life Support", [180098639]="Carter Addon Pack: Maps",
-	[180225064]="Carter Addon Pack: Event Horizons", [180214862]="Carter Addon Pack: Optional Ramps Pack", [180266528]="Carter Addon Pack: Player Models", [180266528]="Carter Addon Pack: Player Weapons",
-	[180210973]="Carter Addon Pack: Props", [180212109]="Carter Addon Pack: Ramps Important", [180213250]="Carter Addon Pack: Ramps Pack", [180215491]="Carter Addon Pack: Resources",
-	[180216309]="Carter Addon Pack: Ring Ramps", [180217191]="Carter Addon Pack: Rings", [180220324]="Carter Addon Pack: Shields and Protection", [180222569]="Carter Addon Pack: Sounds",
-	[180223815]="Carter Addon Pack: Stargate", [180226239]="Carter Addon Pack: Stargate Extras", [180228917]="Carter Addon Pack: Stargate Universe", [180229838]="Carter Addon Pack: Stargate Universe Extras",
-	[180227098]="Carter Addon Pack: Supergate", [180227777]="Carter Addon Pack: Tool Weapons", [180230992]="Carter Addon Pack: Vehicles Pack1", [180231308]="Carter Addon Pack: Vehicles Pack2", 
-	[180232188]="Carter Addon Pack: Weapons",[872872435]="Carter Addon Pack: Extras"
+StarGate.CAP_WS_ADDONS = {[3021712722]="CAP Enhanced Code", [3015821171]="CAP Enhanced - Resources part 1", [2744960254]="CAP Enhanced - Resources part 2"
 }
 
 local ws_addonlist = {}
@@ -151,7 +144,7 @@ if (CLIENT) then
 	concommand.Add("CAP_dxlevel",CAP_dxlevel)
 
 	if (GetConVar("mat_dxlevel"):GetInt()<90) then
-		Msg("-------\nWarning: your gmod running under DirectX 8.1 or lower.\nThis will cause compatibility problems with Carter Addon Pack.\nList of problems:\n* No kawoosh when stargate opens.\n* White boxes on huds.\n* Universe stargate have always all glyphs enabled.\n* Some other glitches.\nPlease Run gmod under dxlevel 90 or higher (95 recommended).\nThis can be changed with convar mat_dxlevel.\n-------\n")
+		Msg("-------\nWarning: your gmod running under DirectX 8.1 or lower.\nThis will cause compatibility problems with CAP Enhanced.\nList of problems:\n* No kawoosh when stargate opens.\n* White boxes on huds.\n* Universe stargate have always all glyphs enabled.\n* Some other glitches.\nPlease Run gmod under dxlevel 90 or higher (95 recommended).\nThis can be changed with convar mat_dxlevel.\n-------\n")
 	end
 
 	local function CAP_ShowError(tbl)
@@ -274,7 +267,7 @@ if (not StarGate.WorkShop) then
 			status = "Error";
 			MsgN("Status: "..status)
 		end
-		table.insert(StarGate_Group.ErrorMSG, {"Please subscribe to all workshop addons to make CAP functional.","09"});
+		table.insert(StarGate_Group.ErrorMSG, {"Please subscribe to all workshop addons to make CAP Enhanced functional.","09"});
 		table.insert(StarGate_Group.ErrorMSG_HTML, {"sg_err_09",Workshop_res_Check()});
 		MsgN("-------");
 		MsgN("Error #09\n"..StarGate_Group.ErrorMSG[table.Count(StarGate_Group.ErrorMSG)][1]:Replace("\\n","\n"));
@@ -292,7 +285,7 @@ if (not StarGate.WorkShop) then
 			status = "Error";
 			MsgN("Status: "..status)
 		end
-		table.insert(StarGate_Group.ErrorMSG, {"Carter Addon Pack is incorrectly installed.\\nMake sure you downloaded cap and cap_resources folders and placed the folders correctly.","02"});
+		table.insert(StarGate_Group.ErrorMSG, {"CAP Enhanced is incorrectly installed.\\nMake sure you downloaded moonwatcher-code and moonwatcher-resources folders and placed the folders correctly.","02"});
 		table.insert(StarGate_Group.ErrorMSG_HTML, "sg_err_02");
 		MsgN("-------");
 		MsgN("Error #02\n"..StarGate_Group.ErrorMSG[table.Count(StarGate_Group.ErrorMSG)][1]:Replace("\\n","\n"));
@@ -310,7 +303,7 @@ if (not StarGate.WorkShop) then
 			status = "Error";
 			MsgN("Status: "..status)
 		end
-		table.insert(StarGate_Group.ErrorMSG, {"The Git version of the Code pack from Carter Addon Pack is installed.\\nPlease remove this to prevent possible problems.\\nOr remove the workshop version.","04"});
+		table.insert(StarGate_Group.ErrorMSG, {"The Git version of the Code pack from CAP Enhanced is installed.\\nPlease remove this to prevent possible problems.\\nOr remove the workshop version.","04"});
 		table.insert(StarGate_Group.ErrorMSG_HTML, "sg_err_04");
 		MsgN("-------");
 		MsgN("Error #04\n"..StarGate_Group.ErrorMSG[table.Count(StarGate_Group.ErrorMSG)][1]:Replace("\\n","\n"));
@@ -319,7 +312,7 @@ if (not StarGate.WorkShop) then
 			status = "Error";
 			MsgN("Status: "..status)
 		end
-		table.insert(StarGate_Group.ErrorMSG, {"Cap_resources folder is outdated!\\nPlease update it.","12"});
+		table.insert(StarGate_Group.ErrorMSG, {"moonwatcher_resources folder is outdated!\\nPlease update it.","12"});
 		table.insert(StarGate_Group.ErrorMSG_HTML, "sg_err_12");
 		MsgN("-------");
 		MsgN("Error #12\n"..StarGate_Group.ErrorMSG[table.Count(StarGate_Group.ErrorMSG)][1]:Replace("\\n","\n"));
@@ -330,7 +323,7 @@ else
 			status = "Error";
 			MsgN("Status: "..status)
 		end
-		table.insert(StarGate_Group.ErrorMSG, {"Please subscribe to all workshop addons to make CAP functional.","09"});
+		table.insert(StarGate_Group.ErrorMSG, {"Please subscribe to all workshop addons to make CAP Enhanced functional.","09"});
 		table.insert(StarGate_Group.ErrorMSG_HTML, {"sg_err_09",Workshop_res_Check()});
 		MsgN("-------");
 		MsgN("Error #09\n"..StarGate_Group.ErrorMSG[table.Count(StarGate_Group.ErrorMSG)][1]:Replace("\\n","\n"));
@@ -348,7 +341,7 @@ else
 			status = "Error";
 			MsgN("Status: "..status)
 		end
-		table.insert(StarGate_Group.ErrorMSG, {"Cap_resources folder is outdated!\\nPlease update it.","12"});
+		table.insert(StarGate_Group.ErrorMSG, {"moonwatcher_resources folder is outdated!\\nPlease update it.","12"});
 		table.insert(StarGate_Group.ErrorMSG_HTML, "sg_err_12");
 		MsgN("-------");
 		MsgN("Error #12\n"..StarGate_Group.ErrorMSG[table.Count(StarGate_Group.ErrorMSG)][1]:Replace("\\n","\n"));
@@ -366,7 +359,7 @@ else
 			status = "Error";
 			MsgN("Status: "..status)
 		end
-		table.insert(StarGate_Group.ErrorMSG, {"The Git version of the Code pack from Carter Addon Pack is installed.\\nPlease remove this to prevent possible problems.\\nOr remove the workshop version.","04"});
+		table.insert(StarGate_Group.ErrorMSG, {"The Git version of the Code pack from CAP Enhanced is installed.\\nPlease remove this to prevent possible problems.\\nOr remove the workshop version.","04"});
 		table.insert(StarGate_Group.ErrorMSG_HTML, "sg_err_04");
 		MsgN("-------");
 		MsgN("Error #04\n"..StarGate_Group.ErrorMSG[table.Count(StarGate_Group.ErrorMSG)][1]:Replace("\\n","\n"));
@@ -411,16 +404,7 @@ elseif (file.Exists("weapons/gmod_tool/stools/wire_adv.lua","LUA") and not ws_ad
 	table.insert(StarGate_Group.ErrorMSG_HTML, "sg_err_14");
 	MsgN("-------");
 	MsgN("Error #14\n"..StarGate_Group.ErrorMSG[table.Count(StarGate_Group.ErrorMSG)][1]:Replace("\\n","\n"));
-end /*if (string.find(util.RelativePathToFull("gameinfo.txt"),"garrysmodbeta")) then
-	if (status != "Error") then
-		status = "Error";
-		MsgN("Status: "..status)
-	end
-	table.insert(StarGate_Group.ErrorMSG, {"Sorry, Garry's Mod 13 beta isn't supported anymore.\\nPlease make use of the normal Garry's Mod that already came out of the beta.","08"});
-	table.insert(StarGate_Group.ErrorMSG_HTML, "sg_err_08");
-	MsgN("-------");
-	MsgN("Error #08\n"..StarGate_Group.ErrorMSG[table.Count(StarGate_Group.ErrorMSG)][1]:Replace("\\n","\n"));
-end  */
+end
 if (status != "Error") then
 	MsgN("Status: "..status)
 else
@@ -447,11 +431,11 @@ function StarGate_Group.ShowError(ply,cl)
 	for k,v in pairs(ErrorMSG) do
 		if (k==1) then
 			MsgN("================================");
-			MsgN("Carter Addon Pack Error:"); MsgN("-------");
+			MsgN("CAP Enhanced Error:"); MsgN("-------");
 			if (IsValid(ply)) then
 				MsgN("Player: "..ply:Name());
 				ply:SendLua( "MsgN(\"================================\")");
-				ply:SendLua("MsgN(\"Carter Addon Pack Error:\")"); ply:SendLua("MsgN(\"-------\")");
+				ply:SendLua("MsgN(\"CAP Enhanced Error:\")"); ply:SendLua("MsgN(\"-------\")");
 			end
 		else
 			MsgN("-------");
@@ -475,7 +459,7 @@ function StarGate_Group.ShowError(ply,cl)
 end
 
 if (status == "Error") then
-	MsgN("Carter Addon Pack: Loading error.");
+	MsgN("CAP Enhanced: Loading error.");
 elseif SERVER then
 	/*-- Add server tag
 	local sv_tags = GetConVarString("sv_tags")

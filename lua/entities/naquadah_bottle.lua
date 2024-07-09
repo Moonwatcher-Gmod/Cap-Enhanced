@@ -31,7 +31,9 @@ function ENT:Initialize()
 	self:SupplyResource("energy",self.MaxStorage);
 	self:CreateWireOutputs("Active","Naquadah %","Naquadah Energy");
 	self:CreateWireInputs("Disable");
-	self.health=50;
+	self.EntHealth = 50
+	self.MaxHealth = self.EntHealth
+	self:SetWire("Health", self.EntHealth)
 
 	local phys = self.Entity:GetPhysicsObject();
 	if(phys:IsValid()) then
@@ -139,12 +141,17 @@ function ENT:TriggerInput(name,value)
 end
 
 function ENT:OnTakeDamage(dmg,attacker)
+	self.EntHealth = self.EntHealth-dmg:GetDamage()
+	self:SetWire("Health", self.EntHealth)
 
-	self.health = self.health-dmg:GetDamage()
-
-	if(self.health<1) then
+	if(self.EntHealth<1) then
 		self:Boom()
 	end
+end
+
+function ENT:HealthRepair(health)
+	self.EntHealth = health
+	self:SetWire("Health", health)
 end
 
 function ENT:Boom()
@@ -169,8 +176,5 @@ end
 if CLIENT then
 
 ENT.RenderGroup = RENDERGROUP_BOTH; -- This FUCKING THING avoids the clipping bug I have had for ages since stargate BETA 1.0. DAMN!
-if (SGLanguage!=nil and SGLanguage.GetMessage!=nil) then
-language.Add("naquadah_bottle",SGLanguage.GetMessage("stool_naq_bottle"));
-end
 
 end

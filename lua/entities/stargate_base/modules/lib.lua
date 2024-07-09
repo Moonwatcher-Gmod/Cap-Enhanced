@@ -184,10 +184,10 @@ end
 --################# Check if gate are powered somehow and if source is capable of handling gate consumption
 function ENT:HaveEnergy(check,iris,first)
 	if (not self.HasRD) then return true end -- without RD always have energy
-	if(not util.tobool(GetConVar("stargate_energy_dial"):GetInt()))then return true end;
-	if(self.GateSpawnerSpawned and not util.tobool(GetConVar("stargate_energy_dial_spawner"):GetInt()))then return true end;
+	if(not tobool(GetConVar("stargate_energy_dial"):GetInt()))then return true end;
+	if(self.GateSpawnerSpawned and not tobool(GetConVar("stargate_energy_dial_spawner"):GetInt()))then return true end;
 	local energy = false;
-	local target = util.tobool(GetConVar("stargate_energy_target"):GetInt());
+	local target = tobool(GetConVar("stargate_energy_target"):GetInt());
 	if (not IsValid(self.Target) or not self.IsOpen) then target = false; end
 	local en = self:GetResource("energy");
 	local t_en = 0;
@@ -195,7 +195,7 @@ function ENT:HaveEnergy(check,iris,first)
 	if (self.LastDistance!=0) then distance = self.LastDistance; end;
 	if(IsValid(self.Target)) then distance = (self:GetPos() - self.Target:GetPos()):Length(); end;
 	if (IsValid(self.Target) and self.Target == self.Entity) then distance = 10000 end
-	local consume = distance * self.EnergyConsume;
+	local consume = distance/2 * self.EnergyConsume;
 	if (self.ConnectionSGU) then consume = consume + self.SGUAdd; elseif (self.ConnectionGalaxy) then consume = consume + self.GalaxyAdd; else consume = consume + self.ChevAdd; end
 	if(not self.ConnectionSGU and not self.ConnectionGalaxy)then consume = consume / self.ChevConsumption end;
 	--  energy :)
@@ -217,7 +217,9 @@ function ENT:HaveEnergy(check,iris,first)
 				self.Target:ConsumeResource("energy",consume);
 				if (t_en>=consume) then energy = true; end
 			end
+			--print(consume)
 		else
+
 			self:ConsumeResource("energy",consume);
 		end
 	end
@@ -239,15 +241,16 @@ function ENT:HaveEnergy(check,iris,first)
 end
 
 function ENT:CheckEnergy(dhd, no_consume)
+	if (self.Charged) then return true end
 	if (not self.HasRD) then return true end -- without RD always have energy
-	if(not util.tobool(GetConVar("stargate_energy_dial"):GetInt()))then return true end;
-	if(self.GateSpawnerSpawned and not util.tobool(GetConVar("stargate_energy_dial_spawner"):GetInt()))then return true end;
+	if(not tobool(GetConVar("stargate_energy_dial"):GetInt()))then return true end;
+	if(self.GateSpawnerSpawned and not tobool(GetConVar("stargate_energy_dial_spawner"):GetInt()))then return true end;
 	local energy = false;
 	local en = self:GetResource("energy");
 	if (dhd or self.LastEnergy==0) then self.LastEnergy = en; else en = self.LastEnergy end
 	local distance = 100;
 	if(IsValid(self.Target) and self.Target!=self.Entity) then distance = (self:GetPos() - self.Target:GetPos()):Length(); end;
-	local consume = distance * self.EnergyConsume;
+	local consume = distance/2 * self.EnergyConsume;
 	if (self.ConnectionSGU) then consume = consume + self.SGUAdd; elseif (self.ConnectionGalaxy) then consume = consume + self.GalaxyAdd; else consume = consume + self.ChevAdd; end
 	if(not self.ConnectionSGU and not self.ConnectionGalaxy)then consume = consume / self.ChevConsumption end;
 	if (self.ConnectionSGU) then
@@ -264,6 +267,7 @@ function ENT:CheckEnergy(dhd, no_consume)
 	if(not self.ConnectionSGU and not self.ConnectionGalaxy and not energy or dhd and not energy) then
 		for k,v in pairs(self:FindPowerDHD()) do -- look for other power sources -- look for dhd :)
 			if(IsValid(v))then energy = true end
+
 		end
 	end
 	if(self:FindBlackHole())then energy = true end; -- black hole can power everything
@@ -272,8 +276,8 @@ end
 
 function ENT:CheckEnergyDHD()
 	if (not self.HasRD) then return false end
-	if(not util.tobool(GetConVar("stargate_energy_dial"):GetInt()))then return false end;
-	if(self.GateSpawnerSpawned and not util.tobool(GetConVar("stargate_energy_dial_spawner"):GetInt()))then return false end;
+	if(not tobool(GetConVar("stargate_energy_dial"):GetInt()))then return false end;
+	if(self.GateSpawnerSpawned and not tobool(GetConVar("stargate_energy_dial_spawner"):GetInt()))then return false end;
 	local energy = false;
 	local en = self:GetResource("energy");
 	if(en > 0) then energy = true end;
@@ -296,8 +300,8 @@ function ENT:WireGetEnergy(addr,dist)
 	if(IsValid(target)) then distance = (self:GetPos() - target:GetPos()):Length(); elseif (dist) then distance = -1; end
 	if (dist) then return distance; end
 	if (not self.HasRD) then return -1 end -- without RD always have energy
-	if(not util.tobool(GetConVar("stargate_energy_dial"):GetInt()))then return -1 end;
-	if(self.GateSpawnerSpawned and not util.tobool(GetConVar("stargate_energy_dial_spawner"):GetInt()))then return -1 end;
+	if(not tobool(GetConVar("stargate_energy_dial"):GetInt()))then return -1 end;
+	if(self.GateSpawnerSpawned and not tobool(GetConVar("stargate_energy_dial_spawner"):GetInt()))then return -1 end;
 	local enconsume = (self.GalaxyConsumption*isgalaxy + self.SGUConsumption*issgu + 1);
 	local energy = 0;
 	local en = self:GetResource("energy");
@@ -321,6 +325,7 @@ function ENT:WireGetEnergy(addr,dist)
 end
 
 function ENT:Disconnect()
+	self.Charged = false
 	self:DeactivateStargate(true)
 	if IsValid(self.Target) then self.Target:DeactivateStargate(true) end
 end
@@ -387,6 +392,7 @@ function ENT:CheckWormJump(target,range,c_range,old_target,groupsystem)
 end
 
 function ENT:WormHoleShutdown(old)
+	self.Charged = false
 	self:SubFlicker(false,true);
 	self.Jumping = true;
 	if (IsValid(old)) then
@@ -477,6 +483,98 @@ function ENT:WormHoleJump()
 	end
 end
 
+function ENT:ControlledJump(targetgate)
+	if (self.IsOpen and self.Outbound and IsValid(self.EventHorizon) and self.Entity:GetClass() != "stargate_orlin" and not self.IsSupergate and (not IsValid(self.Target) or not self.Target.jammed)) then
+		local old = self.Target;
+
+		if (self.Jumped) then
+			self:WormHoleShutdown(old);
+			return
+		end
+
+		--print(self:GetGateGroup())
+
+		if (targetgate == self.Entity) then
+			return
+		end
+
+		if (old == targetgate) then
+			return
+		end
+
+
+		if (old:GetGateGroup()!=targetgate:GetGateGroup()) then
+			return
+		end
+
+		if not IsValid(old) then return end
+
+		local groupsystem = GetConVar("stargate_group_system"):GetBool();
+
+		local gate;
+		local dist = 32000;
+		local pos = old:GetPos();
+		for _,v in pairs(ents.FindByClass("stargate_*")) do
+			if ((v.IsGroupStargate or v:GetClass() == "stargate_supergate") and v~=self.Entity and v~=old and not v.IsOpen and not v.IsDialling and v:GetClass() != "stargate_orlin") then
+				local sg_dist = (pos - v:GetPos()):Length();
+				local range = GetConVar("stargate_sgu_find_range"):GetInt();
+				if (not self:CheckWormJump(v,sg_dist,range,old,groupsystem)) then continue end
+				if(dist >= sg_dist) then
+					dist = sg_dist;
+					gate = v;
+				end
+			end
+		end
+		if (IsValid(targetgate)) then
+			gate = targetgate
+		end
+		if (not IsValid(gate) or #self.DialledAddress==10) then
+    		self:WormHoleShutdown(old);
+			return
+		end
+
+		old:Close();
+		old.EventHorizon:Shutdown(true);
+		gate.Target = self;
+		self.Target = gate;
+		self.Jumping = true;
+		gate.Jumping = true;
+		gate.Outbound = false;
+
+		local action = gate.Sequence:New();
+
+		if gate:GetClass() == "stargate_supergate" then
+			gate:InstantLightUp();
+		else
+			action = action + gate.Sequence:InstantOpen(nil,0.0,true,true,false);
+		end
+
+		action = action + gate.Sequence:OpenGate();
+		gate:RunActions(action);
+
+		self:SubFlicker(false,true,gate.IsSupergate);
+
+		-- little delay or it will give us nil
+		timer.Simple(0.3,function()
+			if (IsValid(self) and IsValid(gate) and IsValid(self.EventHorizon)) then
+				self.EventHorizon.Target = gate.EventHorizon;
+				self.EventHorizon.TargetGate = gate;
+			end
+		end)
+		timer.Simple(3.0,function()
+			if (IsValid(self)) then
+				self.Jumping = false;
+			end
+			if (IsValid(gate)) then
+				gate.Jumping = false;
+			end
+		end)
+		self.Jumped = false;
+	end
+end
+
+
+
 --##################################
 --#### DHD helper functions
 --##################################
@@ -514,7 +612,7 @@ end
 
 --################# Find's special DHD's which may power this gate @Mad
 function ENT:FindPowerDHD()
-	if (IsValid(self.LockedDHD) and (not self.LockedDHD.Destroyed or util.tobool(GetConVar("stargate_dhd_destroyed_energy"):GetInt()))) then 
+	if (IsValid(self.LockedDHD) and (not self.LockedDHD.Destroyed or util.tobool(GetConVar("stargate_dhd_destroyed_energy"):GetInt())) and ( not self:GetClass()=="dhd_city")) then 
 		if self.LockedDHD.Disabled then return {} end
 		return {self.LockedDHD} 
 	end
@@ -531,7 +629,7 @@ function ENT:FindPowerDHD()
 	table.Add(posibble_dhd, self:FindDHD());
 
 	-- ramp energy for sgu @Llapp
-	if(self.Entity:GetClass() == "stargate_universe")then
+	if(self.IsUniverseGate) then
 	    for _,v in pairs(StarGate.GetConstrainedEnts(self.Entity,2) or {}) do
             if(IsValid(v) and not v:GetClass():find("stargate_"))then
    	            if(StarGate.RampOffset.Gates[v:GetModel()])then
@@ -695,8 +793,8 @@ function ENT:FindGate(no_target,addr)
 					if (#dialadr == 8 and
 						caddress and
 						a[7] == "#" and
-						(group == g or self.Entity:GetClass()=="stargate_universe") and
-						(self.Entity:GetClass()!="stargate_universe" or
+						(group == g or self.IsUniverseGate) and
+						(not self.IsUniverseGate or
 						c_range == 0 or
 						c_range > 0 and
 						group:len()==3 and
@@ -821,11 +919,11 @@ function ENT:FindGateGalaxy(no_target,addr)
 						caddress and
 						a[7] == "#" and
 						g==galaxy and
-						(self.Entity:GetClass()!="stargate_universe" or
+						(not self.IsUniverseGate or
 						c_range == 0 or
 						c_range > 0 and
-						v:GetClass()=="stargate_universe" and
-						self.Entity:GetClass()=="stargate_universe" and
+						v.IsUniverseGate and
+						self.IsUniverseGate and
 						range<=c_range)
 					) then
 						table.insert(gates,v);
@@ -837,8 +935,8 @@ function ENT:FindGateGalaxy(no_target,addr)
 						caddress and
 						a[7] == "@" and
 						a[8] == "#" and
-						(g!=galaxy or v:GetClass()=="stargate_universe" and
-						self.Entity:GetClass()=="stargate_universe" and
+						(g!=galaxy or v.IsUniverseGate and
+						self.IsUniverseGate and
 						c_range > 0 and
 						range>c_range)
 					) then
@@ -854,10 +952,10 @@ function ENT:FindGateGalaxy(no_target,addr)
 						a[7] == "@" and
 						a[8] == "!" and
 						a[9] == "#" and
-						(v:GetClass()=="stargate_universe" and
-						self.Entity:GetClass()!="stargate_universe" or
-						v:GetClass()!="stargate_universe" and
-						self.Entity:GetClass()=="stargate_universe")
+						(v.IsUniverseGate and
+						not self.IsUniverseGate or
+						not v.IsUniverseGate and
+						self.IsUniverseGate)
 					) then
 						table.insert(gates,v);
 					end
@@ -1038,6 +1136,7 @@ function ENT:SendGateInfo(pl)
 	info["galaxy"] = v:GetGalaxy();
 	info["class"] = v:GetClass();
 	info["pos"] = v:GetPos();
+	info["sgugate"] = v.IsUniverseGate or false;
 
 	local t = 0;
 	for k,i in pairs(info) do
@@ -1085,7 +1184,7 @@ function ENT:CheckGroup(group,address)
 	local lettersa = address:TrimExplode("");
 	local letters = group:TrimExplode("");
 	local text = "";
-	if (self.Entity:GetClass()=="stargate_universe") then
+	if (self.IsUniverseGate) then
 		local add1 = true;
 		local add2 = true;
 		local add3 = true;
@@ -1151,7 +1250,7 @@ function ENT:SetGateAddress(s)
 		if(not (address and (tostring(address):len() == 6 or address == ""))) then return end;
 		self.GateAddress = address;
 		self:SetEntityModifier("Address",address); -- Entity Modifiers for Duplicator
-		self.Entity:SetNetworkedString("Address",address);
+		self.Entity:SetNWString("Address",address);
 		self:RefreshGateList("address",self.GateAddress);
 	end
 end
@@ -1164,15 +1263,15 @@ end
 
 --################# Sets the point of origin by AlexALX
 function ENT:SetGateGroup(s)
-	if (self.Entity:GetClass()=="stargate_supergate") then return end
-	if (self.Entity:GetClass()=="stargate_universe") then
+	if (self.Entity:GetClass() == "stargate_supergate") then return end
+	if (self.IsUniverseGate) then
 		s = tostring(s or ""):gsub("[^"..self.WireCharters.."]","");
 		if (s!="" and s:len() == 3 and (s:sub(1,1)=="#" or s:sub(2,2)=="#")) then return end
 	else
 		s = tostring(s or ""):gsub("[^"..self.WireCharters:gsub("#","").."]","");
 	end
 	if (s:len() == 1) then s = s.."@"; end
-	if(s:len() == 2 and self.Entity:GetClass() != "stargate_universe" or s:len() == 3 and self.Entity:GetClass() == "stargate_universe") then
+	if(s:len() == 2 and not self.IsUniverseGate or s:len() == 3 and self.IsUniverseGate) then
 		local group = s:upper();
 		if not self:CheckGroup(s,self.GateAddress) then return end
 		group = hook.Call("StarGate.SetGateGroup",GAMEMODE,self.Entity,self.GateGroup or "",group) or group;
@@ -1268,7 +1367,7 @@ end
 
 --################# Is this gate blocked? by AlexALX
 function ENT:GetBlocked()
-	if (self:GetNetworkedInt("SG_BLOCK_ADDRESS")<=0 or self:GetNetworkedInt("SG_BLOCK_ADDRESS")==1 and self:GetClass()!="stargate_universe") then return false; end
+	if (self:GetNetworkedInt("SG_BLOCK_ADDRESS")<=0 or self:GetNetworkedInt("SG_BLOCK_ADDRESS")==1 and not self.IsUniverseGate) then return false; end
 	return self.GateBlocked;
 end
 
@@ -1413,10 +1512,9 @@ function ENT:OnButtDialGate()
 		if(self.IsOpen or self.Dialling) then return end; -- We are opened or dialling - Do not allow additional dialling.
 		self.EventHorizon:Remove(); -- Remove the EH. We neither are dialling, nor we are opened so it's a bug and the EH stood. Remove it now immediately!
 	end
-
 	/*if self.Target and self.Target.OnButtLock and IsValid(self.Target) and self.Target.Outbound and not self.Target.IsOpen and self.Target.Dialling then
 		local target = "";
-		if (self.Target.Target and IsValid(self.Target.Target)) then target = self.Target.Target end
+		if (self.Target.Target and IsValid(self.Target.Target)) then print("2") target = self.Target.Target end
 		self.Target:StopActions();
 		if (target != self.Entity) then
 			--target:Close();
@@ -1496,6 +1594,7 @@ end
 
 --################# Aborts Dialling a gate @aVoN
 function ENT:AbortDialling()
+	self.Charged = false
 	if (self.Shutingdown or self.Jumping) then return end
 	-- Do not allow closing, if the eventhorizon is currently establishing (Or you will have massive bugs)
 	if(IsValid(self.EventHorizon)) then
@@ -1563,6 +1662,7 @@ ENT.ScrSymCnt = {3,8};
 --################# Set shutdown status by AlexALX
 function ENT:SetShutdown(b)
 	self.Shutingdown = b;
+	self.Charged = false
 end
 
 --################# Get shutdown status by AlexALX

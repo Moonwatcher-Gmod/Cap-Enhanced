@@ -80,6 +80,7 @@ function EFFECT:Init(data)
 	self.Entity:SetRenderBounds(a - offset,b + offset);
 	-- Bloom off - FIXME: Reactivate it later if necessary
 	RunConsoleCommand("pp_bloom",0);
+	
 end
 
 --################# Think @aVoN
@@ -149,6 +150,7 @@ function EFFECT:Render()
 				self.Entity:DrawModel();
 				render.MaterialOverride(nil);
 			end
+
 		cam.End3D();
 		-- Catdaemon's old effect
 		render.SetMaterial(self.Material1);

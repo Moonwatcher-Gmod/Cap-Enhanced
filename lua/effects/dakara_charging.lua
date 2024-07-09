@@ -65,9 +65,9 @@ function EFFECT:Render()
 
 	if StarGate.VisualsWeapons("cl_dakara_refract") then
 		local mat = Matrix()
-		mat:Scale(Vector(1,1,1)*self.Rad[self.Num+1]*6)
+		--mat:Scale(Vector(1,1,1)*self.Rad[self.Num+1]*6)
 		self.Entity:EnableMatrix( "RenderMultiply", mat )
-		self.Entity:DrawModel()
+		self.Entity:DrawModel()	
 	end
 
 	if not StarGate.VisualsWeapons("cl_dakara_rings") then return end

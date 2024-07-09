@@ -24,6 +24,10 @@
 --################# HEADER #################
 if (StarGate==nil or StarGate.CheckModule==nil or not StarGate.CheckModule("base")) then return end
 
+if (StarGate ~= nil and StarGate.LifeSupportAndWire ~= nil) then
+    StarGate.LifeSupportAndWire(ENT)
+end
+
 --################# Include
 AddCSLuaFile("cl_init.lua");
 AddCSLuaFile("shared.lua");
@@ -33,12 +37,11 @@ ENT.CDSIgnore = true; -- Make it undestroyable by Combad Damage System
 function ENT:gcbt_breakactions() end; ENT.hasdamagecase = true; -- GCombat invulnarability!
 
 --################# SENT CODE #################
-ENT.Model = "models/MarkJaw/dhd_new/dhd_base.mdl"
+ENT.Model = "models/markjaw/dhd_new/dhd_base.mdl"
 ENT.ModelBroken = "models/MarkJaw/dhd_new/dhd_open.mdl"
 ENT.PlorkSound = "stargate/dhd_sg1.mp3"; -- The old sound
 ENT.LockSound = "stargate/stargate/dhd/dhd_usual_dial.wav";
 ENT.SkinNumber = 0;
-ENT.Healthh = 500;
 
 ENT.ChevronModel = { -- Oh Mark, why u didnt named buttons in same order, like for concept DHD?
 
@@ -152,22 +155,32 @@ function ENT:Initialize()
 			util.PrecacheSound(self.ChevSounds[i]);
 		end
 	end
+	if (self.Inf_ChevSounds) then
+		for i=1,table.getn(self.Inf_ChevSounds) do
+			util.PrecacheSound(self.Inf_ChevSounds[i]);
+		end
+	end
+
 	self.Entity:SetModel(self.Model)
+
 	self.Entity:PhysicsInit(SOLID_VPHYSICS);
 	self.Entity:SetMoveType(MOVETYPE_VPHYSICS);
 	self.Entity:SetSolid(SOLID_VPHYSICS);
 	self.Entity:SetUseType(SIMPLE_USE);
+	self.Energy=0
+	self:AddResource("energy", self.Energy)
+    self:SupplyResource("energy", self.Energy)
 	self.WireNoSound = false;
 	if (self.IsDHDSg1) then
 		self:CreateWireInputs("Press Button","Disable Menu","Hide Letters","Disable Ring Rotation","Wire Disable DHD Sound","Buttons Mode","Lock Buttons","Lock Main Button","Lock to Gate [ENTITY]","Disable DHD");
 	elseif (self.IsDHDAtl and not self.IsCityDHD) then
 		self:CreateWireInputs("Press Button","Disable Menu","Hide Letters","Slow Mode","Wire Disable DHD Sound","Buttons Mode","Lock Buttons","Lock Main Button","Lock to Gate [ENTITY]","Disable DHD");
 	elseif (self.IsCityDHD) then	
-		self:CreateWireInputs("Press Button","Disable Menu","Hide Letters","Slow Mode","Wire Disable DHD Sound","Disable Iris Toggle","Buttons Mode","Lock Buttons","Lock Main Button","Lock to Gate [ENTITY]","Disable DHD");
+		self:CreateWireInputs("Press Button","Disable Menu","Hide Letters","Slow Mode","Wire Disable DHD Sound","Disable Iris Toggle","Buttons Mode","Lock Buttons","Lock Main Button","Lock to Gate [ENTITY]","Disable DHD","ATA Mode");
 	else
 		self:CreateWireInputs("Press Button","Disable Menu","Hide Letters","Wire Disable DHD Sound","Buttons Mode","Lock Buttons","Lock Main Button","Lock to Gate [ENTITY]","Disable DHD");
 	end
-	self:CreateWireOutputs("Pressed Buttons [STRING]");
+	self:CreateWireOutputs("Health","Pressed Buttons [STRING]");
 	if (self.SkinBase != nil) then
 		self.Entity:Fire("skin",self.SkinBase);
 	end
@@ -185,7 +198,7 @@ function ENT:Initialize()
 		self:EnergyThink();
 	end
 	self.Destroyed = false;
-	self:SetNetworkedBool("SG_GROUP_SYSTEM",GetConVar("stargate_group_system"):GetBool());
+	self:SetNWBool("SG_GROUP_SYSTEM",GetConVar("stargate_group_system"):GetBool());
 	self:SpawnChevron();
 	self:InitButtons();
 	util.PrecacheModel(self.ModelBroken); -- fix for delay on first broke
@@ -194,10 +207,13 @@ function ENT:Initialize()
 	if (pewpew and pewpew.NeverEverList and not table.HasValue(pewpew.NeverEverList,self.Entity:GetClass())) then table.insert(pewpew.NeverEverList,self.Entity:GetClass()); end -- pewpew support
 	self.Disabled = false;
 	self.ButtonsMode = false;
+	self.EntHealth = 500
+	self.MaxHealth = self.EntHealth
+	self:SetWire("Health", self.EntHealth)
 end
 
 function ENT:ResetButtons()
-	self:SetNetworkedString("ADDRESS","");
+	self:SetNWString("ADDRESS","");
 	self:SetWire("Pressed Buttons","");
 	self.DialledAddress = {};
 	if(self.Chevron) then
@@ -220,7 +236,7 @@ function ENT:InitButtons(reset)
 			else
 				chev = e.DialledAddress[i];
 			end
-			if(not e:GetNetworkedBool("chevron"..i) and not e.WireManualDial and chev ~= "DIAL") then break end;
+			if(not e:GetNWBool("chevron"..i) and not e.WireManualDial and chev ~= "DIAL") then break end;
 			self:AddChevron(chev,true,true);
 		end
 	end
@@ -258,7 +274,7 @@ function ENT:Shutdown(delay)
 	timer.Simple(delay,
 		function()
 			if(IsValid(e)) then
-				e.Entity:SetNetworkedString("ADDRESS","");
+				e.Entity:SetNWString("ADDRESS","");
 				e:SetWire("Pressed Buttons","");
 				e.DialledAddress = {};
 				e.Target = nil;
@@ -291,7 +307,7 @@ end
 --################# Wire input by AlexALX
 function ENT:TriggerInput(k,v)
 	if(k == "Press Button") then
-		if (v >= 1) then
+		if (v >= 1 and v < 256) then
 			local symbols = "A-Z1-9@#!*";
 			if (GetConVar("stargate_group_system"):GetBool()) then
 				symbols = "A-Z0-9@#*";
@@ -380,12 +396,18 @@ function ENT:TriggerInput(k,v)
 		end
 	elseif (k == "Disable Iris Toggle" and self:GetClass()=="dhd_city") then
 		if (v>0) then
-			self.WireNoIris = true;
+			self.WireNoIris = true
 		else
-			self.WireNoIris = false;
+			self.WireNoIris = false
 		end
 	elseif (k == "Lock to Gate") then
-		self:WireLockDHD(v);
+		self:WireLockDHD(v)
+	elseif(k == "ATA Mode") then
+		if(v > 0) then
+			self.ATAMode = true
+		else
+			self.ATAMode = false
+		end
 	end
 end
 
@@ -397,7 +419,7 @@ function ENT:SetBusy(d,no_nw)
 	self.busy = true;
 	if(d > 1 and not no_nw) then -- Delay > 1 means, only set this "Client-Side-Busy" if the gate (which already has been dialled) is telling this DHD to activate a chevron (no user shall be able to press this now for about 10 secs mostly)
 		-- Tells clientside, that we do not want the overlay do be drawn now
-		e:SetNetworkedBool("Busy",true);
+		e:SetNWBool("Busy",true);
 	end
 	e:SetNWBool("BusyGUI",true);
 	timer.Remove(id);
@@ -421,6 +443,12 @@ function ENT:DestroyEffect(noeffect)
 		effectdata:SetScale(2)
 		util.Effect( "HelicopterMegaBomb", effectdata )
 	end
+
+	local fx = EffectData()
+    fx:SetOrigin(self:GetPos())
+    util.Effect("Explosion", fx)
+    self:AddResource("energy", 500000)
+    self:SupplyResource("energy", 500000)
 
 	for _,v in pairs(self.Chevron) do if (IsValid(v)) then v:Remove(); end end
 	self.SpawnedChevs = {}
@@ -488,8 +516,9 @@ function ENT:OnTakeDamage(dmg)
 	if (dmg:GetDamageType() != DMG_BLAST) then return end
 
 	if(not self.GateSpawnerSpawned and not util.tobool(GetConVar("stargate_dhd_protect"):GetInt()) or self.GateSpawnerSpawned and not util.tobool(GetConVar("stargate_dhd_protect_spawner"):GetInt()))then
-		self.Healthh = self.Healthh - damage/4;
-		if (self.Healthh < 1 and class != "dhd_concept" and class != "dhd_city") then self.Entity:DestroyEffect() end
+		self.EntHealth = math.Clamp(self.EntHealth - damage/4,0,self.MaxHealth)
+		self:SetWire("Health", self.EntHealth)
+		if (self.EntHealth < 1 and class != "dhd_concept" and class != "dhd_city") then self.Entity:DestroyEffect() end
 	end
 
 	if not IsValid(gate) then return end
@@ -516,6 +545,11 @@ function ENT:OnTakeDamage(dmg)
 		end
 	end
 
+end
+
+function ENT:HealthRepair(health)
+    self.EntHealth = health
+	self:SetWire("Health", self.EntHealth)
 end
 
 function ENT:Touch(ent)
@@ -579,6 +613,8 @@ end
 
 --################# Call address @aVoN
 function ENT:Use(p)
+	if(self.IsCityDHD and self.ATAMode and p:GetNWInt("ATAGene",0) == 0) then return end
+
 	--Player is calling the gate and it is not busy
 	if(IsValid(p) and p:IsPlayer() and not self.busy and not self.Destroyed and (not self.Disabled or self.ButtonsMode)) then
 		if (not self.ButtonsMode) then
@@ -588,10 +624,10 @@ function ENT:Use(p)
 			if(hook.Call("StarGate.Player.CanDialGate",GAMEMODE,p,e) == false) then return end;
 			self.LastPlayer = p;
 			local btn = self:GetCurrentButton(p);
-			if (btn and btn != "IRIS") then self:PressButton(btn); end
+			if (btn and btn != "IRIS") then self:PressButton(btn);  end
 		else
 			local btn = self:GetCurrentButton(p);
-			if btn and (btn=="DIAL" and not self.DisableMainBut or not self.DisableBtns and btn!="DIAL") then self:ButtonMode(btn); end
+			if btn and (btn=="DIAL" and not self.DisableMainBut or not self.DisableBtns and btn!="DIAL") then  self:ButtonMode(btn); end
 			return false;
 		end
 	end
@@ -610,31 +646,31 @@ function ENT:Think()
 	if (not IsValid(self)) then return false end;
 	local candialg = GetConVar("stargate_candial_groups_dhd"):GetInt()
 	if (self:GetClass()=="dhd_city") then candialg = 1; end
-	if (candialg != self.Entity:GetNetworkedInt("CANDIAL_GROUP_DHD")) then
-		self.Entity:SetNetworkedInt("CANDIAL_GROUP_DHD",candialg);
+	if (candialg != self.Entity:GetNWInt("CANDIAL_GROUP_DHD")) then
+		self.Entity:SetNWInt("CANDIAL_GROUP_DHD",candialg);
 	end
 	candialg = GetConVar("stargate_candial_groups_menu"):GetInt()
-	if (candialg != self.Entity:GetNetworkedInt("CANDIAL_GROUP_MENU")) then
-		self.Entity:SetNetworkedInt("CANDIAL_GROUP_MENU",candialg);
+	if (candialg != self.Entity:GetNWInt("CANDIAL_GROUP_MENU")) then
+		self.Entity:SetNWInt("CANDIAL_GROUP_MENU",candialg);
 	end
 	candialg = GetConVar("stargate_sgu_find_range"):GetInt()
-	if (candialg != self.Entity:GetNetworkedInt("SGU_FIND_RANDE")) then
-		self.Entity:SetNetworkedInt("SGU_FIND_RANDE",candialg);
+	if (candialg != self.Entity:GetNWInt("SGU_FIND_RANDE")) then
+		self.Entity:SetNWInt("SGU_FIND_RANDE",candialg);
 	end
 	local groupsystem = GetConVar("stargate_group_system"):GetBool()
-	if (groupsystem != self.Entity:GetNetworkedBool("SG_GROUP_SYSTEM")) then
-		self.Entity:SetNetworkedBool("SG_GROUP_SYSTEM",groupsystem);
+	if (groupsystem != self.Entity:GetNWBool("SG_GROUP_SYSTEM")) then
+		self.Entity:SetNWBool("SG_GROUP_SYSTEM",groupsystem);
 	end
 	local gate = self:FindGate();
 	if IsValid(gate) then
 		candialg = gate:GetLocale();
-		if (candialg != self.Entity:GetNetworkedBool("Locale")) then
-			self.Entity:SetNetworkedBool("Locale",candialg);
+		if (candialg != self.Entity:GetNWBool("Locale")) then
+			self.Entity:SetNWBool("Locale",candialg);
 		end
 	end
 	candialg = GetConVar("stargate_dhd_letters"):GetInt()
-	if (candialg != self.Entity:GetNetworkedInt("DHD_LETTERS")) then
-		self.Entity:SetNetworkedInt("DHD_LETTERS",candialg);
+	if (candialg != self.Entity:GetNWInt("DHD_LETTERS")) then
+		self.Entity:SetNWInt("DHD_LETTERS",candialg);
 	end
 
 	self.Entity:NextThink(CurTime()+5.0)
@@ -656,9 +692,9 @@ function ENT:AddChevron(btn, nosound, lightup, gate, city, fail)
 			if (not city) then table.insert(self.DialledAddress,btn); end
 			if (self.Entity:GetClass()=="dhd_city" and btn == "#") then
 				self.Chevron[self.ChevronNumber["DIAL"]]:Fire("skin",1);
-				self.Entity:SetNetworkedBool("CITYBUSY",true);
+				self.Entity:SetNWBool("CITYBUSY",true);
 			end
-			self.Entity:SetNetworkedString("ADDRESS",string.Implode(",",self.DialledAddress));
+			self.Entity:SetNWString("ADDRESS",string.Implode(",",self.DialledAddress));
 			self:SetWire("Pressed Buttons",self:GetNWString("ADDRESS"));
 			if self.Chevron and IsValid(self.Chevron[self.ChevronNumber[btn]]) and lightup then
 				self.Chevron[self.ChevronNumber[btn]]:Fire("skin",self.SkinNumber+1);
@@ -669,18 +705,66 @@ function ENT:AddChevron(btn, nosound, lightup, gate, city, fail)
 				action = gate.Sequence:OnButtonChevron(true, n, self.DialledAddress, btn, fail,false,self.DisRingRotate);
 				gate:RunActions(action);
 			end
+
+			if (fail) then
+				if (self.Inf_ChevSounds) then
+					self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,83.2)
+					self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,99.8)
+					self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,163.2)
+					self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,174.6)
+				end
+			end
+
 			if((not fail or btn == "#" or table.getn(self.DialledAddress)==9 and not table.HasValue(self.DialledAddress,"DIAL")) and not nosound) then
+				
 				if (btn == "DIAL") then
-					if (self.LockSound and not fail) then self.Entity:EmitSound(Sound(self.LockSound),90,math.random(97,103)); end
+					if (self.LockSound and not fail) then self.Entity:EmitSound(Sound(self.LockSound),90,math.random(97,103));
+						--self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,40)
+						--self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,40*1.5)
+						--self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,40*2)
+						--self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,20*4)
+						--self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,20*6)
+					if (self.Inf_ChevSounds) then
+						self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,30)
+						self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,40)
+						self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,60)
+						if (self:FindGate():GetClass() == "stargate_virgo") then
+							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,80)
+							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,100)
+							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,120)
+							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,140)
+							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,160)
+							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,200)
+						end
+					end
+
+					 end
 				elseif(self.Entity:GetClass()=="dhd_atlantis" or self.Entity:GetClass()=="dhd_city") then
 					if (not self.DisRingRotate) then
 						self.Entity:EmitSound(Sound(self.PlorkSound),130,math.random(97,103));
 					end
 				else
-					if (self.ChevSounds) then
-						self.Entity:EmitSound(self.ChevSounds[math.random(1,table.getn(self.ChevSounds))],70,math.random(97,103));
+					if (self.Inf_ChevSounds) then
+
+						local crystal_harmony = {30,40,60,80,100,120,160,200,240}
+						local crystal_pitch = math.random(80,150)
+						if (self:FindGate():GetClass() == "stargate_virgo") then
+							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,crystal_harmony[table.getn(self.DialledAddress)])
+						else
+						self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,crystal_pitch);
+						self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,crystal_pitch);
+						self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,crystal_pitch/0.25)
+						self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,crystal_pitch/0.25)
+						self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,crystal_pitch/1.25)
+						self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,crystal_pitch/1.25)
+						self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,crystal_pitch/2)
+						self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,crystal_pitch/2)
+						--self.Entity:EmitSound(self.ChevSounds[math.random(1,table.getn(self.ChevSounds))],500,crystal_pitch/2.5)
+						end
+					elseif (ChevSounds) then
+						self.Entity:EmitSound(Sound(self.ChevSounds),70,math.random(97,103))
 					else
-						self.Entity:EmitSound(Sound(self.PlorkSound),70,math.random(97,103));
+						self.Entity:EmitSound(Sound(self.PlorkSound),70,math.random(97,103))
 					end
 				end
 			end
@@ -719,10 +803,10 @@ function ENT:RemoveChevron(btn, lightup, gate)
 		end
 		if (self.Entity:GetClass()=="dhd_city" and btn == "#") then
 			self.Chevron[self.ChevronNumber["DIAL"]]:Fire("skin",0);
-			self.Entity:SetNetworkedBool("CITYBUSY",false);
+			self.Entity:SetNWBool("CITYBUSY",false);
 		end
 		self.DialledAddress=new_t;
-		self.Entity:SetNetworkedString("ADDRESS",string.Implode(",",self.DialledAddress));
+		self.Entity:SetNWString("ADDRESS",string.Implode(",",self.DialledAddress));
 		self:SetWire("Pressed Buttons",self:GetNWString("ADDRESS"));
 		if IsValid(gate) and lightup and btn != "DIAL" then
 			local n = table.getn(self.DialledAddress);
@@ -737,7 +821,7 @@ end
 -- buttons mode @AlexALX
 function ENT:ButtonMode(btn)
 	if (self.busy or self.Destroyed or not self.ButtonsMode) then return end
-	if self:GetClass()=="dhd_city" and not self:GetNetworkedBool("HasEnergy",false) then return end
+	if self:GetClass()=="dhd_city" and not self:GetNWBool("HasEnergy",false) then return end
 	local nosound = self.WireNoSound
 	if table.HasValue(self.DialledAddress,btn) then
 		self:RemoveChevron(btn);
@@ -750,7 +834,7 @@ end
 -- This function is also used by the USE function and the ConCommand which is getting triggered by the GUI click
 function ENT:PressButton(btn, nolightup, no_menu)
 	if (self.busy or self.Destroyed or self.Disabled) then return end
-	if self:GetClass()=="dhd_city" and not self:GetNetworkedBool("HasEnergy",false) then return end
+	if self:GetClass()=="dhd_city" and not self:GetNWBool("HasEnergy",false) then return end
 	local e = self:FindGate();
 	if not IsValid(e) then return end
 	if (GetConVar("stargate_dhd_close_incoming"):GetInt()==0 and e.IsOpen and not e.Outbound) then return end -- if incoming, then we can do nothign
@@ -872,7 +956,7 @@ function ENT:PressButton(btn, nolightup, no_menu)
 								fail = true;
 							end
 						end
-					end
+					end		
 					local dly = 0.8;
 					if (atlantis) then
 						dly = 2.0;
@@ -899,6 +983,7 @@ function ENT:PressButton(btn, nolightup, no_menu)
 			end
 		end
 		if (not remove and IsValid(e) and (e:GetClass()=="stargate_sg1" or e:GetClass()=="stargate_infinity" or e:GetClass()=="stargate_movie" or atlantis) and (btn=="#" or num==8 or atlantis) and (not self.DisRingRotate and GetConVar("stargate_dhd_ring"):GetBool() or atlantis and self.DisRingRotate or e.Ring.WireMoving)) then
+			
 			if (atlantis) then
 				self:SetBusy(2.0,true);
 			else
@@ -925,7 +1010,9 @@ function ENT:PressButton(btn, nolightup, no_menu)
 					if(table.getn(self.DialledAddress) >= 8 and table.getn(self.DialledAddress) <= 10 and class != "dhd_city") then
 						e.DialledAddress = self.DialledAddress;
 						-- Set address, dialling type and start dialling
+						
 						e:OnButtDialGate();
+
 						-- Send Close UMSG for the dial menu
 						if (not no_menu and IsValid(self.LastPlayer)) then
 							umsg.Start("StarGate.DialMenuDHDClose",self.LastPlayer);
@@ -974,6 +1061,7 @@ function ENT:PressButton(btn, nolightup, no_menu)
 							timer.Create(self.Entity:EntIndex().."DelayDialLock", dly2, 1, function()
 								if not IsValid(self) or not IsValid(e) then return end
 								if (lightup==true and fail==false and IsValid(e.Target) and not (e.Target.IsOpen or e.Target.Dialling == true or e.Target:IsBlocked(nil,nil,true))) then
+									
 									e:OnButtLockStargate()
 								end
 							end);
@@ -984,9 +1072,9 @@ function ENT:PressButton(btn, nolightup, no_menu)
 							timer.Create(self.Entity:EntIndex().."DelayDial", dly+0.4, 1, function()
 								if not IsValid(self) then return end
 								table.insert(self.DialledAddress,"DIAL");
-								self.Entity:SetNetworkedString("ADDRESS",string.Implode(",",self.DialledAddress));
+								self.Entity:SetNWString("ADDRESS",string.Implode(",",self.DialledAddress));
 								self:SetWire("Pressed Buttons",self:GetNWString("ADDRESS"));
-								self.Entity:SetNetworkedBool("CITYBUSY",true);
+								self.Entity:SetNWBool("CITYBUSY",true);
 								e.DialledAddress = self.DialledAddress;
 								e:OnButtDialGate();
 								self.Target = e; -- Needs to be set, so the gate does not "relightupt" this DHD on dial
@@ -994,12 +1082,13 @@ function ENT:PressButton(btn, nolightup, no_menu)
 							end);
 						elseif (table.getn(self.DialledAddress)==9 or table.HasValue(self.DialledAddress,"#")) then
 							table.insert(self.DialledAddress,"DIAL");
-							self.Entity:SetNetworkedString("ADDRESS",string.Implode(",",self.DialledAddress));
+							self.Entity:SetNWString("ADDRESS",string.Implode(",",self.DialledAddress));
 							self:SetWire("Pressed Buttons",self:GetNWString("ADDRESS"));
-							self.Entity:SetNetworkedBool("CITYBUSY",true);
+							self.Entity:SetNWBool("CITYBUSY",true);
 							e.DialledAddress = self.DialledAddress;
 							-- Set address, dialling type and start dialling
 							e:OnButtDialGate();
+
 							-- Send Close UMSG for the dial menu
 							if (not no_menu and IsValid(self.LastPlayer)) then
 								umsg.Start("StarGate.DialMenuDHDClose",self.LastPlayer);
@@ -1008,6 +1097,7 @@ function ENT:PressButton(btn, nolightup, no_menu)
 							self.Target = e; -- Needs to be set, so the gate does not "relightupt" this DHD on dial
 						end
 					else
+						
 						local action = e.Sequence:New();
 						action = e.Sequence:OnButtonDialFail(#self.DialledAddress-1,true)
 						action = action + e.Sequence:DialFail(nil,true);

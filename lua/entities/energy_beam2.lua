@@ -1,252 +1,285 @@
 --[[
 	Energy Beam
 	Copyright (C) 2011 Madman07
-]]--
-
-ENT.Type = "anim";
+]]
+--
+ENT.Type = "anim"
 ENT.Base = "base_entity"
 ENT.RenderGroup = RENDERGROUP_BOTH
-ENT.DoNotDuplicate = true 
+ENT.DoNotDuplicate = true
 
 if SERVER then
+    if (StarGate == nil or StarGate.CheckModule == nil or not StarGate.CheckModule("entweapon")) then return end
+    AddCSLuaFile()
+    ENT.CAP_NotSave = true
 
-if (StarGate==nil or StarGate.CheckModule==nil or not StarGate.CheckModule("entweapon")) then return end
+    function ENT:Initialize()
+        self:SetCollisionGroup(COLLISION_GROUP_PROJECTILE)
+        self:DrawShadow(false)
+        self.EndEntity = self.Entity:SpawnTarget()
+        self.StartEntity = self.Entity:SpawnBeam()
+        self.StartPos = Vector(1, 1, 1)
+        self.Dir = Vector(1, 1, 1)
+        self.EndPos = Vector(1, 1, 1)
+        self.UpdateStart = false
+        self.UpdateEnd = false
+        self.BlastCreated = false
+        self.Length = 0
+        self.FireFrequency = 850
+    end
 
-AddCSLuaFile()
+    function ENT:SpawnTarget()
+        local ent = ents.Create("info_target")
+        ent:SetName("BeamEndPos" .. self.Entity:EntIndex())
+        ent:Spawn()
+        ent:Activate()
+        ent:SetPos(Vector(0, 0, 0))
 
-ENT.CAP_NotSave = true;
+        return ent
+    end
 
-function ENT:Initialize()
-	self:SetCollisionGroup(COLLISION_GROUP_PROJECTILE);
-	self:DrawShadow(false);
+    function ENT:SpawnBeam()
+        local beam = ents.Create("env_laser")
+        beam:SetPos(Vector(0, 0, 0))
+        beam:SetAngles(self.Entity:GetAngles())
+        beam:SetOwner(self.Entity:GetOwner())
+        beam:SetVar("Owner", self.Entity:GetVar("Owner", nil))
+        beam:SetKeyValue("width", "50")
+        beam:SetKeyValue("damage", 10000)
+        beam:SetKeyValue("dissolvetype", "0")
+        beam:Spawn()
+        beam:SetTrigger(true)
+        beam:SetParent(self.Entity)
 
-	self.EndEntity = self.Entity:SpawnTarget()
-	self.StartEntity = self.Entity:SpawnBeam()
-	self.StartPos = Vector(1,1,1);
-	self.Dir = Vector(1,1,1);
-	self.EndPos = Vector(1,1,1);
+        return beam
+    end
 
-	self.UpdateStart = false;
-	self.UpdateEnd = false;
-	self.BlastCreated = false;
+    function ENT:Setup(start, dir, speed, time, effect)
+        self.Entity:SetNWInt("StartTime", time)
+        self.Dir = dir
+        self.StartPos = start
+        self.EndPos = start
+        self.Speed = speed
+        self.Effect = effect
+        self.Time = CurTime()
+        self.UpdateEnd = true
+        local fx = EffectData()
+        fx:SetEntity(self.Entity)
+        fx:SetNormal(self.Dir)
+        fx:SetStart(self.StartPos)
+        fx:SetRadius(self.Speed)
 
-	self.Length = 0;
+        if effect then
+            if (effect == "Ori" or effect == "AG3") then
+                fx:SetMagnitude(1)
+            elseif effect == "Asgard" then
+                fx:SetMagnitude(2)
+            end
+        end
 
-	self.FireFrequency = 850;
-end
+        util.Effect("energy_beam", fx, true, true)
 
-function ENT:SpawnTarget()
-	local ent = ents.Create("info_target");
-    ent:SetName("BeamEndPos"..self.Entity:EntIndex());
-    ent:Spawn();
-    ent:Activate();
-	ent:SetPos(Vector(0,0,0));
-	return ent;
-end
+        timer.Create(self.Entity:EntIndex() .. "Start", time, 1, function()
+            self.UpdateStart = true
+        end)
 
-function ENT:SpawnBeam()
-	local beam = ents.Create("env_laser");
-	beam:SetPos(Vector(0,0,0));
-	beam:SetAngles(self.Entity:GetAngles())
-	beam:SetOwner(self.Entity:GetOwner());
-	beam:SetVar("Owner", self.Entity:GetVar("Owner", nil));
-	beam:SetKeyValue("width", "50");
-	beam:SetKeyValue("damage", 10000);
-	beam:SetKeyValue("dissolvetype", "0");
-	beam:Spawn();
-	beam:SetTrigger(true)
-	beam:SetParent(self.Entity);
-	return beam;
-end
+        timer.Create(self.Entity:EntIndex() .. "Remove", 20, 1, function()
+            if IsValid(self.Entity) then
+                self:Remove()
+            end
+        end)
+    end
 
-function ENT:Setup(start, dir, speed, time, effect)
-	self.Entity:SetNetworkedInt("StartTime", time)
-	self.Dir = dir;
-	self.StartPos = start;
-	self.EndPos = start;
-	self.Speed = speed;
-	self.Effect = effect;
-	self.Time = CurTime();
-	self.UpdateEnd = true;
+    function ENT:OnRemove()
+        if IsValid(self.EndEntity) then
+            self.EndEntity:Remove()
+        end
 
-	local fx = EffectData();
-		fx:SetEntity(self.Entity);
-		fx:SetNormal(self.Dir)
-		fx:SetStart(self.StartPos)
-		fx:SetRadius(self.Speed)
-		if effect then
-			if (effect == "Ori" or effect == "AG3") then
-				fx:SetMagnitude(1);
-			elseif effect == "Asgard" then
-				fx:SetMagnitude(2);
-			end
-		end
-	util.Effect("energy_beam",fx, true, true);
+        if IsValid(self.StartEntity) then
+            self.StartEntity:Remove()
+        end
+    end
 
-	timer.Create(self.Entity:EntIndex().."Start", time, 1, function() self.UpdateStart = true; end);
-	timer.Create(self.Entity:EntIndex().."Remove", 20, 1, function()
-		if IsValid(self.Entity) then self:Remove(); end
-	end);
-end
+    function ENT:Think()
+        self.StargateTrace = self.LastStargateTrace or StarGate.Trace:New(self.EndPos, self.Dir * self.Speed, {self.Entity, self.Owner, self.EndEntity, self.StartEntity})
 
-function ENT:OnRemove()
-	if IsValid(self.EndEntity) then self.EndEntity:Remove(); end
-	if IsValid(self.StartEntity) then self.StartEntity:Remove(); end
-end
+        if (self.UpdateStart == true) then
+            self:UpdateStartPos()
+        end
 
-function ENT:Think()
-	self.StargateTrace = self.LastStargateTrace or StarGate.Trace:New(self.EndPos,self.Dir*self.Speed,{self.Entity, self.Owner, self.EndEntity, self.StartEntity,});
+        if (self.UpdateEnd == true) then
+            self:UpdateEndPos()
+        end
 
-	if (self.UpdateStart == true) then self:UpdateStartPos(); end
-	if (self.UpdateEnd == true) then self:UpdateEndPos(); end
-	self:UpdateLaser()
+        self:UpdateLaser()
+        self.Entity:NextThink(CurTime() + 0.1)
 
-	self.Entity:NextThink(CurTime()+0.1);
-	return true
-end
+        return true
+    end
 
-function ENT:UpdateEndPos()
+    function ENT:UpdateEndPos()
+        if not (self.StargateTrace.HitSky) then
+            if self.StargateTrace.Hit then
+                local dist = self.StargateTrace.HitPos:Distance(self.EndPos)
 
-	if not (self.StargateTrace.HitSky) then
-		if self.StargateTrace.Hit then
-			local dist = self.StargateTrace.HitPos:Distance(self.EndPos);
-			if dist < self.Speed then
-				local ent = self.StargateTrace.Entity;
+                if dist < self.Speed then
+                    local ent = self.StargateTrace.Entity
 
-				if IsValid(ent) then
-					local class = ent:GetClass();
-					if (class == "shield" or class == "shield_core_buble" or class == "ship_shield" and (not IsValid(ent.Parent) or not ent.Parent.Depleted)) then
-						ent:Hit(self.Entity, self.StargateTrace.HitPos, 3, self.StargateTrace.HitNormal, self.FireFrequency);
-						self:DoUsualHit();
-						self:SetNWVector("EndPos",self.StargateTrace.HitPos);
-						self.LastStargateTrace = self.StargateTrace;
-					elseif (class == "event_horizon") then
-						local remoteEH = ent.Target;
-						if IsValid(remoteEH) then
-							self:OnHitEventHorizon(ent, self.StargateTrace.HitPos);
-							self.WillGoTroughtGates = true;
-							self:SetNWVector("EndPos",self.StargateTrace.HitPos);
-							self.LastStargateTrace = self.StargateTrace;
-						end
-					elseif(CombatDamageSystem) then
-						cds_disintigratepos(self.StargateTrace.HitPos, 1, self:GetOwner());
-						self:DoUsualHit();
-					elseif(gcombat) then
-						gcombat.nrghit(ent, 50, 50, self.StargateTrace.HitPos, self.StargateTrace.HitPos);
-						self:DoUsualHit();
-					else
-						ent:TakeDamage(10, self:GetOwner(), self.Entity);
-						self:DoUsualHit();
-					end
-				else
-					self:DoUsualHit();
-				end
+                    if IsValid(ent) then
+                        local class = ent:GetClass()
 
-				self.EndPos = self.StargateTrace.HitPos;
-				self.Length = self.Length + dist;
+                        if (class == "shield" or class == "shield_core_buble" or class == "ship_shield" and (not IsValid(ent.Parent) or not ent.Parent.Depleted)) then
+                            ent:Hit(self.Entity, self.StargateTrace.HitPos, 3, self.StargateTrace.HitNormal, self.FireFrequency)
+                            self:DoUsualHit()
+                            self:SetNWVector("EndPos", self.StargateTrace.HitPos)
+                            self.LastStargateTrace = self.StargateTrace
+                        elseif (class == "event_horizon") then
+                            local remoteEH = ent.Target
 
-				if (not self.WillGoTroughtGates) then
-					util.BlastDamage(self.Entity, self.Entity, self.EndPos, 250, 50);
-				end
-			else
-				self.EndPos = self.EndPos + self.Dir*self.Speed;
-				self.Length = self.Length + self.Speed;
-			end
-		else
-			self.EndPos = self.EndPos + self.Dir*self.Speed;
-			self.Length = self.Length + self.Speed;
-		end
-	end
+                            if IsValid(remoteEH) then
+                                self:OnHitEventHorizon(ent, self.StargateTrace.HitPos)
+                                self.WillGoTroughtGates = true
+                                self:SetNWVector("EndPos", self.StargateTrace.HitPos)
+                                self.LastStargateTrace = self.StargateTrace
+                            end
+                        elseif (CombatDamageSystem) then
+                            cds_disintigratepos(self.StargateTrace.HitPos, 1, self:GetOwner())
+                            self:DoUsualHit()
+                        elseif (gcombat) then
+                            gcombat.nrghit(ent, 50, 50, self.StargateTrace.HitPos, self.StargateTrace.HitPos)
+                            self:DoUsualHit()
+                        else
+                            ent:TakeDamage(10, self:GetOwner(), self.Entity)
+                            self:DoUsualHit()
+                        end
+                    else
+                        self:DoUsualHit()
+                    end
 
-end
+                    self.EndPos = self.StargateTrace.HitPos
+                    self.Length = self.Length + dist
 
-function ENT:DoUsualHit()
-	if self.WillGoTroughtGates then return end
-	local smoke = true;
-	if (self.StargateTrace.HitNormal == 0) then smoke = false; end;
-	if (self.StargateTrace.MatType == MAT_FLESH or self.StargateTrace.MatType == MAT_METAL or self.StargateTrace.MatType == MAT_GLASS) then smoke = false; end
-	if self.StargateTrace.HitSky then smoke = false; end
+                    if (not self.WillGoTroughtGates) then
+                        util.BlastDamage(self.Entity, self.Entity, self.EndPos, 250, 50)
+                    end
+                else
+                    self.EndPos = self.EndPos + self.Dir * self.Speed
+                    self.Length = self.Length + self.Speed
+                end
+            else
+                self.EndPos = self.EndPos + self.Dir * self.Speed
+                self.Length = self.Length + self.Speed
+            end
+        end
+    end
 
-	if (self.Effect == "AG3") then
-		if not self.BlastCreated then
-			local ent = ents.Create("sat_blast_wave");
-			ent:SetPos(self.StargateTrace.HitPos+Vector(0,0,300));
-			ent:Spawn();
-			ent:Activate();
-			ent:SetOwner(self.Entity);
-			self.BlastCreated = true;
-		end
-	elseif (self.Effect == "Ori") then
-		local fx = EffectData();
-			fx:SetOrigin(self.StargateTrace.HitPos);
-			fx:SetNormal(self.StargateTrace.HitNormal);
-			fx:SetEntity(self.Entity);
-			if(not smoke) then
-				fx:SetScale(-1);
-			else
-				fx:SetScale(1);
-			end
-			fx:SetMagnitude(30);
-			fx:SetAngles(Angle(240,200,120));
-		util.Effect("energy_impact",fx,true,true);
-	else
-		local fx = EffectData();
-			fx:SetOrigin(self.StargateTrace.HitPos);
-			fx:SetNormal(self.StargateTrace.HitNormal);
-			fx:SetEntity(self.Entity);
-			if(not smoke) then
-				fx:SetScale(-1);
-			else
-				fx:SetScale(1);
-			end
-			fx:SetMagnitude(5);
-			fx:SetAngles(Angle(120,175,255));
-		util.Effect("energy_impact",fx,true,true);
-	end
-end
+    function ENT:DoUsualHit()
+        if self.WillGoTroughtGates then return end
+        local smoke = true
 
-function ENT:OnHitEventHorizon(eventHorizon, hitPos)
-	if (self.AlreadyHitEH) then return end
-	local remoteEH = eventHorizon.Target
+        if (self.StargateTrace.HitNormal == 0) then
+            smoke = false
+        end
 
-	if (eventHorizon:GetForward():DotProduct((hitPos-eventHorizon:GetPos()):GetNormalized()) < 0) then self.AlreadyHitEH = true; return end
+        if (self.StargateTrace.MatType == MAT_FLESH or self.StargateTrace.MatType == MAT_METAL or self.StargateTrace.MatType == MAT_GLASS) then
+            smoke = false
+        end
 
-	if (IsValid(remoteEH) and IsValid(remoteEH:GetParent()) and remoteEH:GetParent():IsBlocked()) then self.AlreadyHitEH = true; if IsValid(remoteEH:GetParent().Iris) then remoteEH:GetParent().Iris:EmitSound(remoteEH:GetParent().Iris.Sounds.Hit,90,math.random(98,103)); end return end
+        if self.StargateTrace.HitSky then
+            smoke = false
+        end
 
-	local teleportedPos, teleportedForward = StarGate.GetTeleportedVector2(eventHorizon, remoteEH, hitPos, self.Dir);
+        if (self.Effect == "AG3") then
+            if not self.BlastCreated then
+                local ent = ents.Create("sat_blast_wave")
+                ent:SetPos(self.StargateTrace.HitPos + Vector(0, 0, 300))
+                ent:Spawn()
+                ent:Activate()
+                ent:SetOwner(self.Entity)
+                self.BlastCreated = true
+            end
+        elseif (self.Effect == "Ori") then
+            local fx = EffectData()
+            fx:SetOrigin(self.StargateTrace.HitPos)
+            fx:SetNormal(self.StargateTrace.HitNormal)
+            fx:SetEntity(self.Entity)
 
-   	local ent = ents.Create("energy_beam2");
-	ent.Owner = self.Owner;
-	ent:SetPos(teleportedPos);
-	ent:Spawn();
-	ent:Activate();
-	ent:SetOwner(self.Entity:GetOwner());
-	ent:Setup(teleportedPos, teleportedForward, self.Speed, 1.5, self.Effect);
-	self.AlreadyHitEH = true;
-end
+            if (not smoke) then
+                fx:SetScale(-1)
+            else
+                fx:SetScale(1)
+            end
 
-function ENT:UpdateStartPos()
-	self.StartPos = self.StartPos + self.Dir*self.Speed;
-	self.Length = self.Length - self.Speed;
-	if (self.Length <= 1) then self:Remove(); end
-end
+            fx:SetMagnitude(30)
+            fx:SetAngles(Angle(240, 200, 120))
+            util.Effect("energy_impact", fx, true, true)
+        else
+            local fx = EffectData()
+            fx:SetOrigin(self.StargateTrace.HitPos)
+            fx:SetNormal(self.StargateTrace.HitNormal)
+            fx:SetEntity(self.Entity)
 
-function ENT:UpdateLaser()
-	self.EndEntity:SetPos(self.EndPos);
-	self.Entity:SetPos(self.StartPos);
-	self.StartEntity:SetKeyValue("LaserTarget", self.EndEntity:GetName());
-	self.StartEntity:Fire("TurnOn", 1);
-end
+            if (not smoke) then
+                fx:SetScale(-1)
+            else
+                fx:SetScale(1)
+            end
 
+            fx:SetMagnitude(5)
+            fx:SetAngles(Angle(120, 175, 255))
+            util.Effect("energy_impact", fx, true, true)
+        end
+    end
+
+    function ENT:OnHitEventHorizon(eventHorizon, hitPos)
+        if (self.AlreadyHitEH) then return end
+        local remoteEH = eventHorizon.Target
+
+        if (eventHorizon:GetForward():DotProduct((hitPos - eventHorizon:GetPos()):GetNormalized()) < 0) then
+            self.AlreadyHitEH = true
+
+            return
+        end
+
+        if (IsValid(remoteEH) and IsValid(remoteEH:GetParent()) and remoteEH:GetParent():IsBlocked()) then
+            self.AlreadyHitEH = true
+
+            if IsValid(remoteEH:GetParent().Iris) then
+                remoteEH:GetParent().Iris:EmitSound(remoteEH:GetParent().Iris.Sounds.Hit, 90, math.random(98, 103))
+            end
+
+            return
+        end
+
+        local teleportedPos, teleportedForward = StarGate.GetTeleportedVector2(eventHorizon, remoteEH, hitPos, self.Dir)
+        local ent = ents.Create("energy_beam2")
+        ent.Owner = self.Owner
+        ent:SetPos(teleportedPos)
+        ent:Spawn()
+        ent:Activate()
+        ent:SetOwner(self.Entity:GetOwner())
+        ent:Setup(teleportedPos, teleportedForward, self.Speed, 1.5, self.Effect)
+        self.AlreadyHitEH = true
+    end
+
+    function ENT:UpdateStartPos()
+        self.StartPos = self.StartPos + self.Dir * self.Speed
+        self.Length = self.Length - self.Speed
+
+        if (self.Length <= 1) then
+            self:Remove()
+        end
+    end
+
+    function ENT:UpdateLaser()
+        self.EndEntity:SetPos(self.EndPos)
+        self.Entity:SetPos(self.StartPos)
+        self.StartEntity:SetKeyValue("LaserTarget", self.EndEntity:GetName())
+        self.StartEntity:Fire("TurnOn", 1)
+    end
 end
 
 if CLIENT then
-
-if (SGLanguage!=nil and SGLanguage.GetMessage!=nil) then
-language.Add("energy_beam2",SGLanguage.GetMessage("energy_beam_kill"));
-end
-
-function ENT:Draw()
-end
-
+    function ENT:Draw()
+    end
 end

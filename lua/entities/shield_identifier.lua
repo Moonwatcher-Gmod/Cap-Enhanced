@@ -66,7 +66,11 @@ end
 
 function ENT:TriggerInput(variable, value)
 	if (variable == "Activate") then
-		self.IsEnabled = util.tobool(value)
+		if(value <= 0) then
+			self.IsEnabled = false
+		else
+			self.IsEnabled = true
+		end
 		self:SetWire("Activated",self.IsEnabled);
 	elseif (variable == "Frequency") then
 		self:SetFrequency(value);
@@ -118,7 +122,7 @@ function ENT:ShowOutput(active)
 end
 
 function ENT:SetOverlayText( text )
-    self:SetNetworkedString( "GModOverlayText", text )
+    self:SetNWString( "GModOverlayText", text )
 end
 
 -----------------------------------USE---------------------------------

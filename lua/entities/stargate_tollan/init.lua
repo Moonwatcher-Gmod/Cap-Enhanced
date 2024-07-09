@@ -106,11 +106,12 @@ function ENT:ChangeSystemType(groupsystem,reload)
 end
 
 function ENT:GateWireInputs(groupsystem)
-	self:CreateWireInputs("Dial Address","Dial String [STRING]","Dial Mode","Start String Dial","Close","Disable Autoclose","Transmit [STRING]","Activate chevron number [STRING]","Set Point of Origin","Disable Menu","Event Horizon Type [STRING]","Event Horizon Color [VECTOR]");
+	self:CreateWireInputs("Dial Address","Dial String [STRING]","Dial Mode","Start String Dial","Close","Disable Autoclose","Transmit [STRING]","Activate chevron number [STRING]","Set Point of Origin","Disable Menu","Event Horizon Type [STRING]","Event Horizon Color [VECTOR]","TargetGate [ENTITY]","Switch Gate");
+	--self:CreateWireInputs("Dial Address","Dial String [STRING]","Dial Mode","Start String Dial","Close","Disable Autoclose","Transmit [STRING]","Activate chevron number [STRING]","Set Point of Origin","Disable Menu","Event Horizon Type [STRING]","Event Horizon Color [VECTOR]","TargetGate [ENTITY]","Switch Gate","Pause Routing","Resume Routing");
 end
 
 function ENT:GateWireOutputs(groupsystem)
-	self:CreateWireOutputs("Active","Open","Inbound","Chevron","Chevron Locked","Chevrons [STRING]","Earth Point of Origin","Dialing Address [STRING]","Dialing Mode","Dialing Symbol [STRING]","Dialed Symbol [STRING]","Received [STRING]");
+	self:CreateWireOutputs("Active","Open","Inbound","Chevron","Chevron Locked","Chevrons [STRING]","Earth Point of Origin","Dialing Address [STRING]","Dialing Mode","Dialing Symbol [STRING]","Dialed Symbol [STRING]","Received [STRING]","Entities On Route");
 end
 
 function ENT:WireOrigin()
@@ -170,7 +171,7 @@ function ENT:ActivateChevron(chev,b)
 		if(b) then
 			if (IsValid(self.Chevron[chev])) then
 				self.Chevron[chev]:Fire("skin",1);
-				self.Entity:SetNetworkedBool("chevron"..chev,true); -- Dynamic light of the chevron
+				self.Entity:SetNWBool("chevron"..chev,true); -- Dynamic light of the chevron
 			else
 				self.Entity:Sparks(chev);
 			    timer.Simple(0.1, function()
@@ -218,6 +219,27 @@ function ENT:TriggerInput(k,v,mobile,mdhd)
 			end
 			self.Entity:SetNWBool("ActChevronsL",false);
 		end
+	elseif (k == "TargetGate") then
+
+		if (IsValid(v)) then
+			self.TargetGate = v
+		else
+			self.TargetGate = nil
+		end
+	-- elseif(k == "Pause Routing" and self.Active and IsValid(self.EventHorizon)) then
+	-- 	if (v >= 1) then
+	-- 		self.EventHorizon:PauseAllRouting()
+	-- 	end
+	-- elseif(k == "Resume Routing" and self.Active and IsValid(self.EventHorizon)) then
+	-- 	if (v >= 1) then
+	-- 		self.EventHorizon:ResumeAllRouting()
+	-- 	end
+	elseif (k == "Switch Gate") then
+		if (v == 42) then
+			if (IsValid(self.TargetGate)) then
+				self:ControlledJump(self.TargetGate)
+			end
+		end
 	end
 end
 
@@ -236,7 +258,7 @@ function ENT:ChevronSound(chev,fast,inbound)
 	if(not fast or inbound) then
 		snd = self.Sounds.Inbound;
 	end
-	self.Entity:EmitSound(snd,90,math.random(97,104));
+	self.Entity:EmitSound(snd,90,math.random(85,105));
 end
 
 function ENT:Shutdown()

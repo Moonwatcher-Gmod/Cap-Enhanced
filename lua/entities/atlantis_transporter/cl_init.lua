@@ -42,19 +42,19 @@ net.Receive( "UpdateAtlTP" , function(len)
 		AtlTP_GetAll[ent].name = net.ReadString();
 	elseif (type==2) then
 		AtlTP_GetAll[ent] = AtlTP_GetAll[ent] or {};
-		AtlTP_GetAll[ent].private = util.tobool(net.ReadBit());
+		AtlTP_GetAll[ent].private = tobool(net.ReadBit());
 	elseif (type==3) then
 		AtlTP_GetAll[ent] = AtlTP_GetAll[ent] or {};
 		AtlTP_GetAll[ent].name = net.ReadString();
-		AtlTP_GetAll[ent].private = util.tobool(net.ReadBit());
+		AtlTP_GetAll[ent].private = tobool(net.ReadBit());
 		AtlTP_GetAll[ent].group = net.ReadString();
-		AtlTP_GetAll[ent].locale = util.tobool(net.ReadBit());	
+		AtlTP_GetAll[ent].locale = tobool(net.ReadBit());	
 	elseif(type==4) then
 		AtlTP_GetAll[ent] = AtlTP_GetAll[ent] or {};
 		AtlTP_GetAll[ent].group = net.ReadString();
 	elseif(type==5) then
 		AtlTP_GetAll[ent] = AtlTP_GetAll[ent] or {};
-		AtlTP_GetAll[ent].locale = util.tobool(net.ReadBit());
+		AtlTP_GetAll[ent].locale = tobool(net.ReadBit());
 	end
 end );
 
@@ -167,7 +167,7 @@ local function RingTransporterShowWindow(um)
 	local ent = um:ReadEntity();
 	if (not IsValid(ent)) then return end
 	Window = vgui.Create( "AtlantisDestinationEntryCap" )
-	Window:SetKeyBoardInputEnabled( true )
+	Window:SetKeyboardInputEnabled( true )
 	Window:SetMouseInputEnabled( true )
 	Window:SetPos( (ScrW()/2 - 250) / 2, ScrH()/2 - 75 )
 	Window:SetVisible( true )
@@ -283,9 +283,9 @@ local function RingTransporterEditWindow(um)
 	local ent = um:ReadEntity();
 	if (not IsValid(ent)) then return end
 	Window = vgui.Create( "AtlantisDestinationEditCap" )
-	Window:SetKeyBoardInputEnabled( true )
+	Window:SetKeyboardInputEnabled( true )
 	Window:SetMouseInputEnabled( true )
-	Window:SetPos( (ScrW()/2 - 250) / 2, ScrH()/2 - 75 )
+	Window:SetPos( (ScrW() / 2 - 250) / 2, ScrH() / 2 - 75 )
 	Window:SetVisible( true )
 	Window:SetEntity(ent)
 	Window:SetVal(um:ReadString(),um:ReadBool(),um:ReadString(),um:ReadBool())

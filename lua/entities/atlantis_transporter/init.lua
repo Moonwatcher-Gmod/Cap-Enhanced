@@ -1,4 +1,4 @@
-if (StarGate==nil or StarGate.CheckModule==nil or not StarGate.CheckModule("devices")) then return end
+if (StarGate == nil or StarGate.CheckModule == nil or not StarGate.CheckModule("devices")) then return end
 
 AddCSLuaFile("shared.lua");
 AddCSLuaFile("cl_init.lua");
@@ -10,18 +10,18 @@ local protected_entities = {
 	func_door = true,
 	func_door_rotating = true,
 	func_movelinear = true,
-	func_rot_button= true,
+	func_rot_button = true,
 	func_rotating = true,
-	prop_door_rotating=true,
-	atlantis_transporter=true,
-	atlantis_transporter_doors=true,
+	prop_door_rotating = true,
+	atlantis_transporter = true,
+	atlantis_transporter_doors = true,
 	-- ring_* and stargate_* protected too
 }
 
 function ENT:SpawnFunction(p,tr)
 	if (not tr.Hit) then return end
 	local e = ents.Create("atlantis_transporter");
-	e:SetPos(tr.HitPos+Vector(0,0,7));
+	e:SetPos(tr.HitPos + Vector(0,0,7));
 	e:SetAngles(Angle(0,p:EyeAngles().Y-180,0));
 	e:Spawn();
 	e:Activate();
@@ -36,10 +36,10 @@ ENT.Sound = Sound("tech/atlantis_transport.wav")
 
 function ENT:Initialize()
 
-	self.Entity:SetModel("models/Tiny/ATL_Transporter/atl_transporter.mdl");
-	self.Entity:PhysicsInit(SOLID_VPHYSICS);
-	self.Entity:SetMoveType(MOVETYPE_VPHYSICS);
-	self.Entity:SetSolid(SOLID_VPHYSICS);
+	self:SetModel("models/Tiny/ATL_Transporter/atl_transporter.mdl");
+	self:PhysicsInit(SOLID_VPHYSICS);
+	self:SetMoveType(MOVETYPE_VPHYSICS);
+	self:SetSolid(SOLID_VPHYSICS);
 	self:SetUseType(SIMPLE_USE);
 
 	self:CreateWireInputs("Teleport","Destination [STRING]","Group [STRING]","Toggle Doors","Lock Doors","Lock Console","Should be closed","Disable auto-open","Disable auto-close","Disable Dial Menu","Disable Edit Menu");
@@ -60,19 +60,19 @@ function ENT:Initialize()
 	self.ConsoleLocked = false;
 	self.Fail = false;
 	self.Busy = false;
-	self.Ents={}
-	self.EntsTP={}
-	
+	self.Ents = {}
+	self.EntsTP = {}
+
 	self.TLocal = false;
 	self.TGroup = "ATL";
-	
+
 	self.Disallowed = {};
 	for _,v in pairs(StarGate.CFG:Get("atlantis_transporter","classnames",""):TrimExplode(",")) do
 		self.Disallowed[v:lower()] = true;
 	end
 
-	local phys = self.Entity:GetPhysicsObject();
-	if(phys:IsValid())then
+	local phys = self:GetPhysicsObject();
+	if (phys:IsValid()) then
 		phys:EnableMotion(false);
 		phys:SetMass(500);
 	end
@@ -120,17 +120,17 @@ end
 function ENT:CreateDoors(ply,spawner,protect)
 
 	local d = ents.Create("atlantis_transporter_doors");
-	local e = self.Entity
-	d:SetPos(e:GetPos()+e:GetForward()*(-0.5)+e:GetUp()*(-3)+e:GetRight()*(-1));
-	d:SetAngles(e:GetAngles()+Angle(0,90,0));
+	local e = self
+	d:SetPos(e:GetPos() + e:GetForward() * (-0.5) + e:GetUp() * (-3) + e:GetRight() * (-1));
+	d:SetAngles(e:GetAngles() + Angle(0,90,0));
 	d:Spawn();
 	d:Activate();
 	d:DrawShadow(false);
 	if CPPI and IsValid(ply) and d.CPPISetOwner then d:CPPISetOwner(ply) end
 	d.BaseTP = self;
 	local d2 = ents.Create("atlantis_transporter_doors");
-	d2:SetPos(e:GetPos()+e:GetForward()*(-0.5)+e:GetUp()*(-3)+e:GetRight()*(-1));
-	d2:SetAngles(e:GetAngles()+Angle(0,270,0));
+	d2:SetPos(e:GetPos()+e:GetForward() * (-0.5) + e:GetUp() * (-3) + e:GetRight() * (-1));
+	d2:SetAngles(e:GetAngles() + Angle(0,270,0));
 	d2:Spawn();
 	d2:Activate();
 	d2:DrawShadow(false);
@@ -154,7 +154,7 @@ function ENT:CreateDoors(ply,spawner,protect)
 	end
 
 	local d = ents.Create("cap_doors_contr");
-	local e = self.Entity
+	local e = self
 	d:SetModel("models/Boba_Fett/props/buttons/atlantis_button.mdl");
 	d:SetPos(e:GetPos()+e:GetRight()*(-37)+e:GetUp()*45+e:GetForward()*(3));
 	d:SetAngles(e:GetAngles()+Angle(90,0,0));
@@ -164,9 +164,9 @@ function ENT:CreateDoors(ply,spawner,protect)
 	if CPPI and IsValid(ply) and d.CPPISetOwner then d:CPPISetOwner(ply) end
 	if (spawner) then
 		d.GateSpawnerSpawned = true;
-		d:SetNetworkedBool("GateSpawnerSpawned",true);
+		d:SetNWBool("GateSpawnerSpawned",true);
 		d.GateSpawnerProtected = protect;
-		d:SetNetworkedBool("GateSpawnerProtected",protect);
+		d:SetNWBool("GateSpawnerProtected",protect);
 	end
 	d.Atlantis = true
 	d.AtlTP = self;
@@ -176,7 +176,7 @@ function ENT:CreateDoors(ply,spawner,protect)
 	constraint.NoCollide(self.Doors[2],d,0,0);
 	--constraint.NoCollide(d,game.GetWorld(),0,0);
 	constraint.Weld(d,e,0,0,0,true)
-	self.Button1=d
+	self.Button1 = d
 
 	local d = ents.Create("cap_doors_contr");
 	local e = self.Entity
@@ -189,9 +189,9 @@ function ENT:CreateDoors(ply,spawner,protect)
 	if CPPI and IsValid(ply) and d.CPPISetOwner then d:CPPISetOwner(ply) end
 	if (spawner) then
 		d.GateSpawnerSpawned = true;
-		d:SetNetworkedBool("GateSpawnerSpawned",true);
+		d:SetNWBool("GateSpawnerSpawned",true);
 		d.GateSpawnerProtected = protect;
-		d:SetNetworkedBool("GateSpawnerProtected",protect);
+		d:SetNWBool("GateSpawnerProtected",protect);
 	end
 	d.Atlantis = true
 	d.AtlTP = self;
@@ -205,17 +205,17 @@ function ENT:CreateDoors(ply,spawner,protect)
 end
 
 function ENT:SetAtlNameGrp(name,grp,ply,wire)
-	if not IsValid(self.Entity) then return end
+	if not IsValid(self) then return end
 	name = name or "";
 	name = name:Trim();
-	
+
 	grp = grp or "";
 	grp = grp:Trim();
-	
+
 	if (name!="") then
 		-- No multiple rings please!
 		for _,v in pairs(ents.FindByClass("atlantis_transporter")) do
-			if(v.TName == name and v.Entity != self.Entity) then
+			if(v.TName == name and v.Entity != self) then
 				if (not wire) then ply:SendLua("GAMEMODE:AddNotify(SGLanguage.GetMessage(\"atl_tp_error\"), NOTIFY_ERROR, 5); surface.PlaySound( \"buttons/button2.wav\" )"); end
 				return;
 			end
@@ -228,7 +228,7 @@ function ENT:SetAtlNameGrp(name,grp,ply,wire)
 		net.WriteString(name)
 		net.Broadcast()
 	end
-	
+
 	self.TGroup = grp;
 	net.Start("UpdateAtlTp");
 	net.WriteInt(self:EntIndex(),16);
@@ -238,13 +238,13 @@ function ENT:SetAtlNameGrp(name,grp,ply,wire)
 end
 
 function ENT:SetAtlName(name)
-	if not IsValid(self.Entity) then return end
+	if not IsValid(self) then return end
 	name = name or "";
 	name = name:Trim();
 	if (name!="") then
 		-- No multiple rings please!
 		for _,v in pairs(ents.FindByClass("atlantis_transporter")) do
-			if(v.TName == name and v.Entity != self.Entity) then
+			if(v.TName == name and v.Entity != self) then
 				return;
 			end
 		end
@@ -264,7 +264,7 @@ function ENT:SetAtlGrp(grp)
 	if (grp!="") then
 		-- No multiple rings please!
 		for _,v in pairs(ents.FindByClass("atlantis_transporter")) do
-			if(v.TName == self.TName and v.Entity != self.Entity) then
+			if(v.TName == self.TName and v.Entity != self) then
 				return;
 			end
 		end
@@ -281,7 +281,7 @@ end
 function ENT:SetAtlLocal(loc)
 
 	if not IsValid(self) then return end
-	loc = util.tobool(loc);
+	loc = tobool(loc);
 	self.TLocal = loc;
 	net.Start("UpdateAtlTP")
 	net.WriteInt(self:EntIndex(),16)
@@ -293,7 +293,7 @@ end
 
 function ENT:SetAtlPrivate(private)
 	if not IsValid(self.Entity) then return end
-	private = util.tobool(private);
+	private = tobool(private);
 	self.TPrivate = private;
 	net.Start("UpdateAtlTP")
 	net.WriteInt(self:EntIndex(),16)
@@ -403,7 +403,7 @@ end
 net.Receive("atlantis_transport",function(len,ply)
 	local self = net.ReadEntity();
 	if (not IsValid(self)) then return end
-	if (util.tobool(net.ReadBit())) then
+	if (tobool(net.ReadBit())) then
 		self.Destination = net.ReadString();
 		self:Teleport();
 	else
@@ -758,7 +758,7 @@ function ENT:PostEntityPaste(ply, Ent, CreatedEntities)
 
 	self:SetAtlNameGrp(dupeInfo.Name or "", dupeInfo.Group or self.TGroup, nil, true);
 	--self.TName = dupeInfo.Name or "";
-	--self:SetNetworkedString("TName",self.TName);
+	--self:SetNWString("TName",self.TName);
 	--self.TGroup = dupeInfo.Group or self.TGroup;
 
 	self.TPrivate = dupeInfo.Private or false;

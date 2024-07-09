@@ -48,9 +48,9 @@ function ENT:Initialize()
 	self.Delay = StarGate.CFG:Get("staff_stationary","delay",0.3);
 	self.DirectionVector = Vector(0,0,0);
 	self.TargetVector = Vector(0,0,0);
-	self.DirectionVectorAngleOffset = 0.5 -- Equals 60°
+	self.DirectionVectorAngleOffset = 0.5 -- Equals 60ï¿½
 	self:AddResource("energy",100);
-	self:CreateWireInputs("Fire","Distance","Explode","Dir_X","Dir_Y","Dir_Z","X","Y","Z","Disable Use");
+	self:CreateWireInputs("Fire","Distance","Explode","Direction [VECTOR]","Target [VECTOR]","Disable Use");
 	self:CreateWireOutputs("Can Fire","Shots Remaining");
 	self.Color = self.Color or Color(math.random(230,255),200,120,255);
 	self.Phys = self.Entity:GetPhysicsObject();
@@ -174,18 +174,10 @@ function ENT:TriggerInput(k,v)
 		self.Distance = tonumber(v);
 	elseif(k == "Explode" and v == 1) then
 		self:ExplodeShots();
-	elseif(k == "Dir_X") then
-		self.DirectionVector.x = v;
-	elseif(k == "Dir_Y") then
-		self.DirectionVector.y = v;
-	elseif(k == "Dir_Z") then
-		self.DirectionVector.z = v;
-	elseif(k == "X") then
-		self.TargetVector.x = v;
-	elseif(k == "Y") then
-		self.TargetVector.y = v;
-	elseif(k == "Z") then
-		self.TargetVector.z = v;
+	elseif(k == "Direction") then
+		self.DirectionVector = v;
+	elseif(k == "Target") then
+		self.TargetVector = v;
 	end
 end
 

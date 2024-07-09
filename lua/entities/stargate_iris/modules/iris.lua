@@ -46,7 +46,9 @@ end
 
 --################# Iris got Hit - Do something @aVoN
 function ANIM:Hit(e,pos,velo)
-	self.Entity:EmitSound(self.Sounds.Hit,90,math.random(98,103));
+	local irissounds = {"stargate/iris/hit.mp3", "stargate/iris/hit_2.mp3", "stargate/iris/hit_3.mp3", "stargate/iris/hit_4.mp3"};
+	Hit = Sound(table.Random(irissounds));
+	self.Entity:EmitSound(Hit,90,math.random(98,103));
 end
 
 --################# Called, if you remove this thing @aVoN

@@ -36,8 +36,12 @@ AddCSLuaFile();
 
 ENT.Sounds={
 	Fail={Sound("buttons/button19.wav"),Sound("buttons/combine_button2.wav")},
-	Cloak=Sound("npc/strider/striderx_alert4.wav"),
-	Uncloak=Sound("npc/turret_floor/die.wav"),
+	
+	--Cloak=Sound("npc/strider/striderx_alert4.wav"),
+	Cloak=Sound("jumper/jumpercloak.mp3"),
+	--Uncloak=Sound("npc/turret_floor/die.wav"),
+	Uncloak=Sound("jumper/jumperuncloak.mp3"),
+
 };
 
 --################# SENT CODE ###############
@@ -107,7 +111,7 @@ function ENT:Status(b,nosound)
 				e:SetParent(self.Entity);
 				e:Spawn();
 				if(not nosound) then
-					self:EmitSound(self.Sounds.Cloak,80,math.random(80,100));
+					self:EmitSound(self.Sounds.Cloak,100,math.random(70,90));
 				end
 				if(e and e:IsValid() and not e.Disable) then -- When our new cloak mentioned, that there is already a cloak
 					self.Cloak = e;
@@ -123,7 +127,7 @@ function ENT:Status(b,nosound)
 			self.Cloak = nil;
 			self:ShowOutput(false);
 			if(not nosound) then
-				self:EmitSound(self.Sounds.Uncloak,80,math.random(90,110));
+				self:EmitSound(self.Sounds.Uncloak,100,math.random(70,90));
 			end
 		end
 		return;

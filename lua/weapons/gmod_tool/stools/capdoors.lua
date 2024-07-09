@@ -20,6 +20,12 @@ list.Set(TOOL.List,"models/cryptalchemy_models/destiny/bridge_door/bridge_door.m
 list.Set(TOOL.List,"models/madman07/doors/atl_door1.mdl",{});
 list.Set(TOOL.List,"models/madman07/doors/atl_door2.mdl",{});
 list.Set(TOOL.List,"models/madman07/doors/atl_door3.mdl",{});
+list.Set(TOOL.List,"models/madman07/doors/atl_door_glass.mdl",{});
+list.Set(TOOL.List,"models/soren/ori_door/ori_door.mdl",{});
+list.Set(TOOL.List,"models/soren/lantean_ship_door/lantean_ship_door.mdl",{});
+
+
+--models/soren/ori_door/ori_frame.mdl
 
 TOOL.Entity.Class = "cap_doors_frame";
 TOOL.Entity.Keys = {"model","toggle", "diff_text", "doormodel","short_frame"}; -- These keys will get saved from the duplicator
@@ -49,6 +55,11 @@ function TOOL:LeftClick(t)
 		else
 			model = "models/gmod4phun/props/atlantis_door_frame_2.mdl"; -- New door and frame
 		end
+	elseif (model == "models/soren/ori_door/ori_door.mdl") then
+		model = "models/soren/ori_door/ori_frame.mdl"
+	elseif (model == "models/soren/lantean_ship_door/lantean_ship_door.mdl") then
+		model = "models/soren/lantean_ship_door/lantean_ship_door_frame.mdl"
+
 	else model = "models/madman07/doors/atl_frame.mdl"; end
 
 	if(not self:CheckLimit()) then return false end;
@@ -65,6 +76,7 @@ function TOOL:LeftClick(t)
 	end
 	if (model == "models/madman07/doors/dest_frame.mdl") then e:SoundType(1);
 	elseif (model == "models/cryptalchemy_models/destiny/bridge_door/bridge_door_frame.mdl") then e:SoundType(3);
+	elseif (model == "models/soren/ori_door/ori_frame.mdl") then e:SoundType(4);
 	else e:SoundType(2); end
 
 	return true;

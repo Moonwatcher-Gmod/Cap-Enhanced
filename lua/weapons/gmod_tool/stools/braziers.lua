@@ -47,8 +47,8 @@ function TOOL:PreEntitySpawn(p,e,model,toggle)
 end
 
 function TOOL:ControlsPanel(Panel)
-	Panel:AddControl("PropSelect",{Label=SGLanguage.GetMessage("stool_model"),ConVar="braziers_model",Category="",Models=self.Models});
-	Panel:CheckBox(SGLanguage.GetMessage("stool_autoweld"),"braziers_autoweld");
+	Panel:AddControl("PropSelect",{Label="Model:",ConVar="braziers_model",Category="",Models=self.Models});
+	Panel:CheckBox("Autoweld","braziers_autoweld");
 end
 
 TOOL:Register();

@@ -68,12 +68,18 @@ ENT.chev_pos = {
 	Vector(2.1964,-32.0372,-28.7796), -- 9 The chevron 9, nobody knows, for what reason it is good for. Alternative universes?
 }
 
-ENT.GalaxyConsumption = 4;
-ENT.GalaxyAdd = 50000;
-ENT.SGUConsumption = 40;
-ENT.SGUAdd = 800000;
-ENT.ChevConsumption = 10;
-ENT.ChevAdd = 2000;
+--Power calculations-------------------------
+--intial power spike
+ENT.ChevConsumption = 4;
+ENT.GalaxyConsumption = 9;
+ENT.SGUConsumption = 50;
+
+--Maintenance drain
+ENT.ChevAdd   = 2000;
+ENT.GalaxyAdd = 4000;
+ENT.SGUAdd    = 40000;
+---------------------------------------------
+
 
 properties.Add( "Stargate.AutoClose.On",
 {
@@ -229,9 +235,9 @@ properties.Add( "Stargate.ChevronLight.On",
 	Receive		=	function( self, length, player )
 
 						local ent = net.ReadEntity()
-						if ( !self:Filter( ent, player ) ) then return false end
+						if( !self:Filter( ent, player )) then return false end
 
-						if (ent:GetClass()=="stargate_universe") then
+						if(ent.IsUniverseGate) then
  							ent:TriggerInput("Activate Chevrons",1);
 						else
 							ent:TriggerInput("Activate chevron numbers","111111111");
@@ -265,9 +271,9 @@ properties.Add( "Stargate.ChevronLight.Off",
 	Receive		=	function( self, length, player )
 
 						local ent = net.ReadEntity()
-						if ( !self:Filter( ent, player ) ) then return false end
+						if( !self:Filter( ent, player )) then return false end
 
-						if (ent:GetClass()=="stargate_universe") then
+						if(ent.IsUniverseGate) then
  							ent:TriggerInput("Activate Chevrons",0);
 						else
 							ent:TriggerInput("Activate chevron numbers","");

@@ -15,7 +15,7 @@
 	You should have received a copy of the GNU General Public License
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-EFFECT.Material = Material("refract_ring");
+EFFECT.Material = Material("refract_ring_v2");
 
 --################# Init @aVoN
 function EFFECT:Init(data)

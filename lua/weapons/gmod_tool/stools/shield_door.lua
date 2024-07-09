@@ -83,7 +83,7 @@ umsg.PoolString("FadingDoorHurrah!");
 
 local function fadeActivate(self)
 	self.fadeActive = true;
-	self:SetNetworkedBool("StopBuble", true);
+	self:SetNWBool("StopBuble", true);
 	self:SetRenderMode(RENDERMODE_NONE)
 	self:DrawShadow(false)
 	self:SetNotSolid(true)
