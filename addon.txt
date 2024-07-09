@@ -1,0 +1,9 @@
+"AddonInfo"
+{
+	"name"				"Carter Addon Pack" 
+	"version"			"3.0"
+	"author_name"		Soren MC, Nova Astral, Piehthyte, plus the original CAP Team
+	"author_email"		"info@sg-carterpack.com"
+	"author_url"		"www.sg-carterpack.com"
+	"info"				"All the code for the CAP Enhanced Addon Pack"
+}
