@@ -7,7 +7,7 @@ ENT.Spawnable = false
 ENT.AdminSpawnable = false
 
 ENT.Category = "Stargate Carter Addon Pack: MoonWatcher"
-list.Set("CAP.Entity", ENT.PrintName, ENT)
+--list.Set("CAP.Entity", ENT.PrintName, ENT)
 ENT.Category = "MoonWatcher"
 
 if SERVER then

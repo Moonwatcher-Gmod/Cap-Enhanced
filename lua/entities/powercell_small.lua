@@ -8,9 +8,9 @@ ENT.PrintName = "Small Powercell"
 ENT.Author = "Soren MC, Spacebuild"
 ENT.WireDebugName = "Powercell_small"
 
-ENT.Category = "Stargate Carter Addon Pack: MoonWatcher"
+ENT.Category = "Stargate Carter Addon Pack: Misc devices"
 list.Set("CAP.Entity", ENT.PrintName, ENT)
-ENT.Category = "MoonWatcher"
+ENT.Category = "Misc devices"
 
 
 ENT.Spawnable = false
