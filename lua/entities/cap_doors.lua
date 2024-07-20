@@ -15,8 +15,6 @@ ENT.AdminSpawnable = false
 
 ENT.AutomaticFrameAdvance = true
 
-ENT.Untouchable = true
-
 if SERVER then
 
 if (StarGate==nil or StarGate.CheckModule==nil or not StarGate.CheckModule("extra")) then return end
@@ -56,8 +54,15 @@ end
 
 function ENT:Think()
 	if not self.CanDoAnim then --run often only if doors are busy
-		self:NextThink(CurTime());
+		self:NextThink(CurTime())
 		return true
+	end
+
+	if(IsValid(self.Frame)) then
+		if(self.Entity:GetPos() ~= self.Frame:GetPos()) then
+			self.Entity:SetPos(self.Frame:GetPos())
+			self:NextThink(CurTime()+1)
+		end
 	end
 end
 
