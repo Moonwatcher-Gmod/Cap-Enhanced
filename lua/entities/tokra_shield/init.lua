@@ -21,14 +21,15 @@ StarGate.Trace:Add("tokra_shield",
 );
 
 ENT.CAP_NotSave = true;
+ENT.Untouchable = true
 
 -----------------------------------INIT----------------------------------
 
 function ENT:Initialize()
 	self.Entity:SetModel("models/Madman07/shields/box.mdl");
-	self.Entity:PhysicsInit(SOLID_VPHYSICS);
-	self.Entity:SetMoveType(MOVETYPE_VPHYSICS);
-	self.Entity:SetSolid(SOLID_VPHYSICS);
+	self.Entity:PhysicsInit(SOLID_BBOX);
+	self.Entity:SetMoveType(MOVETYPE_NONE);
+	self.Entity:SetSolid(SOLID_BBOX);
 	self.Entity:SetColor(Color(0,0,0,0));
 	self.Entity:SetRenderMode(RENDERMODE_TRANSALPHA)
 	self.Entity:SetCustomCollisionCheck(true);
@@ -39,7 +40,13 @@ function ENT:Initialize()
 
 	self.Enabled = false;
 	self.RayModel = {};
-	self:SetNWBool("DoClientSide", false);
+	self:SetNWBool("DoClientSide", false)
+
+	hook.Add("PhysgunPickup","AllowPlayerPickup",function(ply,ent)
+		if(ent == self.Entity) then
+			return false
+		end
+	end)
 end
 
 -----------------------------------COLLISION SCALE----------------------------------
@@ -47,23 +54,17 @@ end
 function ENT:CreateCollision(Gen1, Gen2)
 	if not IsValid(Gen1) then return end
 	if not IsValid(Gen2) then return end
+	local Corner1 = self.Entity:WorldToLocal(Gen1:LocalToWorld(Gen1:OBBMaxs()))
+	local Corner2 = self.Entity:WorldToLocal(Gen2:LocalToWorld(Gen2:OBBMins()))
 
-	local convex = {};
+	self.Entity:PhysicsInitBox(Corner1,Corner2)
+
+	if(IsValid(self.Entity:GetPhysicsObject())) then
+		self.Entity:GetPhysicsObject():EnableMotion(false)
+	end
+
 	local length = Gen1:GetPos():Distance(Gen2:GetPos());
 	self.Entity:SetNWInt("Len", length);
-
-	for _, vertex in pairs(TokraBoxModel) do
-		local vec = Vector(vertex.x*length,vertex.y,vertex.z);
-		table.insert(convex, Vertex(vec, 1, 1, Vector( 0, 0, 1 )));
-	end
-	if (table.getn(convex) == 0) then return end //safefail
-
-	self.Entity:PhysicsFromMesh(convex);
-	local phys = self.Entity:GetPhysicsObject();
-	if IsValid(phys) then
-		phys:EnableCollisions(true);
-		phys:EnableMotion(false);
-	end
 
 	self:SetNWBool("DoClientSide", true);
 end
