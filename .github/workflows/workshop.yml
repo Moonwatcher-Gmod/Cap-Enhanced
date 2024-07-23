@@ -1,0 +1,79 @@
+name: Workshop Upload
+
+on:
+    workflow_dispatch:
+        inputs:
+            changelog:
+                description: 'Enter a change note'
+                required: false
+                default: ''
+
+jobs:
+    publish_code:
+        runs-on: self-hosted
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4.1.7
+              with:
+                  path: addon
+
+            - name: Setup SteamCMD
+              id: steamcmd
+              uses: CyberAndrii/setup-steamcmd@v1.2.0
+
+            - name: Install fastgmad
+              run: |
+                  if ! command -v fastgmad &> /dev/null
+                  then
+                    sudo apt-get install unzip -y
+                    wget https://github.com/WilliamVenner/fastgmad/releases/latest/download/fastgmad_linux.zip
+                    unzip fastgmad_linux.zip
+                    chmod +x fastgmad
+                    mv fastgmad /usr/local/bin/
+                    rm fastgmad_linux.zip
+                  fi
+
+            - name: Create VDF
+              run: |
+                  echo '"workshopitem"
+                  {
+                      "appid"		"4000"
+                      "publishedfileid"	"3021712722"
+                      "contentfolder"		"'${{ github.workspace }}/addon.gma'"
+                      "changenote"		"'${{ github.event.inputs.changelog }}'"
+                  }' > workshop.vdf
+
+            - name: Build addon.json
+              working-directory: ${{ github.workspace }}/addon/
+              run: |
+                  echo '{
+                      "title": "CAP Enhanced Code",
+                      "type": "ServerContent",
+                      "ignore": [
+                          ".*",
+                          "*.md",
+                          "addon.txt",
+                          "icon.tga"
+                      ]
+                  }' >> addon.json
+
+            - name: Convert filenames and folders to lowercase
+              working-directory: ${{ github.workspace }}/addon/
+              run: |
+                  find lua -depth | while read -r file ; do
+                  if [ -e "$file" ] ; then
+                      lowercase_name=$(basename "$file" | tr '[:upper:]' '[:lower:]')
+                      if [ "$lowercase_name" != "$(basename "$file")" ]; then
+                        mv -v "$file" "$(dirname "$file")/$lowercase_name"
+                      fi
+                  fi
+                  done
+
+            - name: Create GMA
+              run: fastgmad create -folder addon/ -out addon.gma
+
+            - name: Update Addon
+              env:
+                  username: ${{ secrets.STEAM_USERNAME }}
+                  password: ${{ secrets.STEAM_PASSWORD }}
+              run: steamcmd +login $username $password +workshop_build_item ${{ github.workspace }}/workshop.vdf +quit
