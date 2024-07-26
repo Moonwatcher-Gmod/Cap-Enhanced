@@ -11,6 +11,8 @@ on:
 jobs:
     publish_code:
         runs-on: self-hosted
+        env:
+            path: ${{ github.workspace }}/addon/
         steps:
             - name: Checkout repository
               uses: actions/checkout@v4.1.7
@@ -44,7 +46,7 @@ jobs:
                   }' > workshop.vdf
 
             - name: Build addon.json
-              working-directory: ${{ github.workspace }}/addon/
+              working-directory: $path
               run: |
                   echo '{
                       "title": "CAP Enhanced Code",
@@ -56,18 +58,6 @@ jobs:
                           "icon.tga"
                       ]
                   }' >> addon.json
-
-            - name: Convert filenames and folders to lowercase
-              working-directory: ${{ github.workspace }}/addon/
-              run: |
-                  find lua -depth | while read -r file ; do
-                  if [ -e "$file" ] ; then
-                      lowercase_name=$(basename "$file" | tr '[:upper:]' '[:lower:]')
-                      if [ "$lowercase_name" != "$(basename "$file")" ]; then
-                        mv -v "$file" "$(dirname "$file")/$lowercase_name"
-                      fi
-                  fi
-                  done
 
             - name: Create GMA
               run: fastgmad create -folder addon/ -out addon.gma
