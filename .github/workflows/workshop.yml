@@ -15,7 +15,7 @@ jobs:
             path: ${{ github.workspace }}/addon/
         steps:
             - name: Checkout repository
-              uses: actions/checkout@v4.1.7
+              uses: actions/checkout@v4
               with:
                   path: addon
 

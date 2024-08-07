@@ -20,7 +20,7 @@ jobs:
               run: sudo apt-get install libffi7
 
             - name: Checkout
-              uses: actions/checkout@v3
+              uses: actions/checkout@v4
 
             - name: Remove blacklisted
               run: rm -r lua/entities/gmod_wire_expression2/ lua/data lua/wire/gates lua/entities/arthur_mantle/cl_data.lua lua/cap_res_req.lua lua/cap_ver.lua
