@@ -48,7 +48,7 @@ StarGate_Group.ErrorMSG_HTML = {};
 if (SERVER) then
 	util.AddNetworkString( "CAP_ERROR" );
 	util.AddNetworkString( "CL_CAP_ERROR" );
-end                                                                     
+end
 
 StarGate.CAP_WS_ADDONS = {[3021712722]="CAP Enhanced Code", [3015821171]="CAP Enhanced - Resources part 1", [2744960254]="CAP Enhanced - Resources part 2"
 }
@@ -84,8 +84,8 @@ for k,v in pairs(file.Find("addons/carter_addon_pack_*.gma","GAME")) do
 end
 for k,v in pairs(file.Find("addons/stargate_carter_addon_pack_175394472.gma","GAME")) do
 	table.insert(oldfiles,v);
-end 
-/* for upcoming update 
+end
+/* for upcoming update
 for k,v in pairs(file.Find("addons/cap_*.gma","GAME")) do
 	table.insert(oldfiles,v);
 end
@@ -156,7 +156,7 @@ if (CLIENT) then
 			if (type(v)=="table") then
 				local adds = "";
 				for t,a in pairs(v[2]) do
-					if (v[1]=="sg_err_09") then                            
+					if (v[1]=="sg_err_09") then
 						adds = adds.."<br><a href='http://steamcommunity.com/sharedfiles/filedetails/?id="..t.."'>"..a:Replace("Carter Addon Pack:","CAP:").."</a>";
 					else
 						adds = adds.."<br>"..a;
@@ -219,16 +219,6 @@ if (CLIENT) then
 
 end
 
--- just to be sure
-if (GetAddonList!=nil and (table.HasValue( GetAddonList(true), "before_cap_sg_groups" ) or table.HasValue( GetAddonList(true), "z_cap_sg_groups" ))) then
-	status = "Error";
-	MsgN("Status: "..status)
-	table.insert(StarGate_Group.ErrorMSG, {"The Stargate Group System has been found on your system. Please remove it.","01"});
-	table.insert(StarGate_Group.ErrorMSG_HTML, "sg_err_01");
-	MsgN("-------");
-	MsgN("Error #01\n"..StarGate_Group.ErrorMSG[table.Count(StarGate_Group.ErrorMSG)][1]:Replace("\\n","\n"));
-end
-
 local function Workshop_res_Installed()
 	local adds = Workshop_res_Check();
 	if (table.Count(adds)==0) then
@@ -237,174 +227,67 @@ local function Workshop_res_Installed()
 	return false;
 end
 
---[[if (Workshop_res_Installed() and not table.HasValue( addonlist, "Carter Addon Pack - Resources" ) and not table.HasValue( addonlist, "Carter Addon Pack - Fonts" )) then
-	local files_check = {"resource/fonts/anquietas.ttf","resource/fonts/quiver.ttf","resource/fonts/stargate_atlantis.ttf",
-	"resource/fonts/stargate_concept.ttf","resource/fonts/stargate_sg1.ttf","resource/fonts/stargate_universe.ttf"}
-	local manual = true;
-	for k,v in pairs(files_check) do
-		if (not file.Exists(v,"GAME")) then
-			manual = false;
-		end
-	end
-	if (manual) then
-		MsgN("---");
-		MsgN("Warning! The custom fonts installed manually and can not work!");
-		MsgN("---");
-	else
-		if (status != "Error") then
-			status = "Error";
-			MsgN("Status: "..status)
-		end
-		table.insert(StarGate_Group.ErrorMSG, {"The custom fonts are not installed, please follow the instructions in the motd to install the custom fonts.","11"});
-		table.insert(StarGate_Group.ErrorMSG_HTML, "sg_err_11");
-		MsgN("-------");
-		MsgN("Error #11\n"..StarGate_Group.ErrorMSG[table.Count(StarGate_Group.ErrorMSG)][1]:Replace("\\n","\n"));
-	end
-end  ]]
-if (not StarGate.WorkShop) then
-	if (cap_installed and not Workshop_res_Installed()) then
-		if (status != "Error") then
-			status = "Error";
-			MsgN("Status: "..status)
-		end
-		table.insert(StarGate_Group.ErrorMSG, {"Please subscribe to all workshop addons to make CAP Enhanced functional.","09"});
-		table.insert(StarGate_Group.ErrorMSG_HTML, {"sg_err_09",Workshop_res_Check()});
-		MsgN("-------");
-		MsgN("Error #09\n"..StarGate_Group.ErrorMSG[table.Count(StarGate_Group.ErrorMSG)][1]:Replace("\\n","\n"));
-	elseif (Workshop_res_Installed() and table.HasValue( addonlist, "Carter Addon Pack - Resources" )) then
-		if (status != "Error") then
-			status = "Error";
-			MsgN("Status: "..status)
-		end
-		table.insert(StarGate_Group.ErrorMSG, {"The Github version of the Resources have been detected on your system and might conflict with the workshop version you've subscribed to.\\nPlease remove one of both.","10"});
-		table.insert(StarGate_Group.ErrorMSG_HTML, "sg_err_10");
-		MsgN("-------");
-		MsgN("Error #10\n"..StarGate_Group.ErrorMSG[table.Count(StarGate_Group.ErrorMSG)][1]:Replace("\\n","\n"));
-	elseif (not Workshop_res_Installed() and (not table.HasValue( addonlist, "Carter Addon Pack" ) or not table.HasValue( addonlist, "Carter Addon Pack - Resources" ))) then
-		if (status != "Error") then
-			status = "Error";
-			MsgN("Status: "..status)
-		end
-		table.insert(StarGate_Group.ErrorMSG, {"CAP Enhanced is incorrectly installed.\\nMake sure you downloaded moonwatcher-code and moonwatcher-resources folders and placed the folders correctly.","02"});
-		table.insert(StarGate_Group.ErrorMSG_HTML, "sg_err_02");
-		MsgN("-------");
-		MsgN("Error #02\n"..StarGate_Group.ErrorMSG[table.Count(StarGate_Group.ErrorMSG)][1]:Replace("\\n","\n"));
-	elseif (not cap_ver or cap_ver==0 or cap_ver<493 and (game.SinglePlayer() or SERVER)) then
-		if (status != "Error") then
-			status = "Error";
-			MsgN("Status: "..status)
-		end
-		table.insert(StarGate_Group.ErrorMSG, {"The addon version file is corrupt.\\nPlease remove and redownload the file cap/lua/cap_ver.lua.","03"});
-		table.insert(StarGate_Group.ErrorMSG_HTML, "sg_err_03");
-		MsgN("-------");
-		MsgN("Error #03\n"..StarGate_Group.ErrorMSG[table.Count(StarGate_Group.ErrorMSG)][1]:Replace("\\n","\n"));
-	end if (ws_addonlist[175394472]) then
-		if (status != "Error") then
-			status = "Error";
-			MsgN("Status: "..status)
-		end
-		table.insert(StarGate_Group.ErrorMSG, {"The Git version of the Code pack from CAP Enhanced is installed.\\nPlease remove this to prevent possible problems.\\nOr remove the workshop version.","04"});
-		table.insert(StarGate_Group.ErrorMSG_HTML, "sg_err_04");
-		MsgN("-------");
-		MsgN("Error #04\n"..StarGate_Group.ErrorMSG[table.Count(StarGate_Group.ErrorMSG)][1]:Replace("\\n","\n"));
-	end if (table.HasValue( addonlist, "Carter Addon Pack - Resources" ) and cap_res<cap_res_req) then
-		if (status != "Error") then
-			status = "Error";
-			MsgN("Status: "..status)
-		end
-		table.insert(StarGate_Group.ErrorMSG, {"moonwatcher_resources folder is outdated!\\nPlease update it.","12"});
-		table.insert(StarGate_Group.ErrorMSG_HTML, "sg_err_12");
-		MsgN("-------");
-		MsgN("Error #12\n"..StarGate_Group.ErrorMSG[table.Count(StarGate_Group.ErrorMSG)][1]:Replace("\\n","\n"));
-	end
+local function logError(errorCode, errorMessage, htmlCode, extraInfo)
+    if status ~= "Error" then
+        status = "Error"
+        MsgN("Status: "..status)
+    end
+    table.insert(StarGate_Group.ErrorMSG, {errorMessage, errorCode})
+    table.insert(StarGate_Group.ErrorMSG_HTML, htmlCode)
+    MsgN("-------")
+    MsgN("Error #"..errorCode.."\n"..errorMessage:Replace("\\n","\n"))
+end
+
+if not StarGate.WorkShop then
+    if cap_installed and not table.HasValue(addonlist, "Carter Addon Pack - Resources") then
+        logError("09", "Cap Enhanced Resources cannot be located on your Garry's Mod installation.", "sg_err_09")
+    elseif Workshop_res_Installed() and table.HasValue(addonlist, "Carter Addon Pack - Resources") then
+        logError("10", "The Github version of the Resources have been detected on your system and might conflict with the workshop version you've subscribed to.\\nPlease remove one.", "sg_err_10")
+    elseif not Workshop_res_Installed() and (not table.HasValue(addonlist, "Carter Addon Pack") or not table.HasValue(addonlist, "Carter Addon Pack - Resources")) then
+        logError("02", "CAP Enhanced is incorrectly installed.\\nMake sure you've downloaded Cap-Enhanced and Cap-Enhanced-Resources and placed them into your addons folder", "sg_err_02")
+    elseif not cap_ver or cap_ver == 0 or cap_ver < 493 and (game.SinglePlayer() or SERVER) then
+        logError("03", "The addon version file is corrupt!\\nPlease manually remove it and redownload the file from github 'addons/Cap-Enhanced/lua/cap_ver.lua'.", "sg_err_03")
+    end
+
+    if ws_addonlist[3021712722] then
+        logError("04", "The Git version of the Code pack from CAP Enhanced is installed.\\nPlease remove it or remove the workshop version to prevent possible problems.", "sg_err_04")
+    end
+
+    if table.HasValue(addonlist, "Carter Addon Pack - Resources") and cap_res < cap_res_req then
+        logError("12", "Cap-Enhanced-Resources folder is outdated!\\nPlease update it.", "sg_err_12")
+    end
 else
-	if (cap_installed and not Workshop_res_Installed()) then
-		if (status != "Error") then
-			status = "Error";
-			MsgN("Status: "..status)
-		end
-		table.insert(StarGate_Group.ErrorMSG, {"Please subscribe to all workshop addons to make CAP Enhanced functional.","09"});
-		table.insert(StarGate_Group.ErrorMSG_HTML, {"sg_err_09",Workshop_res_Check()});
-		MsgN("-------");
-		MsgN("Error #09\n"..StarGate_Group.ErrorMSG[table.Count(StarGate_Group.ErrorMSG)][1]:Replace("\\n","\n"));
-	end	if (ws_addonlist[175394472] and (not cap_installed and not table.HasValue( addonlist, "Carter Addon Pack - Resources" ))) then
-		if (status != "Error") then
-			status = "Error";
-			MsgN("Status: "..status)
-		end
-		table.insert(StarGate_Group.ErrorMSG, {"Please download all the resources from steam workshop collection or from github.","05"});
-		table.insert(StarGate_Group.ErrorMSG_HTML, "sg_err_05");
-		MsgN("-------");
-		MsgN("Error #05\n"..StarGate_Group.ErrorMSG[table.Count(StarGate_Group.ErrorMSG)][1]:Replace("\\n","\n"));
-	end if (not cap_installed and table.HasValue( addonlist, "Carter Addon Pack - Resources" ) and cap_res<cap_res_req) then
-		if (status != "Error") then
-			status = "Error";
-			MsgN("Status: "..status)
-		end
-		table.insert(StarGate_Group.ErrorMSG, {"moonwatcher_resources folder is outdated!\\nPlease update it.","12"});
-		table.insert(StarGate_Group.ErrorMSG_HTML, "sg_err_12");
-		MsgN("-------");
-		MsgN("Error #12\n"..StarGate_Group.ErrorMSG[table.Count(StarGate_Group.ErrorMSG)][1]:Replace("\\n","\n"));
-	end if (Workshop_res_Installed() and table.HasValue( addonlist, "Carter Addon Pack - Resources" )) then
-		if (status != "Error") then
-			status = "Error";
-			MsgN("Status: "..status)
-		end
-		table.insert(StarGate_Group.ErrorMSG, {"The Github version of the Resources have been detected on your system and might conflict with the workshop version you've subscribed to.\\nPlease remove one of both.","10"});
-		table.insert(StarGate_Group.ErrorMSG_HTML, "sg_err_10");
-		MsgN("-------");
-		MsgN("Error #10\n"..StarGate_Group.ErrorMSG[table.Count(StarGate_Group.ErrorMSG)][1]:Replace("\\n","\n"));
-	end if (ws_addonlist[175394472] and table.HasValue( addonlist, "Carter Addon Pack" )) then
-		if (status != "Error") then
-			status = "Error";
-			MsgN("Status: "..status)
-		end
-		table.insert(StarGate_Group.ErrorMSG, {"The Git version of the Code pack from CAP Enhanced is installed.\\nPlease remove this to prevent possible problems.\\nOr remove the workshop version.","04"});
-		table.insert(StarGate_Group.ErrorMSG_HTML, "sg_err_04");
-		MsgN("-------");
-		MsgN("Error #04\n"..StarGate_Group.ErrorMSG[table.Count(StarGate_Group.ErrorMSG)][1]:Replace("\\n","\n"));
-	end
+    if ws_addonlist[3021712722] and (not cap_installed and not table.HasValue(addonlist, "Carter Addon Pack - Resources")) then
+        logError("05", "Please download all the resources from Steam workshop.", {"sg_err_05", Workshop_res_Check()})
+    end
+
+    if not cap_installed and table.HasValue(addonlist, "Carter Addon Pack - Resources") and cap_res < cap_res_req then
+        logError("12", "Cap-Enhanced-Resources folder is outdated!\\nPlease update it.", "sg_err_12")
+    end
+
+    if Workshop_res_Installed() and table.HasValue(addonlist, "Carter Addon Pack - Resources") then
+        logError("10", "The Github version of the Resources have been detected on your system and might conflict with the workshop version you've subscribed to.\\nPlease remove one.", "sg_err_10")
+    end
+
+    if ws_addonlist[3021712722] and table.HasValue(addonlist, "Carter Addon Pack") then
+        logError("04", "The Git version of the Code pack from CAP Enhanced is installed.\\nPlease remove it or remove the workshop version to prevent possible problems.", "sg_err_04")
+    end
 end
 
-if (table.getn(oldfiles)>0) then
-	if (status != "Error") then
-		status = "Error";
-		MsgN("Status: "..status)
-	end
-	table.insert(StarGate_Group.ErrorMSG, {"Old workshop files found, please remove it.","13"});
-	table.insert(StarGate_Group.ErrorMSG_HTML, {"sg_err_13",oldfiles,"C:/Program Files (x86)/Steam/SteamApps/common/GarrysMod/garrysmod/addons"});
-	MsgN("-------");
-	MsgN("Error #13\n"..StarGate_Group.ErrorMSG[table.Count(StarGate_Group.ErrorMSG)][1]:Replace("\\n","\n"));
+if table.getn(oldfiles) > 0 then
+    logError("13", "Old workshop files found, please remove it.", {"sg_err_13", oldfiles, "C:/Program Files (x86)/Steam/SteamApps/common/GarrysMod/garrysmod/addons"})
 end
 
-if (VERSION<201023) then
-	if (status != "Error") then
-		status = "Error";                 
-		MsgN("Status: "..status)
-	end
-	table.insert(StarGate_Group.ErrorMSG, {"Your GMod is out of date, please update it.","06"});
-	table.insert(StarGate_Group.ErrorMSG_HTML, "sg_err_06");
-	MsgN("-------");
-	MsgN("Error #06\n"..StarGate_Group.ErrorMSG[table.Count(StarGate_Group.ErrorMSG)][1]:Replace("\\n","\n"));
-end if (not WireAddon and not file.Exists("weapons/gmod_tool/stools/wire_adv.lua","LUA")) then
-	if (status != "Error") then
-		status = "Error";
-		MsgN("Status: "..status)
-	end
-	table.insert(StarGate_Group.ErrorMSG, {"Wiremod has not been found or is incorrectly installed.","07"});
-	table.insert(StarGate_Group.ErrorMSG_HTML, "sg_err_07");
-	MsgN("-------");
-	MsgN("Error #07\n"..StarGate_Group.ErrorMSG[table.Count(StarGate_Group.ErrorMSG)][1]:Replace("\\n","\n"));
-elseif (file.Exists("weapons/gmod_tool/stools/wire_adv.lua","LUA") and not ws_addonlist[160250458] and not table.HasValue(js_addonlist,"Wiremod")) then
-	if (status != "Error") then
-		status = "Error";
-		MsgN("Status: "..status)
-	end
-	table.insert(StarGate_Group.ErrorMSG, {"Your Wiremod is outdated, please update it.\\nYou're using an older repository of the Wiremod SVN.\\nWe suggest you to switch to the newer github or Steam Workshop version of Wiremod.","14"});
-	table.insert(StarGate_Group.ErrorMSG_HTML, "sg_err_14");
-	MsgN("-------");
-	MsgN("Error #14\n"..StarGate_Group.ErrorMSG[table.Count(StarGate_Group.ErrorMSG)][1]:Replace("\\n","\n"));
+if VERSION < 201023 then
+    logError("06", "Your GMod is out of date, please update it.", "sg_err_06")
 end
+
+if not WireAddon and not file.Exists("weapons/gmod_tool/stools/wire_adv.lua", "LUA") then
+    logError("07", "Wiremod cannot be found on your Garry's Mod Installation.\\nPlease make sure you've installed it correctly.", "sg_err_07")
+elseif file.Exists("weapons/gmod_tool/stools/wire_adv.lua", "LUA") and not ws_addonlist[160250458] and not table.HasValue(js_addonlist, "Wiremod") then
+    logError("14", "Your Wiremod is outdated, please update it.\\nYou're using an older repository of the Wiremod SVN.\\nWe suggest you to switch to the newer GitHub or Steam Workshop version of Wiremod.", "sg_err_14")
+end
+
 if (status != "Error") then
 	MsgN("Status: "..status)
 else
