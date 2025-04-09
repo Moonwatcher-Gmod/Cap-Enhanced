@@ -6,12 +6,17 @@ ENT.Type = "anim"
 ENT.Base = "base_anim" --gmodentity
 ENT.PrintName = "Small Powercell"
 ENT.Author = "Soren MC, Spacebuild"
+ENT.Category = "Stargate Carter Addon Pack"
 ENT.WireDebugName = "Powercell_small"
 
 ENT.Category = "Stargate Carter Addon Pack: Misc devices"
 list.Set("CAP.Entity", ENT.PrintName, ENT)
-ENT.Category = "Misc devices"
 
+if CLIENT then
+    if (SGLanguage!=nil and SGLanguage.GetMessage!=nil) then
+        ENT.Category = SGLanguage.GetMessage("entity_main_cat");
+    end
+end
 
 ENT.Spawnable = false
 ENT.AdminSpawnable = false
