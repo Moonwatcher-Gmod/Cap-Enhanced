@@ -140,34 +140,36 @@ if SERVER then
     end
 
     function ENT:Touch(ent)
-        local pos = self.Entity:GetPos()
-        local ang = self.Entity:GetAngles()
+        timer.Simple(0.1,function()--stop the game from crashing if someone spawns a zpm near the hub
+            local pos = self.Entity:GetPos()
+            local ang = self.Entity:GetAngles()
 
-        if (self.CanEject == true and ent.IsZPM and ent ~= self.ZPM.Ent) then
-            if (not self.ZPM.IsValid and self.ZPM.Eject == 0) then
-                self.ZPM.Ent = ent
-                self.ZPM.Dist = 1
-                self.ZPM.Dir = 1
-                self.ZPM.Type = "ZPH"
-                self.ZPM.IsValid = true
-                ent:SetUseType(SIMPLE_USE)
+            if (self.CanEject == true and ent.IsZPM and ent ~= self.ZPM.Ent) then
+                if (not self.ZPM.IsValid and self.ZPM.Eject == 0) then
+                    self.ZPM.Ent = ent
+                    self.ZPM.Dist = 1
+                    self.ZPM.Dir = 1
+                    self.ZPM.Type = "ZPH"
+                    self.ZPM.IsValid = true
+                    ent:SetUseType(SIMPLE_USE)
 
-                ent.Use = function()
-                    local constr = constraint.FindConstraint(self, "Weld")
+                    ent.Use = function()
+                        local constr = constraint.FindConstraint(self, "Weld")
 
-                    if (constr and IsValid(constr.Entity[1].Entity)) then
-                        if (constr.Entity[1].Entity:GetWire("Disable Use") > 0) then return end
-                        constr.Entity[1].Entity:UseZPM()
+                        if (constr and IsValid(constr.Entity[1].Entity)) then
+                            if (constr.Entity[1].Entity:GetWire("Disable Use") > 0) then return end
+                            constr.Entity[1].Entity:UseZPM()
+                        end
                     end
-                end
 
-                constraint.RemoveAll(ent)
-                ent:SetPos(pos + self.Entity:GetRight() * (self.Position.R) + self.Entity:GetUp() * (20) + self.Entity:GetForward() * (self.Position.F))
-                ent:SetAngles(ang)
-                constraint.Weld(self.Entity, ent, 0, 0, 0, true)
-                constraint.NoCollide(self.Chair,self.ZPM.Ent)
+                    constraint.RemoveAll(ent)
+                    ent:SetPos(pos + self.Entity:GetRight() * (self.Position.R) + self.Entity:GetUp() * (20) + self.Entity:GetForward() * (self.Position.F))
+                    ent:SetAngles(ang)
+                    constraint.Weld(self.Entity, ent, 0, 0, 0, true)
+                    constraint.NoCollide(self.Chair,self.ZPM.Ent)
+                end
             end
-        end
+        end)
     end
 
     function ENT:TriggerInput(variable, value)

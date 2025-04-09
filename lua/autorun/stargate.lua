@@ -67,7 +67,7 @@ if (Gmod13Lib == nil) then
 end
 
 for _, v in pairs(engine.GetAddons()) do
-    if (v.mounted and tonumber(v.wsid) == 175394472) then
+    if (v.mounted and tonumber(v.wsid) == 3021712722) then
         StarGate.WorkShop = true
         break
     end
