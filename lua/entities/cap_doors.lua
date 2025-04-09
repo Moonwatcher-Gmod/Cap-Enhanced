@@ -59,9 +59,9 @@ function ENT:Think()
 	end
 
 	if(IsValid(self.Frame)) then
-		if(self.Entity:GetPos() ~= self.Frame:GetPos()) then
+		if(self.Entity:GetPos():Distance(self.Frame:GetPos()) > 5) then
 			self.Entity:SetPos(self.Frame:GetPos())
-			self:NextThink(CurTime()+1)
+			self:NextThink(CurTime())
 		end
 	end
 end
