@@ -57,13 +57,6 @@ function ENT:Think()
 		self:NextThink(CurTime())
 		return true
 	end
-
-	if(IsValid(self.Frame)) then
-		if(self.Entity:GetPos():Distance(self.Frame:GetPos()) > 5) then
-			self.Entity:SetPos(self.Frame:GetPos())
-			self:NextThink(CurTime())
-		end
-	end
 end
 
 function ENT:Toggle()
@@ -101,6 +94,11 @@ function ENT:Toggle()
 			if self.Sound then
 				self:EmitSound(self.OpenSound,100,math.random(90,110));
 			end
+		end
+
+		if(IsValid(self.Frame)) then
+			self.Entity:SetPos(self.Frame:GetPos())
+			self.Entity:SetAngles(self.Frame:GetAngles())
 		end
 	end
 end
