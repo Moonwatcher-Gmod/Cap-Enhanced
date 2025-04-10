@@ -9,7 +9,6 @@ ENT.Author = "Soren MC, Spacebuild"
 ENT.Category = "Stargate Carter Addon Pack"
 ENT.WireDebugName = "Powercell_small"
 
-ENT.Category = "Stargate Carter Addon Pack: Misc devices"
 list.Set("CAP.Entity", ENT.PrintName, ENT)
 
 if CLIENT then
