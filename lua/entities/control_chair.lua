@@ -107,18 +107,25 @@ if CLIENT then
                 surface.SetTexture(self.Controlchair_bottomright)
                 surface.SetDrawColor(color_white)
                 surface.DrawTexturedRect(ScrW() / 2 - 42 + w, ScrH() / 2 - 50 - h, 360, 360)
+                -- Draw Power Header
                 draw.DrawText("Power", "HudHintTextLarge", ScrW() / 2 + w, ScrH() / 2 + 41 - h, color_white, 0)
-                if self:GetNetworkedString("ZPM_Online","Inactive") == "Active" then
+
+                -- Internal ZPM
+                if self:GetNetworkedString("ZPM_Online", "Inactive") == "Active" then
                     draw.DrawText("Internal ZPM: ", "HudHintTextLarge", ScrW() / 2 + w, ScrH() / 2 + 61 - h, color_white, 0)
-                    draw.DrawText("Online", "HudHintTextLarge", ScrW() / 2 +100 + w, ScrH() / 2 + 61 - h, color_white, 0)
+                    draw.DrawText("Online", "HudHintTextLarge", ScrW() / 2 + 100 + w, ScrH() / 2 + 61 - h, color_white, 0)
 
                     draw.DrawText("ZPM %: ", "HudHintTextLarge", ScrW() / 2 + w, ScrH() / 2 + 81 - h, color_white, 0)
-                    draw.DrawText( math.Round(self:GetNetworkedInt("ZPM_Percentage",0),1).."%", "HudHintTextLarge", ScrW() / 2 +60 + w, ScrH() / 2 + 81 - h, color_white, 0)
-                    
+                    draw.DrawText(math.Round(self:GetNetworkedInt("ZPM_Percentage", 0), 1) .. "%", "HudHintTextLarge", ScrW() / 2 + 60 + w, ScrH() / 2 + 81 - h, color_white, 0)
                 else
                     draw.DrawText("Internal ZPM: ", "HudHintTextLarge", ScrW() / 2 + w, ScrH() / 2 + 61 - h, color_white, 0)
-                    draw.DrawText("Offline", "HudHintTextLarge", ScrW() / 2 +100 + w, ScrH() / 2 + 61 - h, color_white, 0)
+                    draw.DrawText("Offline", "HudHintTextLarge", ScrW() / 2 + 100 + w, ScrH() / 2 + 61 - h, color_white, 0)
                 end
+                if self:GetNetworkedInt("Internal_Source", 0) == 1 then
+                    draw.DrawText("Energy Reserves: ", "HudHintTextLarge", ScrW() / 2 + w, ScrH() / 2 + 101 - h, color_white, 0)
+                    draw.DrawText(math.Round(self:GetNetworkedInt("Internal_Percentage", 0), 1) .. "%", "HudHintTextLarge", ScrW() / 2 + 121 + w, ScrH() / 2 + 101 - h, color_white, 0)
+                end
+
             end)
         elseif ((not (Controlling))) then
             hook.Remove("HUDPaint", tostring(self.Entity) .. "CChair")
@@ -566,7 +573,7 @@ if SERVER then
     end
 
     function ENT:OnRemove()
-        if (self.Pilot) then
+        if (self.Pilot ~= nil) then
             self.Pilot:SetNWBool("Control",false)
             self.Pilot:SetNWBool("Controlling",false)
         end
@@ -580,7 +587,7 @@ if SERVER then
         if (IsValid(self.ZpmHub)) then
             self.ZpmHub:Remove()
         end
-
+        self.Pilot = nil
         StarGate.WireRD.OnRemove(self)
         self:Remove()
         
@@ -705,9 +712,13 @@ if SERVER then
 
         self.Pilot:SetNetworkedEntity("ScriptedVehicle", NULL)
         self.Pilot:SetViewEntity(NULL)
-        self.Pilot:Spawn()
-        self.Pilot:SetParent()
-        self.Pilot:SetPos(self:GetPos() + self:GetRight() * 60 + self:GetUp() * 20)
+        if (p:Alive()) then
+            self.Pilot:Spawn()
+            self.Pilot:SetParent()
+            self.Pilot:SetPos(self:GetPos() + self:GetRight() * 60 + self:GetUp() * 20)
+        else
+            self.Pilot:SetPos(self:GetPos() + self:GetRight() * 60 + self:GetUp() * 20)
+        end
 
         if (IsValid(self.Chair)) then
             if (self.Antarticatype) then
@@ -1102,7 +1113,29 @@ if SERVER then
         -- end)
 
         ----------------------
-
+        if (self.Pilot and self.Pilot == nil) then
+            if (self.Controlling) then
+                self:Anims("close")
+                if (self.Shield and self.Shield:IsValid()) then
+                    self.Entity:RemoveShield()
+                end            
+                self:DeactivateChair(self.Pilot)
+                self.Pilot:SetNWInt("chair_initialized", 0)
+                if (self.Antarticatype) then
+                    self:SetSkin(3)
+                else
+                    self:SetSkin(0)
+                end
+                self:SetWire("LitUp", 0)
+                self:SetWire("Stardrive Active", 0)
+                self:StopSound("tech/asgard_holo_loop.wav")
+                self:EmitSound(self.Sounds.Deactivate, 100, 60)
+                self:EmitSound(self.Sounds.Deactivate, 100, 60)
+                self:EmitSound(self.Sounds.Deactivate, 100, 60)
+                self:StopSound("thrusters/hover01.wav")
+                self.Pilot = nil
+            end
+        end
         if (self.ShouldConsume) then
             if (self:GetResource("energy") < 500) then
                 if (self.Controlling) then
@@ -1191,8 +1224,14 @@ if SERVER then
         if (IsValid(self.Pilot)) then
             if (self.Controlling) then
                 if (IsValid(self.ZpmHub)) then
-                self:SetNetworkedString("ZPM_Online",self.ZpmHub.ZPM_Active)
-                self:SetNetworkedInt("ZPM_Percentage",self.ZpmHub.ZPM_Percentage)
+                    self:SetNetworkedString("ZPM_Online",self.ZpmHub.ZPM_Active)
+                    self:SetNetworkedInt("ZPM_Percentage",self.ZpmHub.ZPM_Percentage)
+                end
+                if (self:GetResource("energy") >= 1) then
+                    self:SetNetworkedInt("Internal_Source",self:GetResource("energy") > 0 and 1 or 0)
+                    local max = self:GetUnitCapacity("energy")
+                    local percent = math.Clamp(self:GetResource("energy") / max, 0, 1) * 100
+                    self:SetNetworkedInt("Internal_Percentage",percent)
                 end
 
                 self:ConsumeResource("energy", 5 * self.DroneCount)
