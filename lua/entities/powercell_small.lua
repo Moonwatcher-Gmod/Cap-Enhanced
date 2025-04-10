@@ -6,7 +6,7 @@ ENT.Type = "anim"
 ENT.Base = "base_anim" --gmodentity
 ENT.PrintName = "Small Powercell"
 ENT.Author = "Soren MC, Spacebuild"
-ENT.Category = "Stargate Carter Addon Pack: Misc Devices"
+ENT.Category = "Stargate Carter Addon Pack"
 ENT.WireDebugName = "Powercell_small"
 
 list.Set("CAP.Entity", ENT.PrintName, ENT)
