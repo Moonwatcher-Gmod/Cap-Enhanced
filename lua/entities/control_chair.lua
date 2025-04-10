@@ -1,7 +1,7 @@
 if (StarGate ~= nil and StarGate.LifeSupportAndWire ~= nil) then
     StarGate.LifeSupportAndWire(ENT)
 end
-
+local shield_debounce = false
 include("stargate/shared/mw_library.lua")
 
 ENT.Base = "base_anim"
@@ -280,7 +280,7 @@ if SERVER then
         self.ActiveTime = 0
         --self:AddChair()
         self:CreateWireInputs("X", "Y", "Z", "Start X", "Start Y", "Start Z", "Entity [ENTITY]", "Vector [VECTOR]")
-        self:CreateWireOutputs("X", "Y", "Z", "Vector [VECTOR]", "LitUp", "Active", "Secondary")
+        self:CreateWireOutputs("X", "Y", "Z", "Vector [VECTOR]", "LitUp", "Active", "Secondary", "Stardrive Active")
         --############ Drone vars
         self.Target = Vector(0, 0, 0)
         self.DroneMaxSpeed = (8000)
@@ -443,6 +443,8 @@ if SERVER then
     end
 
     function ENT:SpawnShield()
+        if (shield_debounce) then return end
+        shield_debounce = true
         local e = ents.Create("shield")
         e.Size = 200
         e.DrawBubble = true
@@ -462,6 +464,7 @@ if SERVER then
 			self.Shield = e;
 			self:SetNoCollideWithAllowedPlayers();
 		end
+        shield_debounce = false
         return e
     end
 
@@ -543,7 +546,8 @@ if SERVER then
     end
 
     function ENT:RemoveShield()
-        if (self.Shield:IsValid()) then
+        if (self.Shield:IsValid() and !shield_debounce) then
+            shield_debounce = true
             self.Shield:DrawBubbleEffect(true)
 
             timer.Simple(1, function ()
@@ -552,10 +556,11 @@ if SERVER then
                     self.Shield:Remove()
                     self.Shield = nil
                     self.ShieldActive = false
+                    self:SetNetworkedBool("Shield_online",false)
                 end
             end)
             self:EmitSound("shields/shield_disengage.mp3", 90, math.random(90, 110))
-            
+            shield_debounce = false
 
         end
     end
@@ -944,6 +949,7 @@ if SERVER then
                     end
 
                     self:SetWire("Active", 0)
+                    self:SetWire("Stardrive Active", 0)
                     self:SetWire("LitUp", 0)
 
                     if (self.Antarticatype) then
@@ -997,6 +1003,7 @@ if SERVER then
                     --self:StopSound("tech/asgard_holo_loop.wav")
                     self:Anims("close")
                     self:SetWire("Active", 0)
+                    self:SetWire("Stardrive Active", 0)
                 end
             elseif (self.Pilot:KeyDown(IN_BACK)) then
                 if (not (self.Enabled)) then
@@ -1037,9 +1044,10 @@ if SERVER then
             		self:EmitSound("thrusters/hover01.wav",100,80)
             		self:EmitSound("ambient/explosions/exp2.wav",100,80)
             elseif (self.Pilot:KeyDown(IN_JUMP)) then
-
-            		self:ConsumeResource("energy", 5000)        		
+            		self:ConsumeResource("energy", 5000)
+                    self:SetWire("Stardrive Active", 1)
             elseif (self.Pilot:KeyReleased(IN_JUMP)) then
+                    self:SetWire("Stardrive Active", 0)
             		self:EmitSound("tech/hover01_end2.wav",100,80)
                  	self:StopSound("thrusters/hover01.wav")
                  	self:StopSound("thrusters/hover01.wav")
@@ -1110,6 +1118,7 @@ if SERVER then
                 		self:SetSkin(0)
                 	end
                     self:SetWire("LitUp", 0)
+                    self:SetWire("Stardrive Active", 0)
                     self:StopSound("tech/asgard_holo_loop.wav")
                     self:EmitSound(self.Sounds.Deactivate, 100, 60)
                     self:EmitSound(self.Sounds.Deactivate, 100, 60)
@@ -1173,6 +1182,7 @@ if SERVER then
                 self:EmitSound(self.Sounds.Deactivate, 100, 70)
                 firstsound = false
                 self:SetWire("LitUp", 0)
+                self:SetWire("Stardrive Active", 0)
                 self.ChairActive = false
                 self.ActiveTime = 0
             end
