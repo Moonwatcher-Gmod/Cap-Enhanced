@@ -76,7 +76,7 @@ if SERVER then
 
     function ENT:DisintegrateTargets()
         for _, entity in pairs(ents.FindInSphere(self:GetPos(), self.radius)) do
-            local isValidTarget = (self:IsValidTarget(entity) and entity:GetPhysicsObject():IsValid() and entity.IsStargate == false and entity.IsDHD == false) -- So it doesn't dissolve stuff like info player start.
+            local isValidTarget = (self:IsValidTarget(entity) and entity:GetPhysicsObject():IsValid() and not entity.IsStargate and not entity.IsDHD) -- So it doesn't dissolve stuff like info player start.
             if (isValidTarget) then
                 local allow = hook.Call("StarGate.DarakaWave.Disintegrate", nil, entity, self)
                 if (allow == false) then continue end
