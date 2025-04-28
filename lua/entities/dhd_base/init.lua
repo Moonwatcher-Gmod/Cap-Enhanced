@@ -1001,7 +1001,7 @@ function ENT:PressButton(btn, nolightup, no_menu)
 				end
 				self:AddChevron(btn, nosound, lightup, e, city, fail);
                 -- For the dhd_concept, lower than .3 is required for the # button to not vanish. The city dhd just happens to look better with a lower depress.
-                if (self:GetClass() == "dhd_concept" or "dhd_city") then
+                if (self:GetClass() == "dhd_concept" or self:GetClass() == "dhd_city") then
                     self:AnimateButtonPress(self.ChevronNumber[btn], 0.2)
                 else
                     self:AnimateButtonPress(self.ChevronNumber[btn])
