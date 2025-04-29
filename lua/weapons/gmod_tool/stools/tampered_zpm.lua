@@ -9,6 +9,7 @@ TOOL.Category="Weapons";
 TOOL.Name=SGLanguage.GetMessage("stool_tzpm");
 TOOL.ClientConVar["autoweld"] = 1;
 TOOL.ClientConVar["autolink"] = 1;
+TOOL.ClientConVar["capacity"] = 100
 TOOL.ClientConVar["model"] = "models/pg_props/pg_zpm/pg_zpm.mdl";
 TOOL.Entity.Class = "zpm_mk3";
 TOOL.Entity.Keys = {"model"};
@@ -37,6 +38,8 @@ function TOOL:LeftClick(t)
 		self:AutoLink(e,t.Entity);
 	end
 	local c = self:Weld(e,t.Entity,weld);
+	local capacity = tonumber(self:GetClientInfo("capacity"))
+    e.Energy = (e.MaxEnergy / 100) * math.Clamp(capacity, 0, 100)
 	self:AddUndo(p,e,c);
 	self:AddCleanup(p,c,e);
 	return true;
@@ -47,6 +50,7 @@ function TOOL:PreEntitySpawn(p,e,model)
 end
 
 function TOOL:ControlsPanel(Panel)
+	Panel:NumSlider(SGLanguage.GetMessage("stool_zpm_mk3_capacity"),"tampered_zpm_capacity",0,100,4);
 	Panel:CheckBox(SGLanguage.GetMessage("stool_autoweld"),"tampered_zpm_autoweld");
 	if(StarGate.HasResourceDistribution) then
 		Panel:CheckBox(SGLanguage.GetMessage("stool_autolink"),"tampered_zpm_autolink"):SetToolTip(SGLanguage.GetMessage("stool_autolink_desc"));

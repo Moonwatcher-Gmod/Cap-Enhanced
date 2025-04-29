@@ -13,7 +13,6 @@ ENT.Author = "Llapp, Rafael De Jongh, Progsys"
 ENT.WireDebugName = "ZPM MK III"
 ENT.Category = "Stargate Carter Addon Pack"
 ENT.Spawnable = false
-ENT.AdminSpawnable = false
 ENT.IsZPM = true
 
 if SERVER then
@@ -40,6 +39,7 @@ if SERVER then
         self:Skin(2)
         self.IsTampered = false
         self.IsMk4 = false
+        self:SetNWInt("zpmempty",0)
         self.empty = false
         self.Connected = false
         self.Flow = 0
@@ -54,6 +54,8 @@ if SERVER then
         self.InternalOverload = 0
         self.Cloaked = false
         self.Boom = false
+
+        self.Entity:SetNWInt("zpmyellowlightalpha", 100)
     end
 
     function ENT:SpawnFunction(p, t)
@@ -76,13 +78,10 @@ if SERVER then
     function ENT:Skin(a)
         if (a == 1) then
             self.Entity:SetSkin(1)
-            self.Entity:SetNWInt("zpmyellowlightalpha", 155)
         elseif (a == 2) then
             self.Entity:SetSkin(2)
-            self.Entity:SetNWInt("zpmyellowlightalpha", 1)
         elseif (a ==3) then
             self.Entity:SetSkin(2)
-            self.Entity:SetNWInt("zpmyellowlightalpha", 1)
         end
     end
 
@@ -96,7 +95,7 @@ if SERVER then
             self.Cloaked = false
             self:DrawShadow(true)
             if (self.Connected) then
-                self.Entity:SetNWInt("zpmyellowlightalpha", 255)
+                self.Entity:SetNWInt("zpmyellowlightalpha", 100)
             end
         end
 
@@ -227,14 +226,12 @@ if SERVER then
                     end
                 end
             end
-
-
-
         else
             percent = 0
             self.Energy = 0
             active = 0
             self.empty = true
+            self:SetNWInt("zpmempty",1)
             self:Skin(2)
             --if (self.HasRD) then StarGate.WireRD.OnRemove(self,true) end;
             self:AddResource("energy", 0)
@@ -442,22 +439,42 @@ if CLIENT then
         
         render.SetMaterial(self.ZpmSprite)
         local alpha = self.Entity:GetNWInt("zpmyellowlightalpha")
-        local col = Color(255, 165, 0, alpha)
 
-        for i = 1, 5 do
-            local size = 9
+        if(self.Entity:GetNWInt("ZPMScannedTainted") == 1) then
+            zpmcol = Color(50,50,255,255)
+            lightadd = 10
+        else
+            zpmcol = Color(255, 165, 0, alpha)
+            lightadd = 25
+        end
 
-            if (i == 3) then
-                size = 8
-            elseif (i == 4) then
-                size = 7
-            elseif (i == 5) then
-                size = 6
+        if(self:GetNWInt("zpmempty") == 0) then
+            for i = 1, 5 do
+                local size = 9
+
+                if (i == 3) then
+                    size = 8
+                elseif (i == 4) then
+                    size = 7
+                elseif (i == 5) then
+                    size = 6
+                end
+
+                render.DrawSprite(self.Entity:LocalToWorld(self.SpritePositions[i]), size, size, zpmcol)
             end
 
-            render.DrawSprite(self.Entity:LocalToWorld(self.SpritePositions[i]), size, size, col)
+            local dlight = DynamicLight(self:EntIndex())
+            if(dlight) then
+                dlight.Pos = self:GetPos()
+                dlight.Decay = 100
+                dlight.Brightness = 1
+                dlight.Size = self.Entity:GetNWString("perc") + lightadd
+                dlight.DieTime = CurTime() + 1
+                dlight.r = zpmcol.r
+                dlight.g = zpmcol.g
+                dlight.b = zpmcol.b
+            end
         end
-    
     end
 
     function ENT:OnRemove()

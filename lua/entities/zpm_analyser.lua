@@ -134,6 +134,8 @@ if SERVER then
 					self.Entity:SetNWInt("Result",1)
 					self:SetWire("Tainted",1)
 					self:EmitSound("sg/scanner/deactivate2.wav")
+
+					self.ZPM:SetNWInt("ZPMScannedTainted",1)
 				else
 					self.Entity:SetNWInt("Result",2)
 					self:SetWire("Tainted",0)
