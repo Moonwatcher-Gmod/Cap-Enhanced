@@ -41,7 +41,7 @@ function TOOL:LeftClick(t)
 
     local c = self:Weld(e, t.Entity, weld)
     local capacity = tonumber(self:GetClientInfo("capacity"))
-    e.Energy = (e.Energy / 100) * math.Clamp(capacity, 0, 100)
+    e.Energy = (e.MaxEnergy / 100) * math.Clamp(capacity, 0, 100)
     self:AddUndo(p, e, c)
     self:AddCleanup(p, c, e)
 

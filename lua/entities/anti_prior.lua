@@ -40,11 +40,13 @@ if SERVER then
         self.Entity:SetSolid(SOLID_VPHYSICS)
         self.Entity:SetUseType(SIMPLE_USE)
         self.IsOn = false
-        self.Radius = 800 --math.random(600, 800); sorry disable this, because added hook, lazy to make it with radius...
+        self.Entity:SetNWInt("Radius",800)
 
         if WireAddon then
-            self:CreateWireInputs("Activate", "Immunity Mode")
-            self:CreateWireOutputs("Activated")
+            self:CreateWireInputs("Activate","Immunity Mode","Radius")
+            self:CreateWireOutputs("Activated","Radius")
+
+            self:SetWire("Radius", self.Entity:GetNWInt("Radius",800))
         end
 
         self.Immunity = 0
@@ -100,13 +102,16 @@ if SERVER then
         elseif (variable == "Immunity Mode") then
             self.Immunity = math.Clamp(value, -1, 1)
             self:SetNWInt("Immunity", self.Immunity)
+        elseif(variable == "Radius") then
+            self.Entity:SetNWInt("Radius",math.Clamp(value,1,2048))
+            self:SetWire("Radius", self.Entity:GetNWInt("Radius",800))
         end
     end
 
     --################################Think @ assassin21
     function ENT:Think()
         if self.IsOn == true then
-            local e = ents.FindInSphere(self:GetPos(), self.Radius)
+            local e = ents.FindInSphere(self:GetPos(), self.Entity:GetNWInt("Radius",800))
 
             for _, v in pairs(e) do
                 if v:IsPlayer() and v:GetMoveType() == MOVETYPE_NOCLIP then
@@ -143,7 +148,7 @@ if SERVER then
         end
 
         dupeInfo.IsOn = self.IsOn
-        dupeInfo.Radius = self.Radius
+        dupeInfo.Radius = self.Entity:GetNWInt("Radius",800)
         duplicator.StoreEntityModifier(self, "AntiProriDupeInfo", dupeInfo)
     end
 
@@ -167,7 +172,7 @@ if SERVER then
         end
 
         self.IsOn = dupeInfo.IsOn
-        self.Radius = dupeInfo.Radius
+        self.Entity:SetNWInt("Radius", dupeInfo.Radius)
         self.Owner = ply
     end
 
@@ -180,8 +185,8 @@ if SERVER then
         if (noclip) then
             if (not IsValid(ply) or ply.HasGodMode and ply:HasGodMode()) then return end
 
-            for k, v in pairs(ents.FindInSphere(ply:GetPos(), 800)) do
-                if (v:GetClass() == "anti_prior" and v.IsOn and (v.Immunity < 0 or ply ~= v.Owner) and not ply:HasGodMode()) then
+            for k, v in pairs(ents.FindInSphere(ply:GetPos(), 2048)) do
+                if (v:GetClass() == "anti_prior" and v.IsOn and (v.Immunity < 0 or ply ~= v.Owner) and ply:GetPos():Distance(v:GetPos()) <= v:GetNWInt("Radius",800) and not ply:HasGodMode()) then
                     local allow = hook.Call("StarGate.AntiPrior.Noclip", nil, ply, v)
                     if (allow == false) then continue end
 

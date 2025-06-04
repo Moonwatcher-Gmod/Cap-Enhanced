@@ -95,6 +95,10 @@ if SERVER then
     end
 
     function ENT:Think()
+        if(self.Unlock == self.UnlockCode) then
+            self.Activated = false
+        end
+
         if(self.AutoMode == true) then
             local letters = {"A", "B", "C", "D", "E", "F"}
             local c = {}
@@ -111,10 +115,6 @@ if SERVER then
             self.LockCode = self.UnlockCode
         else
             self.UnlockCode = self.LockCode
-        end
-
-        if (self.Unlock == self.UnlockCode) then
-            self.Activated = false
         end
 
         self:Window(self.Activated, self.UnlockCode)

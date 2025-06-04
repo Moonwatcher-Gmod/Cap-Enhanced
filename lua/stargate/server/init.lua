@@ -301,7 +301,7 @@ end)
 
 local function StarGate_CloseAll(ply)
     if (IsValid(ply) and not ply:IsAdmin()) then
-        ply:PrintMessage(HUD_PRINTCONSOLE, "Yor are not admin!")
+        ply:PrintMessage(HUD_PRINTCONSOLE, "You're not an admin!")
 
         return
     end

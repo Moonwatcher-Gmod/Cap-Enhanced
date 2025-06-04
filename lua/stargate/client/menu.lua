@@ -347,7 +347,7 @@ local function StargateAddTab(Categorised, pnlContent, tree, node)
                 self.PropPanel:SetTriggerSpawnlistChange(false)
 
                 for k, ent in SortedPairsByMemberValue(v, "PrintName") do
-                    if (StarGate.CFG:Get(disabled, ent.ClassName, false)) then continue end
+                    if (ent.ClassName == nil or StarGate.CFG:Get(disabled, ent.ClassName, false)) then continue end
                     local adm_only = false
                     local tbl = StarGate.CFG:Get(adminonly, ent.ClassName, ""):TrimExplode(",")
 
