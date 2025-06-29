@@ -611,23 +611,6 @@ function ENT:FindGate()
 	return gate;
 end
 
-function ENT:AnimateButtonPress(buttonIndex, pressDepth)
-    if not self.Chevron or not IsValid(self.Chevron[buttonIndex]) then return end
-    local btn = self.Chevron[buttonIndex]
-    local originalPos = btn:GetLocalPos() or Vector(0,0,0)
-
-    local depressedPos = originalPos + Vector(0, 0, -(pressDepth or 0.35))
-
-    btn:SetLocalPos(depressedPos)
-
-    timer.Simple(0.2, function()
-        if IsValid(btn) then
-            btn:SetLocalPos(originalPos)
-        end
-    end)
-end
-
-
 --################# Call address @aVoN
 function ENT:Use(p)
 	if(self.IsCityDHD and self.ATAMode and p:GetNWInt("ATAGene",0) == 0) then return end
@@ -865,9 +848,6 @@ function ENT:PressButton(btn, nolightup, no_menu)
 	if (btn and btn == "*" and num == 0) then
 		if (e:GetClass() == "stargate_universe") then return end
 		self:AddChevron(btn, nosound, false, e);
-        if (self:GetClass() == "dhd_concept") then
-            self:AnimateButtonPress(self.ChevronNumber[btn])
-        end
 		-- Prepare gate
 		local gates = {}
 		for _,v in pairs(ents.FindByClass("stargate_*")) do
@@ -1000,12 +980,6 @@ function ENT:PressButton(btn, nolightup, no_menu)
 					end
 				end
 				self:AddChevron(btn, nosound, lightup, e, city, fail);
-                -- For the dhd_concept, lower than .3 is required for the # button to not vanish. The city dhd just happens to look better with a lower depress.
-                if (self:GetClass() == "dhd_concept" or self:GetClass() == "dhd_city") then
-                    self:AnimateButtonPress(self.ChevronNumber[btn], 0.2)
-                else
-                    self:AnimateButtonPress(self.ChevronNumber[btn])
-                end
 			end
 		end
 		if (not remove and IsValid(e) and (e:GetClass()=="stargate_sg1" or e:GetClass()=="stargate_infinity" or e:GetClass()=="stargate_movie" or atlantis) and (btn=="#" or num==8 or atlantis) and (not self.DisRingRotate and GetConVar("stargate_dhd_ring"):GetBool() or atlantis and self.DisRingRotate or e.Ring.WireMoving)) then
