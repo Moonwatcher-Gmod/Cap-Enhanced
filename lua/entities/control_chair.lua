@@ -1,7 +1,7 @@
 if (StarGate ~= nil and StarGate.LifeSupportAndWire ~= nil) then
     StarGate.LifeSupportAndWire(ENT)
 end
-
+local shield_debounce = false
 include("stargate/shared/mw_library.lua")
 
 ENT.Base = "base_anim"
@@ -107,18 +107,25 @@ if CLIENT then
                 surface.SetTexture(self.Controlchair_bottomright)
                 surface.SetDrawColor(color_white)
                 surface.DrawTexturedRect(ScrW() / 2 - 42 + w, ScrH() / 2 - 50 - h, 360, 360)
+                -- Draw Power Header
                 draw.DrawText("Power", "HudHintTextLarge", ScrW() / 2 + w, ScrH() / 2 + 41 - h, color_white, 0)
-                if self:GetNetworkedString("ZPM_Online","Inactive") == "Active" then
+
+                -- Internal ZPM
+                if self:GetNetworkedString("ZPM_Online", "Inactive") == "Active" then
                     draw.DrawText("Internal ZPM: ", "HudHintTextLarge", ScrW() / 2 + w, ScrH() / 2 + 61 - h, color_white, 0)
-                    draw.DrawText("Online", "HudHintTextLarge", ScrW() / 2 +100 + w, ScrH() / 2 + 61 - h, color_white, 0)
+                    draw.DrawText("Online", "HudHintTextLarge", ScrW() / 2 + 100 + w, ScrH() / 2 + 61 - h, color_white, 0)
 
                     draw.DrawText("ZPM %: ", "HudHintTextLarge", ScrW() / 2 + w, ScrH() / 2 + 81 - h, color_white, 0)
-                    draw.DrawText( math.Round(self:GetNetworkedInt("ZPM_Percentage",0),1).."%", "HudHintTextLarge", ScrW() / 2 +60 + w, ScrH() / 2 + 81 - h, color_white, 0)
-                    
+                    draw.DrawText(math.Round(self:GetNetworkedInt("ZPM_Percentage", 0), 1) .. "%", "HudHintTextLarge", ScrW() / 2 + 60 + w, ScrH() / 2 + 81 - h, color_white, 0)
                 else
                     draw.DrawText("Internal ZPM: ", "HudHintTextLarge", ScrW() / 2 + w, ScrH() / 2 + 61 - h, color_white, 0)
-                    draw.DrawText("Offline", "HudHintTextLarge", ScrW() / 2 +100 + w, ScrH() / 2 + 61 - h, color_white, 0)
+                    draw.DrawText("Offline", "HudHintTextLarge", ScrW() / 2 + 100 + w, ScrH() / 2 + 61 - h, color_white, 0)
                 end
+                if self:GetNetworkedInt("Internal_Source", 0) == 1 then
+                    draw.DrawText("Energy Reserves: ", "HudHintTextLarge", ScrW() / 2 + w, ScrH() / 2 + 101 - h, color_white, 0)
+                    draw.DrawText(math.Round(self:GetNetworkedInt("Internal_Percentage", 0), 1) .. "%", "HudHintTextLarge", ScrW() / 2 + 121 + w, ScrH() / 2 + 101 - h, color_white, 0)
+                end
+
             end)
         elseif ((not (Controlling))) then
             hook.Remove("HUDPaint", tostring(self.Entity) .. "CChair")
@@ -280,7 +287,7 @@ if SERVER then
         self.ActiveTime = 0
         --self:AddChair()
         self:CreateWireInputs("X", "Y", "Z", "Start X", "Start Y", "Start Z", "Entity [ENTITY]", "Vector [VECTOR]")
-        self:CreateWireOutputs("X", "Y", "Z", "Vector [VECTOR]", "LitUp", "Active", "Secondary")
+        self:CreateWireOutputs("X", "Y", "Z", "Vector [VECTOR]", "LitUp", "Active", "Secondary", "Stardrive Active")
         --############ Drone vars
         self.Target = Vector(0, 0, 0)
         self.DroneMaxSpeed = (8000)
@@ -443,6 +450,8 @@ if SERVER then
     end
 
     function ENT:SpawnShield()
+        if (shield_debounce) then return end
+        shield_debounce = true
         local e = ents.Create("shield")
         e.Size = 200
         e.DrawBubble = true
@@ -462,6 +471,7 @@ if SERVER then
 			self.Shield = e;
 			self:SetNoCollideWithAllowedPlayers();
 		end
+        shield_debounce = false
         return e
     end
 
@@ -543,7 +553,8 @@ if SERVER then
     end
 
     function ENT:RemoveShield()
-        if (self.Shield:IsValid()) then
+        if (self.Shield:IsValid() and !shield_debounce) then
+            shield_debounce = true
             self.Shield:DrawBubbleEffect(true)
 
             timer.Simple(1, function ()
@@ -552,16 +563,17 @@ if SERVER then
                     self.Shield:Remove()
                     self.Shield = nil
                     self.ShieldActive = false
+                    self:SetNetworkedBool("Shield_online",false)
                 end
             end)
             self:EmitSound("shields/shield_disengage.mp3", 90, math.random(90, 110))
-            
+            shield_debounce = false
 
         end
     end
 
     function ENT:OnRemove()
-        if (self.Pilot) then
+        if (self.Pilot ~= nil) then
             self.Pilot:SetNWBool("Control",false)
             self.Pilot:SetNWBool("Controlling",false)
         end
@@ -575,7 +587,7 @@ if SERVER then
         if (IsValid(self.ZpmHub)) then
             self.ZpmHub:Remove()
         end
-
+        self.Pilot = nil
         StarGate.WireRD.OnRemove(self)
         self:Remove()
         
@@ -700,9 +712,13 @@ if SERVER then
 
         self.Pilot:SetNetworkedEntity("ScriptedVehicle", NULL)
         self.Pilot:SetViewEntity(NULL)
-        self.Pilot:Spawn()
-        self.Pilot:SetParent()
-        self.Pilot:SetPos(self:GetPos() + self:GetRight() * 60 + self:GetUp() * 20)
+        if (p:Alive()) then
+            self.Pilot:Spawn()
+            self.Pilot:SetParent()
+            self.Pilot:SetPos(self:GetPos() + self:GetRight() * 60 + self:GetUp() * 20)
+        else
+            self.Pilot:SetPos(self:GetPos() + self:GetRight() * 60 + self:GetUp() * 20)
+        end
 
         if (IsValid(self.Chair)) then
             if (self.Antarticatype) then
@@ -944,6 +960,7 @@ if SERVER then
                     end
 
                     self:SetWire("Active", 0)
+                    self:SetWire("Stardrive Active", 0)
                     self:SetWire("LitUp", 0)
 
                     if (self.Antarticatype) then
@@ -997,6 +1014,7 @@ if SERVER then
                     --self:StopSound("tech/asgard_holo_loop.wav")
                     self:Anims("close")
                     self:SetWire("Active", 0)
+                    self:SetWire("Stardrive Active", 0)
                 end
             elseif (self.Pilot:KeyDown(IN_BACK)) then
                 if (not (self.Enabled)) then
@@ -1037,9 +1055,10 @@ if SERVER then
             		self:EmitSound("thrusters/hover01.wav",100,80)
             		self:EmitSound("ambient/explosions/exp2.wav",100,80)
             elseif (self.Pilot:KeyDown(IN_JUMP)) then
-
-            		self:ConsumeResource("energy", 5000)        		
+            		self:ConsumeResource("energy", 5000)
+                    self:SetWire("Stardrive Active", 1)
             elseif (self.Pilot:KeyReleased(IN_JUMP)) then
+                    self:SetWire("Stardrive Active", 0)
             		self:EmitSound("tech/hover01_end2.wav",100,80)
                  	self:StopSound("thrusters/hover01.wav")
                  	self:StopSound("thrusters/hover01.wav")
@@ -1094,7 +1113,29 @@ if SERVER then
         -- end)
 
         ----------------------
-
+        if (self.Pilot and self.Pilot == nil) then
+            if (self.Controlling) then
+                self:Anims("close")
+                if (self.Shield and self.Shield:IsValid()) then
+                    self.Entity:RemoveShield()
+                end            
+                self:DeactivateChair(self.Pilot)
+                self.Pilot:SetNWInt("chair_initialized", 0)
+                if (self.Antarticatype) then
+                    self:SetSkin(3)
+                else
+                    self:SetSkin(0)
+                end
+                self:SetWire("LitUp", 0)
+                self:SetWire("Stardrive Active", 0)
+                self:StopSound("tech/asgard_holo_loop.wav")
+                self:EmitSound(self.Sounds.Deactivate, 100, 60)
+                self:EmitSound(self.Sounds.Deactivate, 100, 60)
+                self:EmitSound(self.Sounds.Deactivate, 100, 60)
+                self:StopSound("thrusters/hover01.wav")
+                self.Pilot = nil
+            end
+        end
         if (self.ShouldConsume) then
             if (self:GetResource("energy") < 500) then
                 if (self.Controlling) then
@@ -1110,6 +1151,7 @@ if SERVER then
                 		self:SetSkin(0)
                 	end
                     self:SetWire("LitUp", 0)
+                    self:SetWire("Stardrive Active", 0)
                     self:StopSound("tech/asgard_holo_loop.wav")
                     self:EmitSound(self.Sounds.Deactivate, 100, 60)
                     self:EmitSound(self.Sounds.Deactivate, 100, 60)
@@ -1173,6 +1215,7 @@ if SERVER then
                 self:EmitSound(self.Sounds.Deactivate, 100, 70)
                 firstsound = false
                 self:SetWire("LitUp", 0)
+                self:SetWire("Stardrive Active", 0)
                 self.ChairActive = false
                 self.ActiveTime = 0
             end
@@ -1181,8 +1224,14 @@ if SERVER then
         if (IsValid(self.Pilot)) then
             if (self.Controlling) then
                 if (IsValid(self.ZpmHub)) then
-                self:SetNetworkedString("ZPM_Online",self.ZpmHub.ZPM_Active)
-                self:SetNetworkedInt("ZPM_Percentage",self.ZpmHub.ZPM_Percentage)
+                    self:SetNetworkedString("ZPM_Online",self.ZpmHub.ZPM_Active)
+                    self:SetNetworkedInt("ZPM_Percentage",self.ZpmHub.ZPM_Percentage)
+                end
+                if (self:GetResource("energy") >= 1) then
+                    self:SetNetworkedInt("Internal_Source",self:GetResource("energy") > 0 and 1 or 0)
+                    local max = self:GetUnitCapacity("energy")
+                    local percent = math.Clamp(self:GetResource("energy") / max, 0, 1) * 100
+                    self:SetNetworkedInt("Internal_Percentage",percent)
                 end
 
                 self:ConsumeResource("energy", 5 * self.DroneCount)
