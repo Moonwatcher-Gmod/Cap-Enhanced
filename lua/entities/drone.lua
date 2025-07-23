@@ -56,7 +56,7 @@ if SERVER then
         self.MaxVelocity = StarGate.CFG:Get("drone", "maxspeed", 6000)
         self.Created = CurTime()
         -- Defines, how "curvey" the drone will fly. This makes them not all flying the same route (looks actually to artificial)
-        self.Randomness = math.random(3, 9) / 10
+        self.Randomness = math.random(6, 9) / 10
         -- And this defines, if a drone is able to start tracking 0.5 or 1.5 seconds after it got launcher
         self.TrackStart = math.random(5, 15) / 10
         self.AntiRandomness = 1 - self.Randomness

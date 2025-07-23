@@ -13,7 +13,6 @@ ENT.Author = "Llapp, Rafael De Jongh, Progsys"
 ENT.WireDebugName = "ZPM MK IV"
 ENT.Category = "Stargate Carter Addon Pack"
 ENT.Spawnable = false
-ENT.AdminSpawnable = false
 ENT.IsZPM = true
 list.Add("MW.Entity", ENT.PrintName)
 
@@ -41,6 +40,7 @@ if SERVER then
         self:Skin(2)
         self.IsMk4 = true
         self.empty = false
+        self:SetNWInt("zpmempty",0)
         self.Connected = false
         self.Flow = 0
         self.isZPM = 1
@@ -48,6 +48,8 @@ if SERVER then
         self.IsConnectedToHub = false
         self.InternalOverload = 0
         self.Cloaked = false
+
+        self.Entity:SetNWInt("zpmbluelightalpha", 100)
     end
 
     function ENT:SpawnFunction(p, t)
@@ -71,10 +73,8 @@ if SERVER then
     function ENT:Skin(a)
         if (a == 1) then
             self.Entity:SetSkin(5)
-            self.Entity:SetNWInt("zpmbluelightalpha", 255)
         elseif (a == 2) then
             self.Entity:SetSkin(4)
-            self.Entity:SetNWInt("zpmbluelightalpha", 1)
         end
     end
 
@@ -88,7 +88,7 @@ if SERVER then
             self.Cloaked = false
             self:DrawShadow(true)
             if (self.Connected) then
-                self.Entity:SetNWInt("zpmbluelightalpha", 155)
+                self.Entity:SetNWInt("zpmbluelightalpha", 100)
             end
         end
 
@@ -203,6 +203,7 @@ if SERVER then
             self.Energy = 0
             active = 0
             self.empty = true
+            self:SetNWInt("zpmempty",1)
             self:Skin(2)
             --if (self.HasRD) then StarGate.WireRD.OnRemove(self,true) end;
             self:AddResource("energy", 0)
@@ -330,20 +331,34 @@ if CLIENT then
 
         render.SetMaterial(self.ZpmSprite)
         local alpha = self.Entity:GetNWInt("zpmbluelightalpha")
-        local col = Color(0, 102, 255, alpha)
+        zpmcol = Color(0, 102, 255, alpha)
 
-        for i = 1, 5 do
-            local size = 9
+        if(self:GetNWInt("zpmempty") == 0) then
+            for i = 1, 5 do
+                local size = 9
 
-            if (i == 3) then
-                size = 8
-            elseif (i == 4) then
-                size = 7
-            elseif (i == 5) then
-                size = 6
+                if (i == 3) then
+                    size = 8
+                elseif (i == 4) then
+                    size = 7
+                elseif (i == 5) then
+                    size = 6
+                end
+
+                render.DrawSprite(self.Entity:LocalToWorld(self.SpritePositions[i]), size, size, zpmcol)
             end
 
-            render.DrawSprite(self.Entity:LocalToWorld(self.SpritePositions[i]), size, size, col)
+            local dlight = DynamicLight(self:EntIndex())
+            if(dlight) then
+                dlight.Pos = self:GetPos()
+                dlight.Decay = 100
+                dlight.Brightness = 1
+                dlight.Size = self.Entity:GetNWString("perc") + 25
+                dlight.DieTime = CurTime() + 1
+                dlight.r = zpmcol.r
+                dlight.g = zpmcol.g
+                dlight.b = zpmcol.b
+            end
         end
     end
 
