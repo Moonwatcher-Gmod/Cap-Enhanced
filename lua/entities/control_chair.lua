@@ -1285,27 +1285,17 @@ if SERVER then
             if not self.Enabled and anim == "close" then return end
 
             if (anim == "close") then
+                anim = "open"
                 self:Lean(false)
                 self.Enabled = false
             elseif (anim == "open") then
+                anim = "close"
                 self:Lean(true)
                 self.Enabled = true
             end
             self.Anim = self.Chair:LookupSequence(anim)
-            self.Chair:SetCycle(0) -- Start from the beginning of the animation
             self.Chair:ResetSequenceInfo()
             self.Chair:SetSequence(self.Anim)
-            local animlen = 10
-            -- Set up a timer to advance frames
-            timer.Create("AnimationTimer", 0.01, math.ceil(animlen / 000.1), function()
-                if IsValid(self) and IsValid(self.Chair) then
-                    self.Chair:SetCycle(self.Chair:GetCycle() + 000.1 / animlen)
-                else
-                    timer.Remove("AnimationTimer")
-                end
-            end)
-            
-            
         end
     end
 
