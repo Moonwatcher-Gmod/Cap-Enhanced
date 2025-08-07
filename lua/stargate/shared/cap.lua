@@ -272,7 +272,7 @@ hook.Add("EntityFireBullets", "StarGate.EntityFireBullets", function(self, bulle
     local override = false -- If set to true, we will shoot the bullets instead of letting the engine decide
     -- The modified part now, to determine if we hit a shield!
     local spread = bullet.Spread or Vector(0, 0, 0)
-    bullet.Spread = Vector(0, 0, 0)
+    --bullet.Spread = Vector(0, 0, 0) --this breaks shotgun spread and seemingly does nothing else
     local direction = (bullet.Dir or Vector(0, 0, 0))
     local pos = bullet.Src or self:GetPos()
     local rnd = {}
