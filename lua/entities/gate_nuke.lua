@@ -173,7 +173,7 @@ if SERVER then
                             v:SetModel("models/player/charple.mdl") --burn it
                             v:SetHealth(1)
                         end
-                    elseif table.HasValue(self.GateList, class) then
+                    elseif v.IsStargate then
                         if self.Scale > 30 then
                             v:Remove()
                         elseif (self.Scale > 20 and self.Scale < 30) then
@@ -185,7 +185,7 @@ if SERVER then
                             self:ReSpawnSupergate(v)
                             v:Remove()
                         end
-                    elseif table.HasValue(self.DHDList, class) then
+                    elseif v.IsDHD then
                         if self.Scale > 30 then
                             v:Remove()
                         elseif (not v.GateSpawnerSpawned and not util.tobool(GetConVar("stargate_dhd_protect"):GetInt()) or v.GateSpawnerSpawned and not util.tobool(GetConVar("stargate_dhd_protect_spawner"):GetInt())) then

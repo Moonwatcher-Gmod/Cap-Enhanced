@@ -426,7 +426,7 @@ end)   ]]
                         self:SetNW2Int("AddressType" .. i, 4)
                     elseif gate:GetClass() == "stargate_infinity" then
                         self:SetNW2Int("AddressType" .. i, 3)
-                    elseif gate:GetClass() == "stargate_movie" then
+                    elseif gate.IsStargateMovieType then
                         self:SetNW2Int("AddressType" .. i, 2)
                     else
                         self:SetNW2Int("AddressType" .. i, 1)
@@ -577,7 +577,7 @@ end)   ]]
                 self.DCError = 0
             end
 
-            local movie = self.LockedGate:GetClass() == "stargate_movie"
+            local movie = self.LockedGate:GetClass() == "stargate_movie" --change this to use IsStargateMovieType
             self:SetNW2Bool("IsMovie", movie)
             --Symbol animation triggers
             local LastSecond = not open and LastChev and locked

@@ -60,6 +60,8 @@ if SERVER then
         self.Entity:SetColor(Color(0, 0, 0, 255))
         self.MaxAmount = StarGate.CFG:Get("black_hole", "amount", 500000)
         self.Resources = {}
+        self.IncreaseSize = false
+        self.bmass = 0
 
         for _, v in pairs(StarGate.CFG:Get("black_hole", "resources", ""):TrimExplode(",")) do
             table.insert(self.Resources, v)
@@ -123,6 +125,25 @@ if SERVER then
         self:SetNWInt("mass", x)
         self.Entity:NextThink(CurTime() + 1)
 
+        if(self.IncreaseSize == true) then --this is very hacky but i cant think of another way to do it
+            self.IncreaseSize = false
+
+            self.blackHoleMass = self.blackHoleMass + self.bmass
+            local size = self.blackHoleMass / 1000
+
+            print("size increase "..size)
+
+            self.Entity:SetCollisionBounds(Vector(-size, -size, -size), Vector(size, size, size))
+            self.Entity:PhysicsInitSphere(size, "metal_bouncy")
+            local phys = self.Entity:GetPhysicsObject()
+
+            if(phys:IsValid()) then
+                phys:Wake()
+                phys:EnableGravity(false)
+                phys:EnableDrag(false)
+                phys:EnableCollisions(false)
+            end
+        end
         return true
     end
 
@@ -143,8 +164,6 @@ if SERVER then
             local phys = ent:GetPhysicsObject()
 
             if (phys:IsValid()) then
-                local mass = phys:GetMass()
-
                 if (ent:IsPlayer()) then
                     if (not ent:HasGodMode()) then
                         ent:Kill()
@@ -159,18 +178,8 @@ if SERVER then
                     end
                 end
 
-                self.blackHoleMass = self.blackHoleMass + mass
-                local size = self.blackHoleMass / 1000
-                self.Entity:SetCollisionBounds(Vector(-size, -size, -size), Vector(size, size, size))
-                self.Entity:PhysicsInitSphere(size, "metal_bouncy")
-                local phys = self.Entity:GetPhysicsObject()
-
-                if (phys:IsValid()) then
-                    phys:Wake()
-                    phys:EnableGravity(false)
-                    phys:EnableDrag(false)
-                    phys:EnableCollisions(false)
-                end
+                self.IncreaseSize = true
+                self.bmass = phys:GetMass()
             end
         end
     end
