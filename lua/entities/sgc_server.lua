@@ -577,7 +577,7 @@ end)   ]]
                 self.DCError = 0
             end
 
-            local movie = self.LockedGate:GetClass() == "stargate_movie" --change this to use IsStargateMovieType
+            local movie = self.LockedGate.IsStargateMovieType or false
             self:SetNW2Bool("IsMovie", movie)
             --Symbol animation triggers
             local LastSecond = not open and LastChev and locked
