@@ -577,9 +577,8 @@ GateActions["GetRingAngle"] = {
 	timed = true,
 	output = function(gate, Ent)
 		if not IsValid(Ent) or not Ent.IsStargate then return -1 end
-		local vg = {"stargate_movie","stargate_sg1","stargate_infinity","stargate_universe"};
 		local class = Ent:GetClass();
-		if (not table.HasValue(vg,class)) then return -1 end
+		if (not this.Ring) then return -1 end
 		if (class=="stargate_universe") then
 			if (IsValid(Ent.Gate)) then
 				local angle = tonumber(math.NormalizeAngle(Ent.Gate:GetLocalAngles().r));

@@ -1367,21 +1367,22 @@ function BUFFER:StartTouch(EventHorizon,e)
 		end
 	end
 
-	e.EventHorizonNoCollide = ents.Create("phys_ragdollconstraint");
-	e.EventHorizonNoCollide:SetKeyValue("spawnflags",3);
-	for _,v in pairs(MaxValue) do
-		e.EventHorizonNoCollide:SetKeyValue(v, 180 );
+	if(e:GetPhysicsObject() ~= nil and game.GetWorld():GetPhysicsObject() ~= nil) then
+		e.EventHorizonNoCollide = ents.Create("phys_ragdollconstraint");
+		e.EventHorizonNoCollide:SetKeyValue("spawnflags",3);
+		for _,v in pairs(MaxValue) do
+			e.EventHorizonNoCollide:SetKeyValue(v, 180 );
+		end
+		for _,v in pairs(MinValue) do
+			e.EventHorizonNoCollide:SetKeyValue(v, -180 );
+		end
+		for _,v in pairs(KeyValue1) do
+			e.EventHorizonNoCollide:SetKeyValue(v,0);
+		end
+		e.EventHorizonNoCollide:SetPhysConstraintObjects(game.GetWorld():GetPhysicsObject(),e:GetPhysicsObject());
+		e.EventHorizonNoCollide:Spawn();
+		e.EventHorizonNoCollide:Activate();
 	end
-	for _,v in pairs(MinValue) do
-		e.EventHorizonNoCollide:SetKeyValue(v, -180 );
-	end
-	for _,v in pairs(KeyValue1) do
-		e.EventHorizonNoCollide:SetKeyValue(v,0);
-	end
-	e.EventHorizonNoCollide:SetPhysConstraintObjects(game.GetWorld():GetPhysicsObject(),e:GetPhysicsObject());
-	e.EventHorizonNoCollide:Spawn();
-	e.EventHorizonNoCollide:Activate();
-
 end
 
 function BUFFER:Touch(EventHorizon,e)

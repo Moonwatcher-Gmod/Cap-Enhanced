@@ -28,6 +28,7 @@ ENT.EventHorizonData = ENT.EventHorizonDataBak
 ENT.StargateRingRotate = true
 ENT.StargateHasSGCType = true
 ENT.StargateTwoPoO = true
+ENT.IsStargateMovieType = true
 
 function ENT:GetRingAng()
 	if not IsValid(self.EntRing) then self.EntRing=self:GetNWEntity("EntRing") if not IsValid(self.EntRing) then return end end   -- Use this trick beacause NWVars hooks not works yet...
@@ -42,7 +43,7 @@ properties.Add( "Stargate.MChevL.On",
 	MenuIcon	=	"icon16/plugin_disabled.png",
 
 	Filter		=	function( self, ent, ply )
-						if ( !IsValid( ent ) || !IsValid( ply ) || !ent.IsStargate || ent:GetClass()!="stargate_movie" || ent:GetNWBool("GateSpawnerProtected",false) || ent:GetNWBool("ActMChevL",false)) then return false end
+						if ( !IsValid( ent ) || !IsValid( ply ) || !ent.IsStargate || ent.IsStargateMovieType ~= true|| ent:GetNWBool("GateSpawnerProtected",false) || ent:GetNWBool("ActMChevL",false)) then return false end
 						if ( !gamemode.Call( "CanProperty", ply, "stargatemodify", ent ) ) then return false end
 						return true
 
@@ -73,7 +74,7 @@ properties.Add( "Stargate.MChevL.Off",
 	MenuIcon	=	"icon16/plugin.png",
 
 	Filter		=	function( self, ent, ply )
-						if ( !IsValid( ent ) || !IsValid( ply ) || !ent.IsStargate || ent:GetClass()!="stargate_movie" || ent:GetNWBool("GateSpawnerProtected",false) || !ent:GetNWBool("ActMChevL",false)) then return false end
+						if ( !IsValid( ent ) || !IsValid( ply ) || !ent.IsStargate || ent.IsStargateMovieType ~= true || ent:GetNWBool("GateSpawnerProtected",false) || !ent:GetNWBool("ActMChevL",false)) then return false end
 						if ( !gamemode.Call( "CanProperty", ply, "stargatemodify", ent ) ) then return false end
 						return true
 
@@ -104,7 +105,7 @@ properties.Add( "Stargate.MCl.On",
 	MenuIcon	=	"icon16/plugin_disabled.png",
 
 	Filter		=	function( self, ent, ply )
-						if ( !IsValid( ent ) || !IsValid( ply ) || !ent.IsStargate || ent:GetClass()!="stargate_movie" || ent:GetNWBool("GateSpawnerProtected",false) || ent:GetNWBool("ActMCl",false)) then return false end
+						if ( !IsValid( ent ) || !IsValid( ply ) || !ent.IsStargate || ent.IsStargateMovieType ~= true || ent:GetNWBool("GateSpawnerProtected",false) || ent:GetNWBool("ActMCl",false)) then return false end
 						if ( !gamemode.Call( "CanProperty", ply, "stargatemodify", ent ) ) then return false end
 						return true
 
@@ -136,7 +137,7 @@ properties.Add( "Stargate.MCl.Off",
 
 	Filter		=	function( self, ent, ply )
                         local vg = {"stargate_movie","stargate_sg1","stargate_infinity"}
-						if ( !IsValid( ent ) || !IsValid( ply ) || !ent.IsStargate || ent:GetClass()!="stargate_movie" || ent:GetNWBool("GateSpawnerProtected",false) || !ent:GetNWBool("ActMCl",false)) then return false end
+						if ( !IsValid( ent ) || !IsValid( ply ) || !ent.IsStargate || ent.IsStargateMovieType ~= true || ent:GetNWBool("GateSpawnerProtected",false) || !ent:GetNWBool("ActMCl",false)) then return false end
 						if ( !gamemode.Call( "CanProperty", ply, "stargatemodify", ent ) ) then return false end
 						return true
 

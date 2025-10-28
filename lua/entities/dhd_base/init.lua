@@ -982,7 +982,7 @@ function ENT:PressButton(btn, nolightup, no_menu)
 				self:AddChevron(btn, nosound, lightup, e, city, fail);
 			end
 		end
-		if (not remove and IsValid(e) and (e:GetClass()=="stargate_sg1" or e:GetClass()=="stargate_infinity" or e:GetClass()=="stargate_movie" or atlantis) and (btn=="#" or num==8 or atlantis) and (not self.DisRingRotate and GetConVar("stargate_dhd_ring"):GetBool() or atlantis and self.DisRingRotate or e.Ring.WireMoving)) then
+		if (not remove and IsValid(e) and (e:GetClass()=="stargate_sg1" or e:GetClass()=="stargate_infinity" or e.IsStargateMovieType or atlantis) and (btn=="#" or num==8 or atlantis) and (not self.DisRingRotate and GetConVar("stargate_dhd_ring"):GetBool() or atlantis and self.DisRingRotate or e.Ring.WireMoving)) then
 			
 			if (atlantis) then
 				self:SetBusy(2.0,true);
