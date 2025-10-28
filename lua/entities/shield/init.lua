@@ -53,9 +53,9 @@ StarGate.Trace:Add("shield",
 function ENT:Initialize()
 	self.Size = self.Size or 80; -- Make it by default at least fit for one player
 	self.Created = CurTime();
-	self.Entity:PhysicsInitSphere(self.Size); -- Seems even when it say "Sphere" to create a Cubic PhysObject
 	self.Entity:SetSolid(SOLID_VPHYSICS);
 	self.Entity:SetMoveType(MOVETYPE_NONE);
+	self.Entity:PhysicsInitSphere(self.Size); -- Seems even when it say "Sphere" to create a Cubic PhysObject
 	self.Entity:DrawShadow(false);
 	self.Entity:SetTrigger(true); -- The most important thing: Makes the shield trigger Touch() events, even when it's not solid
 	self.Entity:SetNotSolid(true);
@@ -330,6 +330,11 @@ function ENT:Touch(e,override)
 	            end);
 	        end
 	    end
+
+		if(e:GetClass() == "lvs_bomb" or e:GetClass() == "lvs_missile" or e:GetClass() == "lvs_protontorpedo") then --proper lvs support because their missiles go through shields
+			e:SetRadius(1)
+			e:Detonate(self)
+		end
 	else
 		-- Make the shield not touching anything anymore when enegry = 0
 		if(not self.Parent.Depleted) then
