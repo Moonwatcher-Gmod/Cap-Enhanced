@@ -119,7 +119,7 @@ if SERVER then
 
     function ENT:Touch(ent)
         if self.LockedGate == self.Entity then
-            if (string.find(ent:GetClass(), "stargate")) then
+            if (ent.IsStargate) then
                 local gate = self:FindGate()
 
                 if IsValid(gate) and gate == ent and not IsValid(gate.LockedIrisComp) then
