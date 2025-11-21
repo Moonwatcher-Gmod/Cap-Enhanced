@@ -46,7 +46,6 @@ ENT.Sounds = {
 	Slow=Sound("AlexALX/stargate/gate_roll_long.wav"),
 	Chev9Dial=Sound("stargate/universe/fail3.wav"),
 	OnButtonLock=Sound("stargate/stargate/dhd/dhd_usual_dial.wav"),
-	NewRollSound=Sound("moonwatcher/stargate/addtional_roll_sound.wav")
 }
 
 ENT.SGCChevron = {
@@ -333,10 +332,10 @@ function ENT:AddRing()
 end
 
 function ENT:ActivateRingSound(pitch)
- 	util.PrecacheSound(self.Sounds.NewRollSound);
-	self.RingSound = CreateSound(self.Entity, self.Sounds.NewRollSound);
+ 	util.PrecacheSound(self.Sounds.Slow);
+	self.RingSound = CreateSound(self.Entity, self.Sounds.Slow);
 	self.RingSound:ChangePitch(pitch,0);
-   	self.RingSound:SetSoundLevel(130);
+   	self.RingSound:SetSoundLevel(94);
 	self.RingSound:PlayEx(1,pitch);
 end
 
