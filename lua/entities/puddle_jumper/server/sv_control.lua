@@ -133,8 +133,16 @@ end
 
 
 function ENT:EnterJumper(ply) --############### Get in the jumper @ RononDex
+	self.RequireATAGene = StarGate.CFG:Get("cap_enhanced_cfg","ATA_gene_active",false);
 
-	if(self.AllowActivation and ply:GetNWInt("ATAGene",0) == 1) then
+	if ply:GetNWInt("ATAGene",0) == 0 and self.RequireATAGene then
+		ply:SendLua( "GAMEMODE:AddNotify('You are missing the gene required to operate this!', NOTIFY_GENERIC, 7);" )
+		ply:EmitSound("buttons/button18.wav",100,100)
+		return
+	end
+
+
+	if(self.AllowActivation) then
 		self:GetPhysicsObject():Wake()
 		self:GetPhysicsObject():EnableMotion(true)
 		self.Inflight = true
