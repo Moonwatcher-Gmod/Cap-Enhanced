@@ -135,16 +135,19 @@ if SERVER then
                 self.IsChair = true
                 self.IsAtlantisChair = false
             elseif (ent:GetClass() == "control_chair") then
+
                 self.IsAtlantisChair = true
                 self.IsChair = false
+                ent:RegisterLauncher(self.Entity)
             else
                 return
             end
 
             if (self.APC ~= ent) then
                 local ed = EffectData()
-                ed:SetEntity(ent)
-                util.Effect("propspawn", ed, true, true)
+                ed:SetEntity(self.Entity)
+                self.Entity:EmitSound("buttons/button14.wav", 90, 100)
+                util.Effect("old_propspawn", ed, true, true)
             end
 
             self.APC = ent
@@ -153,6 +156,12 @@ if SERVER then
 
     -- Dummy for drones
     function ENT:ShowOutput()
+    end
+
+    function ENT:OnRemove()
+        if IsValid(self.APC) and self.APC:GetClass() == "control_chair" then
+            self.APC:UnregisterLauncher(self.Entity)
+        end
     end
 
     function ENT:TriggerInput(k, v)

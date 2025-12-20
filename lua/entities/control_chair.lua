@@ -310,6 +310,7 @@ if SERVER then
         self.PilotViewing = false
         self.RequireATAGene = StarGate.CFG:Get("cap_enhanced_cfg","ATA_gene_active",false);
         self.LastCheckTime = 0
+        self.RegisteredLaunchers = {}
         --###### Energy Vars
         self:AddResource("energy", 1)
 
@@ -429,6 +430,17 @@ if SERVER then
     function ENT:Hit(strength, normal, pos)
     end
 
+    function ENT:RegisterLauncher(launcher)
+        if IsValid(launcher) then
+            self.RegisteredLaunchers[launcher] = true
+        end
+    end
+
+    function ENT:UnregisterLauncher(launcher)
+        if IsValid(launcher) then
+            self.RegisteredLaunchers[launcher] = nil
+        end
+    end
 
     function ENT:SearchForTargets(pos, targetlist)
 
@@ -1189,9 +1201,21 @@ if SERVER then
             	self.Track = true
                 if (self.Pilot:KeyDown(IN_ATTACK)) then
                     if (not self.PilotViewing) then
-                        self:FireDrones()
-                    end
+                        print(tostring(table.Count(self.RegisteredLaunchers)))
+                        if (table.Count(self.RegisteredLaunchers) == 0 and CurTime() > (self.NextFire or 0)) then
+                            self.Pilot:SendLua( "GAMEMODE:AddNotify('No launchers linked! Touch the chair with a drone launcher to link', NOTIFY_ERROR, 4);" )
+                            self.Pilot:EmitSound("buttons/button8.wav",100,100)
+                            -- wait a second before allowing to fire again
+                            self.NextFire = CurTime() + 1
+                        elseif table.Count(self.RegisteredLaunchers) > 0 then
+                            self:FireDrones()
 
+                        end
+
+
+
+
+                    end
                 end
 
                 if (self.Pilot:KeyPressed(IN_ATTACK)) then
@@ -1236,6 +1260,7 @@ if SERVER then
             --calculate the drone's position offset. Otherwise it might collide with the launcher
             local e = ents.Create("drone")
             e.Parent = self
+            print(self.FirePos)
             e:SetPos(self.FirePos)
             e:SetAngles(Angle(-90, 0, 0))
             e:SetOwner(self) -- Don't collide with this thing here please
