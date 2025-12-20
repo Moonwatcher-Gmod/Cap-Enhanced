@@ -1201,7 +1201,6 @@ if SERVER then
             	self.Track = true
                 if (self.Pilot:KeyDown(IN_ATTACK)) then
                     if (not self.PilotViewing) then
-                        print(tostring(table.Count(self.RegisteredLaunchers)))
                         if (table.Count(self.RegisteredLaunchers) == 0 and CurTime() > (self.NextFire or 0)) then
                             self.Pilot:SendLua( "GAMEMODE:AddNotify('No launchers linked! Touch the chair with a drone launcher to link', NOTIFY_ERROR, 4);" )
                             self.Pilot:EmitSound("buttons/button8.wav",100,100)
