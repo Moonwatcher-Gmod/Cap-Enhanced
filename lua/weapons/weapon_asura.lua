@@ -30,6 +30,7 @@ SWEP.Primary.ClipSize = -1
 SWEP.Primary.DefaultClip = 100
 SWEP.Primary.Automatic = false
 SWEP.Primary.Ammo = "HelicopterGun"
+
 -- secondary
 SWEP.Secondary.ClipSize = -1
 SWEP.Secondary.DefaultClip = -1
@@ -56,7 +57,8 @@ end
 if SERVER then
     function SWEP:Deploy()
         if(not IsValid(self) or not IsValid(self.Owner)) then return end
-        if(self.Owner:GetNWInt("ATAGene",0) == 0) then return end
+        self.RequireATAGene = StarGate.CFG:Get("cap_enhanced_cfg","ATA_gene_active",false)
+        if(self.Owner:GetNWInt("ATAGene",0) == 0 and self.RequireATAGene) then return end
         self.Owner:EmitSound(Sound("pulse_weapon/asuran_hand_deploy.wav"), 75, math.random(75, 125))
     end
 end
@@ -80,7 +82,11 @@ end
 
 --###### Shoot @Ronondex, aVoN
 function SWEP:PrimaryAttack()
-    if(self.Owner:GetNWInt("ATAGene",0) == 0) then return end
+    if(self.Owner:GetNWInt("ATAGene",0) == 0 and self.RequireATAGene) then
+            self.Owner:SendLua( "GAMEMODE:AddNotify('You are missing the gene required to fire this weapon!', NOTIFY_GENERIC, 7);" )
+            self.Owner:EmitSound("buttons/button18.wav",100,100)
+        return 
+    end
 
     if self.Weapon:GetNextPrimaryFire() > CurTime() then return end
     if (not IsValid(self.Owner) or (self.Owner:IsPlayer() and self.Owner:GetAmmoCount(self.Primary.Ammo) <= 0)) then return end
