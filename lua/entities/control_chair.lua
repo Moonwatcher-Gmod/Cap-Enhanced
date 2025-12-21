@@ -1307,7 +1307,6 @@ if SERVER then
             --calculate the drone's position offset. Otherwise it might collide with the launcher
             local e = ents.Create("drone")
             e.Parent = self
-            print(self.FirePos)
             e:SetPos(self.FirePos)
             e:SetAngles(Angle(-90, 0, 0))
             e:SetOwner(self) -- Don't collide with this thing here please
