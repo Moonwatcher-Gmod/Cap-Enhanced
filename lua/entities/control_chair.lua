@@ -1024,7 +1024,7 @@ if SERVER then
                     self:Anims("open")
                     self:ConsumeResource("energy", 6000)
                 end
-            elseif (self.Pilot:KeyPressed(IN_MOVERIGHT) and self.Enabled) then
+            elseif (self.Pilot:KeyPressed(IN_MOVERIGHT)) then
                 if (self.Pressed == false) then
                     self.Pressed = true
                 	if (not self.Shield and self.StrengthShield == 100) then
