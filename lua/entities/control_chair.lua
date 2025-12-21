@@ -92,12 +92,8 @@ if CLIENT then
                     draw.DrawText("Offline", "HudHintTextLarge", ScrW() / 2 + 130 + w, ScrH() / 2 + 90 - h, Color(255, 0, 0, 255), 0)
                 end
 
-
-                draw.DrawText("1: Target Menu", "HudHintTextLarge", ScrW() / 2 - 5 + w, ScrH() / 2 + 110 - h, color_white, 0)
-
-                draw.DrawText("Left Mouse Button: Fire Drones", "HudHintTextLarge", ScrW() / 2 - 5 + w, ScrH() / 2 + 130 - h, color_white, 0)
-
-                draw.DrawText("Space (hold): Stardrive", "HudHintTextLarge", ScrW() / 2 - 5 + w, ScrH() / 2 + 150 - h, color_white, 0)
+                draw.DrawText("Left Mouse Button: Fire Drones", "HudHintTextLarge", ScrW() / 2 - 5 + w, ScrH() / 2 + 110 - h, color_white, 0)
+                draw.DrawText("Space (hold): Stardrive", "HudHintTextLarge", ScrW() / 2 - 5 + w, ScrH() / 2 + 130 - h, color_white, 0)
 
 
 
@@ -294,6 +290,7 @@ if SERVER then
         --########################
         self.PlayerTouching = nil
         self.RotateIsOn = true
+        self.Enabled = false
         self.Debug = false
         self.EyeTrack = false
         self.Pressed = false
@@ -994,7 +991,9 @@ if SERVER then
         if (self.Controlling and IsValid(self.Pilot)) then
             if (self.Pilot:KeyDown(IN_FORWARD)) then
                 if (self.Enabled) then
-                    
+                    self:StopSound("thrusters/hover01.wav")
+                 	self:StopSound("thrusters/hover01.wav")
+                 	self:StopSound("thrusters/hover01.wav")
                     --self.RotateIsOn = false
                     self.RotationSpeed = 0
                 	if (self.Antarticatype) then
@@ -1025,7 +1024,7 @@ if SERVER then
                     self:Anims("open")
                     self:ConsumeResource("energy", 6000)
                 end
-            elseif (self.Pilot:KeyPressed(IN_MOVERIGHT)) then
+            elseif (self.Pilot:KeyPressed(IN_MOVERIGHT) and self.Enabled) then
                 if (self.Pressed == false) then
                     self.Pressed = true
                 	if (not self.Shield and self.StrengthShield == 100) then
@@ -1037,7 +1036,7 @@ if SERVER then
                     end
                     timer.Simple(1, function() self.Pressed = false end)
                 end
-            elseif (self.Pilot:KeyPressed(IN_RELOAD)) then
+            elseif (self.Pilot:KeyPressed(IN_RELOAD) and self.Enabled) then
                  	if ( not self.RotateIsOn) then
                  		self.RotateIsOn = true
                         self:SetNetworkedBool("Rotate",true)
@@ -1045,13 +1044,13 @@ if SERVER then
                  		self.RotateIsOn = false
                         self:SetNetworkedBool("Rotate",false)
                  	end
-            elseif (self.Pilot:KeyPressed(IN_JUMP)) then
+            elseif (self.Pilot:KeyPressed(IN_JUMP) and self.Enabled) then
             		self:EmitSound("thrusters/hover01.wav",100,80)
             		self:EmitSound("ambient/explosions/exp2.wav",100,80)
-            elseif (self.Pilot:KeyDown(IN_JUMP)) then
+            elseif (self.Pilot:KeyDown(IN_JUMP) and self.Enabled) then
 
             		self:ConsumeResource("energy", 5000)        		
-            elseif (self.Pilot:KeyReleased(IN_JUMP)) then
+            elseif (self.Pilot:KeyReleased(IN_JUMP) and self.Enabled) then
             		self:EmitSound("tech/hover01_end2.wav",100,80)
                  	self:StopSound("thrusters/hover01.wav")
                  	self:StopSound("thrusters/hover01.wav")
@@ -1199,7 +1198,7 @@ if SERVER then
 
                 self:ConsumeResource("energy", 5 * self.DroneCount)
             	self.Track = true
-                if (self.Pilot:KeyDown(IN_ATTACK)) then
+                if (self.Pilot:KeyDown(IN_ATTACK) and self.Enabled) then
                     if (not self.PilotViewing) then
                         if (table.Count(self.RegisteredLaunchers) == 0 and CurTime() > (self.NextFire or 0)) then
                             self.Pilot:SendLua( "GAMEMODE:AddNotify('No launchers linked! Touch the chair with a drone launcher to link', NOTIFY_ERROR, 4);" )
