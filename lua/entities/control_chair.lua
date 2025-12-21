@@ -221,6 +221,31 @@ if CLIENT then
     end
 end
 
+if CLIENT then
+    -- Hide weapon selection HUD and block switching while in chair
+    hook.Add("HUDShouldDraw", "ControlChair_HideWeaponSelect", function(name)
+        local ply = LocalPlayer()
+        if IsValid(ply) and ply:GetNWBool("ControlChair_InChair", false) then
+            -- Hide weapon selection HUD elements
+            if name == "CHudWeaponSelection" then
+                return false
+            end
+        end
+    end)
+    
+    -- Block weapon selection completely on client
+    hook.Add("PlayerBindPress", "ControlChair_BlockWeaponSwitch_Client", function(ply, bind, pressed)
+        if IsValid(ply) and ply:GetNWBool("ControlChair_InChair", false) then
+            -- Block weapon switching binds
+            if string.find(bind, "slot") or bind == "invnext" or bind == "invprev" then
+                return true
+            end
+        end
+    end)
+end
+
+
+
 if SERVER then
     if (StarGate == nil or StarGate.CheckModule == nil or not StarGate.CheckModule("ship")) then return end
     AddCSLuaFile()
@@ -232,6 +257,27 @@ if SERVER then
     util.PrecacheSound("thrusters/hover01.wav")
 	util.PrecacheSound("ambient/explosions/exp2.wav")
 	util.PrecacheSound("tech/hover01_end2.wav")
+
+    hook.Add("PlayerSwitchWeapon", "ControlChair_PreventWeaponSwitch", function(ply, oldWeapon, newWeapon)
+        if IsValid(ply) and ply:GetNWBool("ControlChair_InChair", false) then
+            return true -- Prevent weapon switch
+        end
+    end)
+
+    -- Lock weapon functionality while controlling chair
+    hook.Add("Think", "ControlChair_LockWeapons", function()
+        for _, ply in ipairs(player.GetAll()) do
+            if IsValid(ply) and ply:GetNWBool("ControlChair_InChair", false) then
+                local weapon = ply:GetActiveWeapon()
+                if IsValid(weapon) then
+                    -- Disable weapon attacks by setting next fire times to far future
+                    weapon:SetNextPrimaryFire(CurTime() + 1)
+                    weapon:SetNextSecondaryFire(CurTime() + 1)
+                end
+            end
+        end
+    end)
+
 
     ENT.Models = {
         Base = Model("models/soren/chair_zpm/chair_base_zpm.mdl"),
@@ -677,13 +723,13 @@ if SERVER then
                 p:SetNetworkedEntity("ScriptedVehicle", self)
                 p:SetViewEntity(self)
                 p:SetEyeAngles(self.Chair:GetAngles())
+                p:SetNWBool("ControlChair_InChair", true)
                 --p:SetNWBool("Control", true)
                 p:SetNWEntity("chair", self.Chair)
                 --self:EmitSound(self.Sounds.Activate,100,100)
                 --self.Chair:SetSkin(1)
                 self:ConsumeResource("energy", 500)
                 self.Controlling = true
-                
                 
                 self.ActiveTime = 0
                 self.NextUse = CurTime() + 1
@@ -695,6 +741,7 @@ if SERVER then
     function ENT:DeactivateChair(p)
         if (self.Pilot) then
             self.Pilot:SetNWBool("Control",false)
+            self.Pilot:SetNWBool("ControlChair_InChair", false)
 
             if (self:GetResource("energy") < 500) then
                 self.Pilot:SetNWInt("chair_initialized", 0)
@@ -1090,6 +1137,8 @@ if SERVER then
                 end
             end
         end)
+
+
 
         -- Click functions wiremod
 
