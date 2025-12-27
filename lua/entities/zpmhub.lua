@@ -61,7 +61,7 @@ if SERVER then
         self.rateOfChange = 0
         self.Overload = 0
         self.Selfdestruct = false
-        self.MaxTransferRate = 150000
+        self.MaxTransferRate = 383000
         self.CurrentOverload = 1
         self.OverloadFactor = 4
         self.ZapTime = 0
@@ -341,6 +341,8 @@ if SERVER then
         if (self._NextCfgSync or 0) < CurTime() then
             self._NextCfgSync = CurTime() + 10
             self:SetNWBool("HubAdvButtons", StarGate.CFG:Get("cap_enhanced_cfg", "hub_advbuttons", false))
+
+    
         end
         if self.HaveRD3 then
             local nettable = CAF.GetAddon("Resource Distribution").GetNetTable(self.netid)
@@ -660,7 +662,7 @@ if SERVER then
         self.Entity:SetNWString("add", add)
         self.Entity:SetNWString("perc", perc)
         --self.Entity:SetNWString("eng",math.floor(eng));
-        self.Entity:SetNWString("flow", (self.rateOfChange))
+        self.Entity:SetNWString("flow", (self.rateOfChange)*100)
         self.Entity:SetNWString("overload", math.floor(self.Overload))
 
         local zpmm = {zpm1, zpm2, zpm3}
