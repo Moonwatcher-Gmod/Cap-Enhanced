@@ -70,10 +70,12 @@ if SERVER then
         self.CheckOverloadConfig = 0
         self.IsOverloadOn = true
         self.Failsafe = true
-
+        self:SetNWBool("HubAdvButtons", StarGate.CFG:Get("cap_enhanced_cfg", "hub_advbuttons", false))
         self.ZPM1_Current_energy = 0
         self.ZPM2_Current_energy = 0
         self.ZPM3_Current_energy = 0
+        self.ComboBuf =  {}
+        self.ComboLast =  0
         
         self.ZPM1_lastenergy = 0
         self.ZPM2_lastenergy = 0
@@ -336,7 +338,10 @@ if SERVER then
 
     function ENT:Think()
         --player.GetAll()[1]:ChatPrint(tostring(self.Overload_disabled))
-
+        if (self._NextCfgSync or 0) < CurTime() then
+            self._NextCfgSync = CurTime() + 10
+            self:SetNWBool("HubAdvButtons", StarGate.CFG:Get("cap_enhanced_cfg", "hub_advbuttons", false))
+        end
         if self.HaveRD3 then
             local nettable = CAF.GetAddon("Resource Distribution").GetNetTable(self.netid)
 
@@ -737,6 +742,16 @@ if SERVER then
                     self:HubLink(v.Ent)
                 elseif (v.Dir == 1) then
                     self:HubUnlink(v.Ent)
+                    if (i == 1) then
+                        self.ZPM1_Current_energy = 0
+                        self.ZPM1_lastenergy = 0
+                    elseif (i == 2) then
+                        self.ZPM2_Current_energy = 0
+                        self.ZPM2_lastenergy = 0
+                    elseif (i == 3) then
+                        self.ZPM3_Current_energy = 0
+                        self.ZPM3_lastenergy = 0
+                    end
                 end
             end
         end
@@ -809,13 +824,44 @@ if SERVER then
         return Vector(xRotated + center.x, yRotated + center.y, vec.z)
     end
 
+    local function RotateAroundZ(p, center, deg)
+        local a  = math.rad(deg)
+        local ca = math.cos(a)
+        local sa = math.sin(a)
 
- 
+        local x = p.x - center.x
+        local y = p.y - center.y
+
+        return Vector(
+            x * ca - y * sa + center.x,
+            x * sa + y * ca + center.y,
+            p.z
+        )
+    end
+
+    -- Derive the ring center from the known 3-way "AllToggle" points
+    local RING_CENTER_XY = (Vector(-7.057692,  18.680084, 0)
+                        + Vector(-13.034216, -15.619967, 0)
+                        + Vector(19.961227,  -3.455073, 0)) / 3
+
+    local function AnySideHit(relativePos, basePos, margin)
+        if not basePos or not basePos.x then return false end
+        margin = margin or 0.5
+
+        local center = Vector(RING_CENTER_XY.x, RING_CENTER_XY.y, basePos.z)
+        for _, deg in ipairs({0, 120, 240}) do
+            local p = RotateAroundZ(basePos, center, deg)
+            if MWButtonCheck(relativePos, p, margin) then
+                return true
+            end
+        end
+        return false
+    end
 
     function ENT:Use(activator)
         if (self:GetWire("Disable Use") > 0) then return end
 
-        if StarGate.CFG:Get("hub_overload", "hub_advbuttons", false) == false then 
+        if StarGate.CFG:Get("cap_enhanced_cfg", "hub_advbuttons", false) == false then 
             self:EmitSound("button/ancient_button1.wav",90,math.Rand(90,110))
                 local val = false
                 for i = 1, 3 do
@@ -845,24 +891,63 @@ if SERVER then
             return
         end
 
-
         if activator:IsPlayer() then
             local aimPos = activator:GetEyeTrace().HitPos
             local relativePos = self.Entity:WorldToLocal(aimPos)
-            local button1pos1 = Vector(-7.057692, 18.680084, 44.346169) local button1pos2 = Vector(-13.034216, -15.619967, 44.346180) local button1pos3 = Vector(19.961227, -3.455073, 44.346184)
-            local button2pos = Vector(-9.146106, 17.862841, 44.346172)
-            local button3pos = Vector(-10.982636, 16.641993, 44.346161)
-            local button4pos = Vector(-12.613367, 15.498039, 44.346161)
-            local overloadbutton1 = Vector(-11.405661, 19.316748, 44.346161)
-            local failsafebutton1 = Vector(-13.047243, 19.605778, 44.346161)
-            local margin = 0.5
 
-            
+            local BTN = {
+                AllToggle = { pos = Vector(-7.057692, 18.680084, 44.346169), margin = 0.5 },
+                ZPM1      = { pos = Vector(-9.146106, 17.862841, 44.346172), margin = 0.5 },
+                ZPM2      = { pos = Vector(-10.982636, 16.641993, 44.346161), margin = 0.5 },
+                ZPM3      = { pos = Vector(-12.613367, 15.498039, 44.346161), margin = 0.5 },
 
+                FailSafe  = { pos = Vector(-14.92, 18.65, 44.35),            margin = 0.5 },
+            }
+            local comboBtns = {
+                [1] = Vector(-7.27,  22.77, 44.35),
+                [2] = Vector(-9.49,  21.32, 44.35),
+                [3] = Vector(-11.34, 20.29, 44.35),
+            }
+            local comboMargin = 0.5
+            self.ComboBuf = self.ComboBuf or {}
+            self.ComboLast = self.ComboLast or 0
 
-            --print(relativePos)
-            -- Check if the aiming position is within the margin of button1pos
-            if MWButtonCheck(relativePos,button1pos1,margin) or MWButtonCheck(relativePos,button1pos2,margin) or MWButtonCheck(relativePos,button1pos3,margin) then
+            local COMBO_TIMEOUT = 12.0
+            if (CurTime() - self.ComboLast) > COMBO_TIMEOUT then
+                self.ComboBuf = {}
+            end
+
+            local pressedCombo = nil
+            for idx = 1, 3 do
+                if AnySideHit(relativePos, comboBtns[idx], comboMargin) then
+                    pressedCombo = idx
+                    break
+                end
+            end
+
+            if pressedCombo then
+                self.ComboLast = CurTime()
+                table.insert(self.ComboBuf, pressedCombo)
+
+                local count = #self.ComboBuf
+
+                if count == 3 then
+                    self:EmitSound("button/ancient_button1.wav", 90, math.Rand(110,130))
+
+                    local a, b, c = self.ComboBuf[1], self.ComboBuf[2], self.ComboBuf[3]
+                    self.ComboBuf = {}
+
+                    if a == 1 and b == 3 and c == 2 then
+                        self.Selfdestruct = not self.Selfdestruct
+                    end
+                else
+                    self:EmitSound("button/ancient_button1.wav", 90, math.Rand(90,110))
+                end
+
+                return
+            end
+
+            if AnySideHit(relativePos, BTN.AllToggle.pos, BTN.AllToggle.margin) then
                 if (self.Selfdestruct) then self:EmitSound("door/atlantis_door_fail.wav",60) return end
                 self:EmitSound("button/ancient_button1.wav",90,math.Rand(90,110))
                 local val = false
@@ -892,7 +977,7 @@ if SERVER then
                 end
 
             end
-            if MWButtonCheck(relativePos,button2pos,margin) then
+            if AnySideHit(relativePos, BTN.ZPM2.pos, BTN.ZPM2.margin) then
                 if (self.Selfdestruct) then self:EmitSound("door/atlantis_door_fail.wav",60) return end
                 self:EmitSound("button/ancient_button1.wav",90,math.Rand(90,110))
                 local val = false
@@ -908,7 +993,7 @@ if SERVER then
                 end
             end
             
-            if MWButtonCheck(relativePos,button3pos,margin) then
+            if AnySideHit(relativePos, BTN.ZPM3.pos, BTN.ZPM3.margin) then
 
                 if (self.Selfdestruct) then self:EmitSound("door/atlantis_door_fail.wav",60) return end
                 self:EmitSound("button/ancient_button1.wav",90,math.Rand(90,110))
@@ -924,7 +1009,7 @@ if SERVER then
                     end)
                 end
             end
-            if MWButtonCheck(relativePos,button4pos,margin) then
+            if AnySideHit(relativePos, BTN.ZPM1.pos, BTN.ZPM1.margin) then
                 if (self.Selfdestruct) then self:EmitSound("door/atlantis_door_fail.wav",60) return end
                 self:EmitSound("button/ancient_button1.wav",90,math.Rand(90,110))
                 local val = false
@@ -939,16 +1024,7 @@ if SERVER then
                     end)
                 end
             end
-            if MWButtonCheck(relativePos,overloadbutton1,0.1) then
-                --print("Player pressed the correct place!")
-                self:EmitSound("button/ancient_button1.wav",90,math.Rand(90,110))
-                if (self.Selfdestruct) then 
-                    self.Selfdestruct = false 
-                else 
-                    self.Selfdestruct = true 
-                end
-            end 
-            if MWButtonCheck(relativePos,failsafebutton1,margin) then
+            if AnySideHit(relativePos, BTN.FailSafe.pos, BTN.FailSafe.margin) then
                 if (self.Selfdestruct) then self:EmitSound("door/atlantis_door_fail.wav",60) return end
                 self:EmitSound("button/ancient_button1.wav",90,math.Rand(90,110))
                 if (self.Failsafe) then 
@@ -1109,6 +1185,103 @@ end
 
 if CLIENT then
     if (StarGate == nil or StarGate.MaterialFromVMT == nil) then return end
+
+
+    local function MWButtonCheck(pos, targetpos, margin)
+        return math.abs(pos.x - targetpos.x) <= margin
+        and math.abs(pos.y - targetpos.y) <= margin
+        and math.abs(pos.z - targetpos.z) <= margin
+    end
+
+
+    local function RotateAroundZ(p, center, deg)
+        local a  = math.rad(deg)
+        local ca = math.cos(a)
+        local sa = math.sin(a)
+
+        local x = p.x - center.x
+        local y = p.y - center.y
+
+        return Vector(
+            x * ca - y * sa + center.x,
+            x * sa + y * ca + center.y,
+            p.z
+        )
+    end
+
+    local RING_CENTER_XY = (Vector(-7.057692,  18.680084, 0)
+                      + Vector(-13.034216, -15.619967, 0)
+                      + Vector(19.961227,  -3.455073, 0)) / 3
+
+
+
+    local function AnySideHit(relativePos, basePos, margin)
+        if not basePos then return false end
+        margin = margin or 0.5
+
+        local center = Vector(RING_CENTER_XY.x, RING_CENTER_XY.y, basePos.z)
+        for _, deg in ipairs({0, 120, 240}) do
+            local p = RotateAroundZ(basePos, center, deg)
+            if MWButtonCheck(relativePos, p, margin) then
+                return true
+            end
+        end
+        return false
+    end
+
+
+
+
+    local function GetHubHoverText(ent, hitWorldPos)
+        if not IsValid(ent) then return nil end
+        local relativePos = ent:WorldToLocal(hitWorldPos)
+
+
+        local BTN = {
+            AllToggle = { pos = Vector(-7.057692, 18.680084, 44.346169), margin = 0.5, text = "Toggle ALL ZPMs" },
+            ZPM1      = { pos = Vector(-9.146106, 17.862841, 44.346172), margin = 0.5, text = "Toggle ZPM 1" },
+            ZPM2      = { pos = Vector(-10.982636, 16.641993, 44.346161), margin = 0.5, text = "Toggle ZPM 2" },
+            ZPM3      = { pos = Vector(-12.613367, 15.498039, 44.346161), margin = 0.5, text = "Toggle ZPM 3" },
+            FailSafe  = { pos = Vector(-14.92, 18.65, 44.35),            margin = 0.5, text = "Toggle Failsafe" },
+        }
+
+        -- local comboBtns = {
+        --     [1] = { pos = Vector(-7.27,  22.77, 44.35), margin = 0.5, text = "Combo Key 1" },
+        --     [2] = { pos = Vector(-9.49,  21.32, 44.35), margin = 0.5, text = "Combo Key 2" },
+        --     [3] = { pos = Vector(-11.34, 20.29, 44.35), margin = 0.5, text = "Combo Key 3" },
+        -- }
+        -- for i = 1, 3 do
+        --     if AnySideHit(relativePos, comboBtns[i].pos, comboBtns[i].margin) then
+        --         return comboBtns[i].text
+        --     end
+        -- end
+
+        for _, b in pairs(BTN) do
+            if AnySideHit(relativePos, b.pos, b.margin) then
+                return b.text
+            end
+        end
+
+        return nil
+    end
+
+    local function DrawCrosshairTooltip(text)
+        if not text or text == "" then return end
+
+        surface.SetFont("Trebuchet18")
+        local tw, th = surface.GetTextSize(text)
+
+        local x = ScrW() * 0.5
+        local y = ScrH() * 0.5 + 28
+
+        local pad = 6
+        surface.SetDrawColor(0, 0, 0, 180)
+        surface.DrawRect(x - tw * 0.5 - pad, y - pad, tw + pad * 2, th + pad * 2)
+
+        draw.SimpleText(text, "Trebuchet18", x, y, Color(255, 255, 255, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP)
+    end
+
+
     ENT.ZpmSprite = StarGate.MaterialFromVMT("ZpmSprite", [["Sprite"
 	{
 		"$spriteorientation" "vp_parallel"
@@ -1244,6 +1417,14 @@ if CLIENT then
                     zpm3 = self.Entity:GetNWString("zpm3")
                     overload = self.Entity:GetNWString("overload")
                 end
+
+                -- Button tooltip
+                local tr = LocalPlayer():GetEyeTrace()
+                if tr and tr.Entity == self.Entity then
+                    local tip = GetHubHoverText(self.Entity, tr.HitPos)
+                    DrawCrosshairTooltip(tip)
+                end
+
 
                 local realpower = "nil"
                 if (flow >=1000000000) then
