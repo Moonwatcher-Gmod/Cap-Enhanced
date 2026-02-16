@@ -174,9 +174,9 @@ function ENT:Initialize()
 	if (self.IsDHDSg1) then
 		self:CreateWireInputs("Press Button","Disable Menu","Hide Letters","Disable Ring Rotation","Wire Disable DHD Sound","Buttons Mode","Lock Buttons","Lock Main Button","Lock to Gate [ENTITY]","Disable DHD");
 	elseif (self.IsDHDAtl and not self.IsCityDHD) then
-		self:CreateWireInputs("Press Button","Disable Menu","Hide Letters","Slow Mode","Wire Disable DHD Sound","Buttons Mode","Lock Buttons","Lock Main Button","Lock to Gate [ENTITY]","Disable DHD");
+		self:CreateWireInputs("Press Button","Disable Menu","Hide Letters","Slow Mode","Wire Disable DHD Sound","Buttons Mode","Lock Buttons","Lock Main Button","Lock to Gate [ENTITY]","Disable DHD","Alt Sound Mode");
 	elseif (self.IsCityDHD) then	
-		self:CreateWireInputs("Press Button","Disable Menu","Hide Letters","Slow Mode","Wire Disable DHD Sound","Disable Iris Toggle","Buttons Mode","Lock Buttons","Lock Main Button","Lock to Gate [ENTITY]","Disable DHD","ATA Mode");
+		self:CreateWireInputs("Press Button","Disable Menu","Hide Letters","Slow Mode","Wire Disable DHD Sound","Disable Iris Toggle","Buttons Mode","Lock Buttons","Lock Main Button","Lock to Gate [ENTITY]","Disable DHD","Alt Sound Mode","ATA Mode");
 	else
 		self:CreateWireInputs("Press Button","Disable Menu","Hide Letters","Wire Disable DHD Sound","Buttons Mode","Lock Buttons","Lock Main Button","Lock to Gate [ENTITY]","Disable DHD");
 	end
@@ -407,6 +407,16 @@ function ENT:TriggerInput(k,v)
 			self.ATAMode = true
 		else
 			self.ATAMode = false
+		end
+	elseif(k == "Alt Sound Mode") then
+		if(v > 0) then
+			self.PlorkSound = self.AltPlorkSound
+			self.LockSound = self.AltLockSound
+			self:SetNWBool("AtlantisDHDAltSound",true)
+		else
+			self.PlorkSound = self.MainPlorkSound
+			self.LockSound = self.MainLockSound
+			self:SetNWBool("AtlantisDHDAltSound",false)
 		end
 	end
 end

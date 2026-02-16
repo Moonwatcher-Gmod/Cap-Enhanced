@@ -27,8 +27,14 @@ if SERVER then
     if (StarGate == nil or StarGate.CheckModule == nil or not StarGate.CheckModule("base")) then return end
     --################# HEADER #################
     AddCSLuaFile()
-    ENT.PlorkSound = "stargate/dhd_atlantis.mp3"
-    ENT.LockSound = "stargate/chevron_lock_atlantis_incoming.mp3"
+    ENT.MainPlorkSound = "stargate/dhd_atlantis.mp3"
+    ENT.AltPlorkSound = "stargate/dhd_atlantis_alt.mp3"
+    ENT.PlorkSound = ENT.MainPlorkSound
+
+    ENT.MainLockSound = "stargate/chevron_lock_atlantis_incoming.mp3"
+    ENT.AltLockSound = "stargate/dhd_atlantis_lock_alt.mp3"
+    ENT.LockSound = ENT.MainLockSound
+
     ENT.SkinNumber = 2
     ENT.SkinBase = 1
 
