@@ -36,10 +36,10 @@ if SERVER then
         self.MaxEnergy = StarGate.CFG:Get("zpm_mk3", "capacity", 88000000)
         self.Energy = StarGate.CFG:Get("zpm_mk3", "capacity", 88000000)
         self:CreateWireOutputs("Active", "ZPM %", "ZPM Energy", "Internal Overload")
-        self:Skin(2)
         self.IsTampered = false
         self.IsMk4 = false
-        self:SetNWInt("zpmempty",0)
+        self:SetNWBool("zpmempty",false)
+        self:SetNWBool("zpmactive",false)
         self.empty = false
         self.Connected = false
         self.Flow = 0
@@ -54,6 +54,13 @@ if SERVER then
         self.InternalOverload = 0
         self.Cloaked = false
         self.Boom = false
+        self.ShowAccurate = false --make the zpm always lit up if it has power, the red part in the top turns on/off depending on if its connected or not
+
+        timer.Simple(0.1,function()
+            self:Skin(0)
+            self.Entity:SetNWBool("zpmshowaccurate",self.ShowAccurate)
+        end)
+        
 
         self.Entity:SetNWInt("zpmyellowlightalpha", 100)
     end
@@ -76,12 +83,22 @@ if SERVER then
     end
 
     function ENT:Skin(a)
-        if (a == 1) then
+        self.Entity:SetMaterial("") --fix material being unable to be changed if show accurate was set previously
+
+        if(a == 0) then
+            self.Entity:SetSkin(0)
+            if(self.Energy > 0 and self.ShowAccurate) then
+                self.Entity:SetMaterial("models/pg_props/pg_zpm/zpm_disconnected")
+            end
+        elseif(a == 1) then
             self.Entity:SetSkin(1)
+            if(self.ShowAccurate) then
+                self.Entity:SetMaterial("models/pg_props/pg_zpm/zpm_connected")
+            end
         elseif (a == 2) then
             self.Entity:SetSkin(2)
         elseif (a ==3) then
-            self.Entity:SetSkin(2)
+            self.Entity:SetSkin(3)
         end
     end
 
@@ -174,11 +191,14 @@ if SERVER then
             if (not self.Connected) then
                 self:Skin(1)
                 self.Connected = true
+                self:SetNWBool("zpmactive",true)
             end
         else
             if (self.Connected) then
-                self:Skin(2)
                 self.Connected = false
+                self:SetNWBool("zpmactive",false)
+
+                self:Skin(0)
             end
         end
 
@@ -231,8 +251,9 @@ if SERVER then
             self.Energy = 0
             active = 0
             self.empty = true
-            self:SetNWInt("zpmempty",1)
-            self:Skin(2)
+            self:SetNWBool("zpmempty",true)
+            self:SetNWBool("zpmactive",false)
+            self:Skin(0)
             --if (self.HasRD) then StarGate.WireRD.OnRemove(self,true) end;
             self:AddResource("energy", 0)
             self.Connected = false
@@ -448,7 +469,7 @@ if CLIENT then
             lightadd = 25
         end
 
-        if(self:GetNWInt("zpmempty") == 0) then
+        if(self:GetNWBool("zpmempty") == false) then
             for i = 1, 5 do
                 local size = 9
 
@@ -459,20 +480,24 @@ if CLIENT then
                 elseif (i == 5) then
                     size = 6
                 end
-
-                render.DrawSprite(self.Entity:LocalToWorld(self.SpritePositions[i]), size, size, zpmcol)
+                
+                if(self:GetNWBool("zpmshowaccurate") or self:GetNWBool("zpmactive") == true) then
+                    render.DrawSprite(self.Entity:LocalToWorld(self.SpritePositions[i]), size, size, zpmcol)
+                end
             end
-
-            local dlight = DynamicLight(self:EntIndex())
-            if(dlight) then
-                dlight.Pos = self:GetPos()
-                dlight.Decay = 100
-                dlight.Brightness = 1
-                dlight.Size = self.Entity:GetNWString("perc") + lightadd
-                dlight.DieTime = CurTime() + 1
-                dlight.r = zpmcol.r
-                dlight.g = zpmcol.g
-                dlight.b = zpmcol.b
+            
+            if(self:GetNWBool("zpmshowaccurate") or self:GetNWBool("zpmactive") == true) then
+                local dlight = DynamicLight(self:EntIndex())
+                if(dlight) then
+                    dlight.Pos = self:GetPos()
+                    dlight.Decay = 100
+                    dlight.Brightness = 1
+                    dlight.Size = self.Entity:GetNWString("perc") + lightadd
+                    dlight.DieTime = CurTime() + 1
+                    dlight.r = zpmcol.r
+                    dlight.g = zpmcol.g
+                    dlight.b = zpmcol.b
+                end
             end
         end
     end

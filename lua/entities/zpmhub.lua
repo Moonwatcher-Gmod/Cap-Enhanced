@@ -240,9 +240,9 @@ if SERVER then
                         end
                     else
                     	if (ent.Energy == 0) then
-                    		ent:SetSkin(2)
-                    	else                  	
-                    		ent:SetSkin(1)
+                    		ent:Skin(0)
+                    	else
+                            ent:Skin(0)
                     		ent:EmitSound(self.Sounds.PowerUp, 90, 100)
                     	end
                 	end
@@ -260,9 +260,9 @@ if SERVER then
 	                    	end
                     	else
 	                    	if (ent.Energy == 0) then
-	                    		ent:SetSkin(2)
-	                    	else                 	
-	                    		ent:SetSkin(2)
+	                    		ent:Skin(0)
+	                    	else
+                                ent:Skin(0)
 	                    		ent:EmitSound(self.Sounds.PowerDown, 90, 100)
 	                    	end
                 		end
@@ -456,9 +456,9 @@ if SERVER then
                         end
                     else
                     	if (v.Ent.Energy == 0) then
-                    		v.Ent:SetSkin(2)
+                    		v.Ent:SetSkin(0)
                     	else                 	
-                    		v.Ent:SetSkin(2)
+                    		v.Ent:SetSkin(0)
                     		v.Ent:EmitSound(self.Sounds.PowerDown, 90, 100)
                     	end
             		end
@@ -710,9 +710,9 @@ if SERVER then
                         end
                     else
                     	if (v.Ent.Energy == 0) then
-                    		v.Ent:SetSkin(0)
-                    	else                  	
-                    		v.Ent:SetSkin(1)
+                    		v.Ent:Skin(0)
+                    	else
+                            v.Ent:Skin(0)
                     	end
                 	end
 

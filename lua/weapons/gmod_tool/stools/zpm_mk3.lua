@@ -10,6 +10,7 @@ TOOL.ClientConVar["autolink"] = 1
 TOOL.ClientConVar["autoweld"] = 1
 TOOL.ClientConVar["capacity"] = 100
 TOOL.ClientConVar["model"] = "models/pg_props/pg_zpm/pg_zpm.mdl"
+TOOL.ClientConVar["skinmode"] = 0
 TOOL.Entity.Class = "zpm_mk3"
 TOOL.Entity.Keys = {"model"}
 TOOL.Entity.Limit = 6
@@ -45,6 +46,10 @@ function TOOL:LeftClick(t)
     self:AddUndo(p, e, c)
     self:AddCleanup(p, c, e)
 
+    if(self:GetClientNumber("skinmode") == 1) then
+        e.ShowAccurate = true
+    end
+
     return true
 end
 
@@ -58,6 +63,7 @@ function TOOL:ControlsPanel(Panel)
 	if(StarGate.HasResourceDistribution) then
 		Panel:CheckBox(SGLanguage.GetMessage("stool_autolink"),"zpm_mk3_autolink"):SetToolTip(SGLanguage.GetMessage("stool_autolink_desc"));
 	end
+    Panel:CheckBox("TV Accurate Skin","zpm_mk3_skinmode"):SetToolTip("ZPM is always lit up with power, the red dot on top turns on or off depending on if its connected")
 	Panel:AddControl("Label", {Text = SGLanguage.GetMessage("stool_zpm_mk3_fulldesc")})
 end
 
