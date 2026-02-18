@@ -334,7 +334,7 @@ end
 function ENT:Detonate()
     local bomb = ents.Create("gate_nuke")
     if(bomb ~= nil and bomb:IsValid()) then
-        bomb:Setup(self.Entity:GetPos(), 200)
+        bomb:Setup(self.Entity:GetPos(), (self.Energy / self.MaxEnergy) * 100 * 2)
         bomb:SetVar("owner",self.Owner)
         bomb:Spawn()
         bomb:Activate()
