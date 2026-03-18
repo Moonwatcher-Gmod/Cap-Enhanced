@@ -19,7 +19,7 @@ jobs:
 
             - name: Setup SteamCMD
               id: steamcmd
-              uses: CyberAndrii/setup-steamcmd@1
+              uses: CyberAndrii/setup-steamcmd@v1
 
             - name: Install fastgmad
               run: |
