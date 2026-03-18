@@ -86,7 +86,9 @@ if SERVER then
 		end
 
 		timer.Simple(1,function()
-			self:StopARG()
+			if(self ~= nil) then
+				self:StopARG()
+			end
 		end)
 
 		local findent = ents.FindInSphere(self:GetPos(),100) --do it instantly so it gets stuff easier
@@ -121,7 +123,9 @@ if SERVER then
 	end
 
 	function ENT:PhysicsCollide(data,phys)
-		self:StopARG()
+		if(self ~= nil) then
+			self:StopARG()
+		end
 	end
 
 	function ENT:StopARG()
