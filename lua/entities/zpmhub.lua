@@ -70,6 +70,7 @@ if SERVER then
         self.CheckOverloadConfig = 0
         self.IsOverloadOn = true
         self.Failsafe = true
+    
         self:SetNWBool("HubAdvButtons", StarGate.CFG:Get("cap_enhanced_cfg", "hub_advbuttons", false))
         self.ZPM1_Current_energy = 0
         self.ZPM2_Current_energy = 0
