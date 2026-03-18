@@ -188,4 +188,27 @@ end
 
 if SERVER then
     concommand.Add("stargate_reload", StarGate.CallReload)
+
+    --prevent entities inside shields from taking damage, this is probably not the most performant thing, but its probably fine
+    /* --commented because its unfinished, damage sources inside a shield should damage people already inside a shield and this doesnt do that yet
+    hook.Add("EntityTakeDamage","CAP:E Global Shield Damage Hook",function(target,dmginfo)
+        if(target ~= nil) then
+            local find = ents.FindInSphere(target:GetPos(),StarGate.CFG:Get("shield","max_size",2048))
+
+            for k,v in pairs(find) do
+                if(v:GetClass() == "shield_generator") then
+                    if(v.Shield and v.Shield:IsValid()) then
+                        if(v:GetPos():Distance(target:GetPos()) <= v.Size or v:GetPos():Distance(dmginfo:GetDamagePosition()) <= v.Size) then
+                            if(target:IsPlayer()) then
+                                print(dmginfo:GetDamagePosition())
+                                print(v:GetPos())
+                            end
+                            dmginfo:SetDamage(0)
+                        end
+                    end
+                end
+            end
+        end
+    end)
+    */
 end

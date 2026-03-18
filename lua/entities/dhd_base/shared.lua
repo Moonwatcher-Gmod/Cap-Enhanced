@@ -293,6 +293,73 @@ properties.Add( "Stargate.DHD.Atl.Off",
 
 });
 
+properties.Add( "Stargate.DHD.AtlSnd.On",
+{
+	MenuLabel	=	"Enable Alt Sound", --this should have language added
+	Order		=	-100,
+	MenuIcon	=	"icon16/plugin_add.png",
+
+	Filter		=	function( self, ent, ply )
+						if ( !IsValid( ent ) || !IsValid( ply ) || !ent.IsDHD || !ent.IsDHDAtl || ent:GetNWBool("GateSpawnerProtected",false) || ent:GetNWBool("AtlantisDHDAltSound",false)) then return false end
+						if ( !gamemode.Call( "CanProperty", ply, "dhdmodify", ent ) ) then return false end
+						return true
+
+					end,
+
+	Action		=	function( self, ent )
+
+						self:MsgStart()
+							net.WriteEntity( ent )
+						self:MsgEnd()
+
+					end,
+
+	Receive		=	function( self, length, player )
+
+						local ent = net.ReadEntity()
+						if ( !self:Filter( ent, player ) ) then return false end
+
+						ent.PlorkSound = ent.AltPlorkSound
+						ent.LockSound = ent.AltLockSound
+						ent:SetNWBool("AtlantisDHDAltSound",true)
+					end
+
+});
+
+properties.Add( "Stargate.DHD.AtlSnd.Off",
+{
+	MenuLabel	=	"Disable Alt Sound", --this should have language added
+	Order		=	-100,
+	MenuIcon	=	"icon16/plugin_delete.png",
+
+	Filter		=	function( self, ent, ply )
+
+						if ( !IsValid( ent ) || !IsValid( ply ) || !ent.IsDHD || !ent.IsDHDAtl || ent:GetNWBool("GateSpawnerProtected",false) || !ent:GetNWBool("AtlantisDHDAltSound",false)) then return false end
+						if ( !gamemode.Call( "CanProperty", ply, "dhdmodify", ent ) ) then return false end
+						return true
+
+					end,
+
+	Action		=	function( self, ent )
+
+						self:MsgStart()
+							net.WriteEntity( ent )
+						self:MsgEnd()
+
+					end,
+
+	Receive		=	function( self, length, player )
+
+						local ent = net.ReadEntity()
+						if ( !self:Filter( ent, player ) ) then return false end
+
+						ent.PlorkSound = ent.MainPlorkSound
+						ent.LockSound = ent.MainLockSound
+						ent:SetNWBool("AtlantisDHDAltSound",false)
+					end
+
+});
+
 properties.Add( "Stargate.DHD.Glyphs.On",
 {
 	MenuLabel	=	SGLanguage.GetMessage("stargate_c_tool_18"),

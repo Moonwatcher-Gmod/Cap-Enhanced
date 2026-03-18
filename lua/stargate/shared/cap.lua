@@ -559,3 +559,35 @@ StarGate.EventHorizonTypes = StarGate.EventHorizonTypes or {}
 function StarGate.RegisterEventHorizon(type, data)
     StarGate.EventHorizonTypes[type] = data
 end
+
+
+/*
+the CheckCami function works like this:
+Stargate.CheckCami(player, permission, allowed, disallowed)
+permission is the permission name you register in cap_cami.lua
+allowed is what is returned if the player has the permission
+disallowed is what is returned if the player doesn't have the permission
+
+it will always return allowed if CAMI isn't detected (CAMI is included with ULX and most other admin mods)
+
+possibly this should be updated later to include a 'disallowed error' string which will tell the player they dont have permission to use that
+*/
+function StarGate.CheckCami(ply,permission,allowed,disallowed)
+    if(ply:IsPlayer() == false) then return end
+
+    local ret = disallowed
+
+    if CAMI then
+        CAMI.PlayerHasAccess(ply,permission,function(hasaccess,string)
+            if(hasaccess) then
+                ret = allowed
+            else
+                ret = disallowed
+            end
+        end)
+    else
+        ret = allowed
+    end
+
+    return ret
+end
