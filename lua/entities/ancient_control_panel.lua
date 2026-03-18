@@ -45,6 +45,47 @@ if SERVER then
         self.AnimRunning = false
         self.SlotOpen = false
         --self.SelectiveTargeting = false
+        
+        -- Register the console command once during initialization
+        concommand.Add("AP" .. self:EntIndex(), function(ply, cmd, args)
+            local power = tonumber(args[1])
+            self.AnimRunning = true
+            self:Anim(self.Anims[1], 0, false, self.Sounds.PressOne)
+            self:Anim(self.Anims[2], 1.5, false, self.Sounds.PressOne)
+            self:Anim(self.Anims[3], 3, false, self.Sounds.PressOne)
+            self:Anim(self.Anims[4], 4.5, false, self.Sounds.PressOne)
+            self:Anim(self.Anims[5], 6, false, self.Sounds.PressOne)
+            self:Anim(self.Anims[6], 7.5 + power / 2, false, self.Sounds.PressFew)
+            self:Anim(self.Anims[6], 11.5 + power / 2, false, self.Sounds.PressFew)
+            self:Anim(self.Anims[7], 17.5 + power / 2, false, self.Sounds.PressOne)
+
+            timer.Create("StopAnim" .. self:EntIndex(), 20 + power / 2, 1, function()
+                self.AnimRunning = false
+            end)
+
+            local dakara = self:FindDakara()
+
+            if (IsValid(dakara)) then
+                target_players = tonumber(args[2])
+                target_props = tonumber(args[3])
+                target_vehicles = tonumber(args[4])
+                target_replicators = tonumber(args[5])
+                target_npcs = tonumber(args[6])
+                target_range = tonumber(args[7])
+                dial_gates = tonumber(args[8])
+
+                timer.Create("PrepareDakara" .. self:EntIndex(), 5 / 2, 1, function()
+                if (IsValid(dakara)) then
+                    dakara:PrepareWeapon(power, target_players, target_props, target_vehicles, target_replicators, target_npcs, target_range, dial_gates)
+                end
+                end)
+                timer.Create("DialAllGates" .. self:EntIndex(), 1 / 2, 1, function()
+                    if (dial_gates == 1) then
+                        self:DiallAllGates(dakara, dial_gates)
+                    end
+                end)
+            end
+        end)
     end
 
     -----------------------------------USE----------------------------------
@@ -109,46 +150,8 @@ if SERVER then
         end
     end
 
-
-    function ENT:Think(ply)
-
-        concommand.Add("AP" .. self:EntIndex(), function(ply, cmd, args)
-            local power = tonumber(args[1])
-            self.AnimRunning = true
-            self:Anim(self.Anims[1], 0, false, self.Sounds.PressOne)
-            self:Anim(self.Anims[2], 1.5, false, self.Sounds.PressOne)
-            self:Anim(self.Anims[3], 3, false, self.Sounds.PressOne)
-            self:Anim(self.Anims[4], 4.5, false, self.Sounds.PressOne)
-            self:Anim(self.Anims[5], 6, false, self.Sounds.PressOne)
-            self:Anim(self.Anims[6], 7.5 + power / 2, false, self.Sounds.PressFew)
-            self:Anim(self.Anims[6], 11.5 + power / 2, false, self.Sounds.PressFew)
-            self:Anim(self.Anims[7], 17.5 + power / 2, false, self.Sounds.PressOne)
-
-            timer.Create("StopAnim" .. self:EntIndex(), 20 + power / 2, 1, function()
-                self.AnimRunning = false
-            end)
-
-            local dakara = self:FindDakara()
-
-            if (IsValid(dakara)) then
-                timer.Create("PrepareDakara" .. self:EntIndex(), 5 + power / 2, 1, function()
-                    if (IsValid(dakara)) then
-                        dakara:PrepareWeapon(power, tonumber(args[2]), tonumber(args[3]), tonumber(args[4]), tonumber(args[5]), tonumber(args[6]), args[7], tonumber(args[8]))
-                    end
-                end)
-
-                timer.Create("DialAllGates" .. self:EntIndex(), power / 2, 1, function()
-                    if (IsValid(self) and args[8] == 1) then
-                        self:DiallAllGates(dakara)
-                    end
-                end)
-            end
-        end)
-    end
-
-    function ENT:DiallAllGates(dakara)
+    function ENT:DiallAllGates(dakara , dial_gates)
         self.DialGate = dakara:FindGate()
-
 
         if IsValid(self.DialGate) then
             self.IncomingGates = dakara:FindAllGate()
@@ -168,6 +171,7 @@ if SERVER then
 
             timer.Create("DialTo" .. self:EntIndex(), 2.3, 1, function()
                 for _, v in pairs(self.IncomingGates or {}) do
+                    if v == self.DialGate then continue end
                     v.Outbound = true -- fix lighting up dhds
                     local action = v.Sequence:New()
                     action = v.Sequence:Dial(true, true, false)
@@ -337,7 +341,6 @@ if CLIENT then
             local d_veh = 0
             local d_rep = 0
             local d_npc = 0
-            local d_entity = ""
             local d_gate = 0
             local power = NumSliderThingy2:GetValue() + 5
             local range = NumSliderThingy3:GetValue()
@@ -361,16 +364,12 @@ if CLIENT then
             if (CheckBoxThing5:GetChecked()) then
                 d_npc = 1
             end
-            -- if SelectiveTargeting then
-            --         d_entity = CheckBoxThing7:GetValue()    
-            -- end
+            
             if (CheckBoxThing8:GetChecked()) then
                 d_gate = 1
             end
 
-
-
-            LocalPlayer():ConCommand("AP" .. e:EntIndex() .. " " .. power .. " " .. d_ply .. " " .. d_prp .. " " .. d_veh .. " " .. d_rep .. " " .. d_npc.." "..d_entity.." "..d_gate.." "..range)
+            LocalPlayer():ConCommand("AP" .. e:EntIndex() .. " " .. power .. " " .. d_ply .. " " .. d_prp .. " " .. d_veh .. " " .. d_rep .. " " .. d_npc.." "..range.." "..d_gate)
             DermaPanel:Remove()
         end
     end

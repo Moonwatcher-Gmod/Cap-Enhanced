@@ -61,7 +61,7 @@ if SERVER then
         self.rateOfChange = 0
         self.Overload = 0
         self.Selfdestruct = false
-        self.MaxTransferRate = 150000
+        self.MaxTransferRate = 383000
         self.CurrentOverload = 1
         self.OverloadFactor = 4
         self.ZapTime = 0
@@ -70,7 +70,7 @@ if SERVER then
         self.CheckOverloadConfig = 0
         self.IsOverloadOn = true
         self.Failsafe = true
-
+    
         self:SetNWBool("HubAdvButtons", StarGate.CFG:Get("cap_enhanced_cfg", "hub_advbuttons", false))
         self.ZPM1_Current_energy = 0
         self.ZPM2_Current_energy = 0
@@ -339,12 +339,12 @@ if SERVER then
 
     function ENT:Think()
         --player.GetAll()[1]:ChatPrint(tostring(self.Overload_disabled))
-        
         if (self._NextCfgSync or 0) < CurTime() then
             self._NextCfgSync = CurTime() + 10
             self:SetNWBool("HubAdvButtons", StarGate.CFG:Get("cap_enhanced_cfg", "hub_advbuttons", false))
-        end
 
+    
+        end
         if self.HaveRD3 then
             local nettable = CAF.GetAddon("Resource Distribution").GetNetTable(self.netid)
 
@@ -663,7 +663,7 @@ if SERVER then
         self.Entity:SetNWString("add", add)
         self.Entity:SetNWString("perc", perc)
         --self.Entity:SetNWString("eng",math.floor(eng));
-        self.Entity:SetNWString("flow", (self.rateOfChange))
+        self.Entity:SetNWString("flow", (self.rateOfChange)*100)
         self.Entity:SetNWString("overload", math.floor(self.Overload))
 
         local zpmm = {zpm1, zpm2, zpm3}
@@ -745,7 +745,6 @@ if SERVER then
                     self:HubLink(v.Ent)
                 elseif (v.Dir == 1) then
                     self:HubUnlink(v.Ent)
-
                     if (i == 1) then
                         self.ZPM1_Current_energy = 0
                         self.ZPM1_lastenergy = 0
@@ -861,7 +860,6 @@ if SERVER then
         end
         return false
     end
- 
 
     function ENT:Use(activator)
         if (self:GetWire("Disable Use") > 0) then return end
@@ -896,11 +894,10 @@ if SERVER then
             return
         end
 
-
         if activator:IsPlayer() then
             local aimPos = activator:GetEyeTrace().HitPos
             local relativePos = self.Entity:WorldToLocal(aimPos)
-            
+
             local BTN = {
                 AllToggle = { pos = Vector(-7.057692, 18.680084, 44.346169), margin = 0.5 },
                 ZPM1      = { pos = Vector(-9.146106, 17.862841, 44.346172), margin = 0.5 },
@@ -922,8 +919,6 @@ if SERVER then
             if (CurTime() - self.ComboLast) > COMBO_TIMEOUT then
                 self.ComboBuf = {}
             end
-            
-
 
             local pressedCombo = nil
             for idx = 1, 3 do
@@ -1032,7 +1027,6 @@ if SERVER then
                     end)
                 end
             end
-            
             if AnySideHit(relativePos, BTN.FailSafe.pos, BTN.FailSafe.margin) then
                 if (self.Selfdestruct) then self:EmitSound("door/atlantis_door_fail.wav",60) return end
                 self:EmitSound("button/ancient_button1.wav",90,math.Rand(90,110))
@@ -1194,6 +1188,8 @@ end
 
 if CLIENT then
     if (StarGate == nil or StarGate.MaterialFromVMT == nil) then return end
+
+
     local function MWButtonCheck(pos, targetpos, margin)
         return math.abs(pos.x - targetpos.x) <= margin
         and math.abs(pos.y - targetpos.y) <= margin
@@ -1287,6 +1283,7 @@ if CLIENT then
 
         draw.SimpleText(text, "Trebuchet18", x, y, Color(255, 255, 255, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP)
     end
+
 
     ENT.ZpmSprite = StarGate.MaterialFromVMT("ZpmSprite", [["Sprite"
 	{
@@ -1430,6 +1427,7 @@ if CLIENT then
                     local tip = GetHubHoverText(self.Entity, tr.HitPos)
                     DrawCrosshairTooltip(tip)
                 end
+
 
                 local realpower = "nil"
                 if (flow >=1000000000) then

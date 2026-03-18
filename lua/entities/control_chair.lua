@@ -92,12 +92,8 @@ if CLIENT then
                     draw.DrawText("Offline", "HudHintTextLarge", ScrW() / 2 + 130 + w, ScrH() / 2 + 90 - h, Color(255, 0, 0, 255), 0)
                 end
 
-
-                draw.DrawText("1: Target Menu", "HudHintTextLarge", ScrW() / 2 - 5 + w, ScrH() / 2 + 110 - h, color_white, 0)
-
-                draw.DrawText("Left Mouse Button: Fire Drones", "HudHintTextLarge", ScrW() / 2 - 5 + w, ScrH() / 2 + 130 - h, color_white, 0)
-
-                draw.DrawText("Space (hold): Stardrive", "HudHintTextLarge", ScrW() / 2 - 5 + w, ScrH() / 2 + 150 - h, color_white, 0)
+                draw.DrawText("Left Mouse Button: Fire Drones", "HudHintTextLarge", ScrW() / 2 - 5 + w, ScrH() / 2 + 110 - h, color_white, 0)
+                draw.DrawText("Space (hold): Stardrive", "HudHintTextLarge", ScrW() / 2 - 5 + w, ScrH() / 2 + 130 - h, color_white, 0)
 
 
 
@@ -225,6 +221,31 @@ if CLIENT then
     end
 end
 
+if CLIENT then
+    -- Hide weapon selection HUD and block switching while in chair
+    hook.Add("HUDShouldDraw", "ControlChair_HideWeaponSelect", function(name)
+        local ply = LocalPlayer()
+        if IsValid(ply) and ply:GetNWBool("ControlChair_InChair", false) then
+            -- Hide weapon selection HUD elements
+            if name == "CHudWeaponSelection" then
+                return false
+            end
+        end
+    end)
+    
+    -- Block weapon selection completely on client
+    hook.Add("PlayerBindPress", "ControlChair_BlockWeaponSwitch_Client", function(ply, bind, pressed)
+        if IsValid(ply) and ply:GetNWBool("ControlChair_InChair", false) then
+            -- Block weapon switching binds
+            if string.find(bind, "slot") or bind == "invnext" or bind == "invprev" then
+                return true
+            end
+        end
+    end)
+end
+
+
+
 if SERVER then
     if (StarGate == nil or StarGate.CheckModule == nil or not StarGate.CheckModule("ship")) then return end
     AddCSLuaFile()
@@ -236,6 +257,27 @@ if SERVER then
     util.PrecacheSound("thrusters/hover01.wav")
 	util.PrecacheSound("ambient/explosions/exp2.wav")
 	util.PrecacheSound("tech/hover01_end2.wav")
+
+    hook.Add("PlayerSwitchWeapon", "ControlChair_PreventWeaponSwitch", function(ply, oldWeapon, newWeapon)
+        if IsValid(ply) and ply:GetNWBool("ControlChair_InChair", false) then
+            return true -- Prevent weapon switch
+        end
+    end)
+
+    -- Lock weapon functionality while controlling chair
+    hook.Add("Think", "ControlChair_LockWeapons", function()
+        for _, ply in ipairs(player.GetAll()) do
+            if IsValid(ply) and ply:GetNWBool("ControlChair_InChair", false) then
+                local weapon = ply:GetActiveWeapon()
+                if IsValid(weapon) then
+                    -- Disable weapon attacks by setting next fire times to far future
+                    weapon:SetNextPrimaryFire(CurTime() + 1)
+                    weapon:SetNextSecondaryFire(CurTime() + 1)
+                end
+            end
+        end
+    end)
+
 
     ENT.Models = {
         Base = Model("models/soren/chair_zpm/chair_base_zpm.mdl"),
@@ -294,6 +336,7 @@ if SERVER then
         --########################
         self.PlayerTouching = nil
         self.RotateIsOn = true
+        self.Enabled = false
         self.Debug = false
         self.EyeTrack = false
         self.Pressed = false
@@ -310,6 +353,7 @@ if SERVER then
         self.PilotViewing = false
         self.RequireATAGene = StarGate.CFG:Get("cap_enhanced_cfg","ATA_gene_active",false);
         self.LastCheckTime = 0
+        self.RegisteredLaunchers = {}
         --###### Energy Vars
         self:AddResource("energy", 1)
 
@@ -429,6 +473,17 @@ if SERVER then
     function ENT:Hit(strength, normal, pos)
     end
 
+    function ENT:RegisterLauncher(launcher)
+        if IsValid(launcher) then
+            self.RegisteredLaunchers[launcher] = true
+        end
+    end
+
+    function ENT:UnregisterLauncher(launcher)
+        if IsValid(launcher) then
+            self.RegisteredLaunchers[launcher] = nil
+        end
+    end
 
     function ENT:SearchForTargets(pos, targetlist)
 
@@ -668,13 +723,13 @@ if SERVER then
                 p:SetNetworkedEntity("ScriptedVehicle", self)
                 p:SetViewEntity(self)
                 p:SetEyeAngles(self.Chair:GetAngles())
+                p:SetNWBool("ControlChair_InChair", true)
                 --p:SetNWBool("Control", true)
                 p:SetNWEntity("chair", self.Chair)
                 --self:EmitSound(self.Sounds.Activate,100,100)
                 --self.Chair:SetSkin(1)
                 self:ConsumeResource("energy", 500)
                 self.Controlling = true
-                
                 
                 self.ActiveTime = 0
                 self.NextUse = CurTime() + 1
@@ -686,6 +741,7 @@ if SERVER then
     function ENT:DeactivateChair(p)
         if (self.Pilot) then
             self.Pilot:SetNWBool("Control",false)
+            self.Pilot:SetNWBool("ControlChair_InChair", false)
 
             if (self:GetResource("energy") < 500) then
                 self.Pilot:SetNWInt("chair_initialized", 0)
@@ -982,7 +1038,9 @@ if SERVER then
         if (self.Controlling and IsValid(self.Pilot)) then
             if (self.Pilot:KeyDown(IN_FORWARD)) then
                 if (self.Enabled) then
-                    
+                    self:StopSound("thrusters/hover01.wav")
+                 	self:StopSound("thrusters/hover01.wav")
+                 	self:StopSound("thrusters/hover01.wav")
                     --self.RotateIsOn = false
                     self.RotationSpeed = 0
                 	if (self.Antarticatype) then
@@ -1025,7 +1083,7 @@ if SERVER then
                     end
                     timer.Simple(1, function() self.Pressed = false end)
                 end
-            elseif (self.Pilot:KeyPressed(IN_RELOAD)) then
+            elseif (self.Pilot:KeyPressed(IN_RELOAD) and self.Enabled) then
                  	if ( not self.RotateIsOn) then
                  		self.RotateIsOn = true
                         self:SetNetworkedBool("Rotate",true)
@@ -1033,13 +1091,13 @@ if SERVER then
                  		self.RotateIsOn = false
                         self:SetNetworkedBool("Rotate",false)
                  	end
-            elseif (self.Pilot:KeyPressed(IN_JUMP)) then
+            elseif (self.Pilot:KeyPressed(IN_JUMP) and self.Enabled) then
             		self:EmitSound("thrusters/hover01.wav",100,80)
             		self:EmitSound("ambient/explosions/exp2.wav",100,80)
-            elseif (self.Pilot:KeyDown(IN_JUMP)) then
+            elseif (self.Pilot:KeyDown(IN_JUMP) and self.Enabled) then
 
             		self:ConsumeResource("energy", 5000)        		
-            elseif (self.Pilot:KeyReleased(IN_JUMP)) then
+            elseif (self.Pilot:KeyReleased(IN_JUMP) and self.Enabled) then
             		self:EmitSound("tech/hover01_end2.wav",100,80)
                  	self:StopSound("thrusters/hover01.wav")
                  	self:StopSound("thrusters/hover01.wav")
@@ -1079,6 +1137,8 @@ if SERVER then
                 end
             end
         end)
+
+
 
         -- Click functions wiremod
 
@@ -1187,11 +1247,22 @@ if SERVER then
 
                 self:ConsumeResource("energy", 5 * self.DroneCount)
             	self.Track = true
-                if (self.Pilot:KeyDown(IN_ATTACK)) then
+                if (self.Pilot:KeyDown(IN_ATTACK) and self.Enabled) then
                     if (not self.PilotViewing) then
-                        self:FireDrones()
-                    end
+                        if (table.Count(self.RegisteredLaunchers) == 0 and CurTime() > (self.NextFire or 0)) then
+                            self.Pilot:SendLua( "GAMEMODE:AddNotify('No launchers linked! Touch the chair with a drone launcher to link', NOTIFY_ERROR, 4);" )
+                            self.Pilot:EmitSound("buttons/button8.wav",100,100)
+                            -- wait a second before allowing to fire again
+                            self.NextFire = CurTime() + 1
+                        elseif table.Count(self.RegisteredLaunchers) > 0 then
+                            self:FireDrones()
 
+                        end
+
+
+
+
+                    end
                 end
 
                 if (self.Pilot:KeyPressed(IN_ATTACK)) then

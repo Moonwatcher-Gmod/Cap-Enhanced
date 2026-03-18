@@ -54,6 +54,7 @@ if SERVER then
         self.AlreadyOpened = false
         self.CanDoAnim = true
         self.MaxRadius = 15000
+        self.ShouldDialGates = false
         self.ProtectedByTouch = {}
         --self.Entity:SpawnStuff()
         self.Sounds.LoopSound = CreateSound(self.Entity, self.Sounds.Loop)
@@ -398,7 +399,7 @@ if SERVER then
         end
     end
 
-    function ENT:PrepareWeapon(power, d_ply, d_prp, d_veh, d_rep, d_npc, d_entity, d_range)
+    function ENT:PrepareWeapon(power, d_ply, d_prp, d_veh, d_rep, d_npc, d_range, d_dialgate)
         util.ScreenShake(self:GetPos(), 4, 4.5, 20, 1500)
         self:Anims(self, "open", 10, false, "dakara/dakara_charge.wav")
         self.Entity:EmitSound("dakara/dakara_charge.wav", 511, 85)
@@ -433,14 +434,13 @@ if SERVER then
             table.insert(self.Targets, "npc")
         end
 
-        if (d_entity == nil or d_entity == "" ) then 
-
-    	else
-            table.insert(self.Targets, d_entity)
-        end
-
-
         self.MaxRadius = d_range + 1400
+
+        if (d_dialgate == 1) then
+            self.ShouldDialGates = true
+        else
+            self.ShouldDialGates = false
+        end
 
         timer.Create("CreateWave" .. self:EntIndex(), 8, 1, function()
             if IsValid(self) then
@@ -478,7 +478,7 @@ if SERVER then
         table.insert(immuneEnts, self.SecretButton1)
         table.insert(immuneEnts, self.SecretButton2)
         self.Wave = ents.Create("dakara_wave")
-        self.Wave:Setup(self.Entity:GetPos() + Vector(0, 0, 2300), immuneEnts, self.Targets, true, self.MaxRadius)
+        self.Wave:Setup(self.Entity:GetPos() + Vector(0, 0, 2300), immuneEnts, self.Targets, self.ShouldDialGates, self.MaxRadius, self:FindGate())
         self.Wave:Spawn()
         self.Wave:Activate()
         self.Entity:EmitSound(self.Sounds.Release, 511, math.random(98, 102))
