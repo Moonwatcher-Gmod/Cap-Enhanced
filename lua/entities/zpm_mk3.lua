@@ -30,13 +30,8 @@ if SERVER then
             phys:EnableMotion(false)
             phys:SetMass(10)
         end
-
-        self:AddResource("energy", StarGate.CFG:Get("zpm_mk3", "energy_capacity", 1000000))
-        self:SupplyResource("energy", StarGate.CFG:Get("zpm_mk3", "energy_capacity", 1000000))
         self.MaxEnergy = StarGate.CFG:Get("zpm_mk3", "capacity", 88000000)
         self.Energy = StarGate.CFG:Get("zpm_mk3", "capacity", 88000000)
-        self:CreateWireOutputs("Active", "ZPM %", "ZPM Energy", "Internal Overload")
-        self.IsTampered = false
         self.IsMk4 = false
         self:SetNWBool("zpmempty",false)
         self:SetNWBool("zpmactive",false)
@@ -54,13 +49,31 @@ if SERVER then
         self.InternalOverload = 0
         self.Cloaked = false
         self.Boom = false
-        self.ShowAccurate = false --make the zpm always lit up if it has power, the red part in the top turns on/off depending on if its connected or not
+        self.SkinMode = "Normal"
 
-        timer.Simple(0.1,function()
-            self:Skin(0)
-            self.Entity:SetNWBool("zpmshowaccurate",self.ShowAccurate)
+        timer.Simple(0.1,function() --toolgun only sets values after initialize :angy:
+            if(self.ZPMType == "mk4") then
+                self.WireDebugName = "ZPM MK IV"
+                self.Entity:SetModel("models/pg_props/pg_zpm/pg_zpm4.mdl")
+                self.SkinMode = "MK4"
+                self.FlowNum = 2578
+
+                self:AddResource("energy", StarGate.CFG:Get("zpm_mk4", "energy_capacity", 1800000))
+                self:SupplyResource("energy", StarGate.CFG:Get("zpm_mk4", "energy_capacity", 88000000))
+                self:CreateWireOutputs("Active", "ZPM %", "ZPM Energy")
+            else --mk3 or tampered
+                self.FlowNum = 1578
+
+                self:AddResource("energy", StarGate.CFG:Get("zpm_mk3", "energy_capacity", 1000000))
+                self:SupplyResource("energy", StarGate.CFG:Get("zpm_mk3", "energy_capacity", 1000000))
+
+                self:CreateWireOutputs("Active", "ZPM %", "ZPM Energy", "Internal Overload")
+            end
+
+            self:Skin(false)
+            self.Entity:SetNWString("zpmskinmode",self.SkinMode)
+            self.Entity:SetNWString("zpmtype",self.ZPMType)
         end)
-        
 
         self.Entity:SetNWInt("zpmyellowlightalpha", 100)
     end
@@ -82,23 +95,37 @@ if SERVER then
         return e
     end
 
-    function ENT:Skin(a)
-        self.Entity:SetMaterial("") --fix material being unable to be changed if show accurate was set previously
+    function ENT:Skin(enable)
+        self.Entity:SetMaterial("") --fix material being unable to be changed if tv accurate was set previously
 
-        if(a == 0) then
-            self.Entity:SetSkin(0)
-            if(self.Energy > 0 and self.ShowAccurate) then
-                self.Entity:SetMaterial("models/pg_props/pg_zpm/zpm_disconnected")
+        if(enable == true) then --enable zpm
+            if(self.SkinMode == "Normal") then
+                self.Entity:SetSkin(1)
+            elseif(self.SkinMode == "TV") then
+                if(self.Energy > 0) then
+                    self.Entity:SetMaterial("models/pg_props/pg_zpm/zpm_connected")
+                else
+                    self.Entity:SetSkin(0)
+                end
+            elseif(self.SkinMode == "TZPM") then
+                self.Entity:SetSkin(3)
+            elseif(self.SkinMode == "MK4") then
+                self.Entity:SetMaterial("models/pg_props/pg_zpm/zpm4_on")
             end
-        elseif(a == 1) then
-            self.Entity:SetSkin(1)
-            if(self.ShowAccurate) then
-                self.Entity:SetMaterial("models/pg_props/pg_zpm/zpm_connected")
+        elseif(enable == false) then --disable zpm
+            if(self.SkinMode == "Normal") then
+                self.Entity:SetSkin(0)
+            elseif(self.SkinMode == "TV") then
+                if(self.Energy > 0) then
+                    self.Entity:SetMaterial("models/pg_props/pg_zpm/zpm_disconnected")
+                else
+                    self.Entity:SetSkin(0)
+                end
+            elseif(self.SkinMode == "TZPM") then
+                self.Entity:SetSkin(2)
+            elseif(self.SkinMode == "MK4") then
+                self.Entity:SetMaterial("models/pg_props/pg_zpm/zpm4")
             end
-        elseif (a == 2) then
-            self.Entity:SetSkin(2)
-        elseif (a ==3) then
-            self.Entity:SetSkin(3)
         end
     end
 
@@ -159,7 +186,7 @@ if SERVER then
 
         if (StarGate.CFG:Get("zpm_mk3", "explode", false)) then
             if (self.IsConnectedToHub == false) then
-                if (self.Flow > 1578) then
+                if (self.Flow > self.FlowNum) then
                     self.InternalOverload = math.Clamp(self.InternalOverload + 2.5, 0, 120) 
                 else
                     self.InternalOverload = math.Clamp(self.InternalOverload - 0.15, 0, 120) 
@@ -189,7 +216,7 @@ if SERVER then
 
         if (StarGate.WireRD.Connected(self.Entity)) then
             if (not self.Connected) then
-                self:Skin(1)
+                self:Skin(true)
                 self.Connected = true
                 self:SetNWBool("zpmactive",true)
             end
@@ -198,7 +225,7 @@ if SERVER then
                 self.Connected = false
                 self:SetNWBool("zpmactive",false)
 
-                self:Skin(0)
+                self:Skin(false)
             end
         end
 
@@ -207,7 +234,7 @@ if SERVER then
             local nw_capacity = self:GetNetworkCapacity("energy")
             percent = (self.Energy / self.MaxEnergy) * 100
 
-            if (self.IsTampered) then
+            if (self.ZPMType == "tampered") then
                 if self.Connected and self.Boom ==false then
                     self:EmitSound("ambient/energy/powerup2.wav", 100, 80)
                     self:EmitSound("ambient/energy/powerup2.wav", 100, 80)
@@ -230,7 +257,7 @@ if SERVER then
                 rate = math.Clamp(rate, 0, nw_capacity - energy)
                 self:SupplyResource("energy", rate)
                 self.Energy = self.Energy - rate
-                if (self.IsTampered) then
+                if (self.ZPMType == "tampered") then
                     local ran = math.random(1,30);
                     if(ran == 1 and self.Connected)then
                         self:Sparks();
@@ -253,7 +280,7 @@ if SERVER then
             self.empty = true
             self:SetNWBool("zpmempty",true)
             self:SetNWBool("zpmactive",false)
-            self:Skin(0)
+            self:Skin(false)
             --if (self.HasRD) then StarGate.WireRD.OnRemove(self,true) end;
             self:AddResource("energy", 0)
             self.Connected = false
@@ -366,6 +393,27 @@ function ENT:Nuker()
     end);
 end
 
+
+function ENT:PreEntityCopy()
+	local dupeInfo = {}
+
+	dupeInfo.Type = self.ZPMType
+    dupeInfo.Skin = self.SkinMode
+
+	duplicator.StoreEntityModifier(self,"DupeInfo",dupeInfo)
+end
+
+function ENT:PostEntityPaste(ply, Ent, CreatedEntities)
+	local dupeInfo = Ent.EntityMods.DupeInfo
+
+	if dupeInfo.Type then
+		self.ZPMType = dupeInfo.Type
+	end
+	if dupeInfo.Skin then
+		self.SkinMode = dupeInfo.Skin
+	end
+end
+
 if CLIENT then
     if (StarGate == nil or StarGate.MaterialFromVMT == nil) then return end
 
@@ -408,8 +456,6 @@ if CLIENT then
 
     ENT.SpritePositions = {Vector(0, 0, 5), Vector(0, 0, 3), Vector(0, 0, 0), Vector(0, 0, -3), Vector(0, 0, -5)}
 
-    ENT.Zpm_hud = surface.GetTextureID("VGUI/resources_hud/zpm")
-
     function ENT:Initialize()
         self.Entity:SetNWString("add", "Disconnected")
         self.Entity:SetNWString("perc", 0)
@@ -425,12 +471,23 @@ if CLIENT then
             hook.Add("HUDPaint", tostring(self.Entity) .. "ZMK", function()
                 local w = 0
                 local h = 260
+
+                if(self.Entity:GetNWString("zpmtype") == "mk4") then
+                    self.Zpm_hud = surface.GetTextureID("VGUI/resources_hud/zpm4")
+                else
+                    self.Zpm_hud = surface.GetTextureID("VGUI/resources_hud/zpm")
+                end
                 surface.SetTexture(self.Zpm_hud)
                 surface.SetDrawColor(Color(255, 255, 255, 255))
                 surface.DrawTexturedRect(ScrW() / 2 + 6 + w, ScrH() / 2 - 50 - h, 180, 360)
                 surface.SetFont("center2")
                 surface.SetFont("header")
-                draw.DrawText("ZPM MK 3", "header", ScrW() / 2 + 58 + w, ScrH() / 2 + 41 - h, Color(0, 255, 255, 255), 0)
+                if(self.Entity:GetNWString("zpmtype") == "mk4") then
+                    draw.DrawText("ZPM MK 4", "header", ScrW() / 2 + 58 + w, ScrH() / 2 + 41 - h, Color(0, 255, 255, 255), 0)
+                else
+                    draw.DrawText("ZPM MK 3", "header", ScrW() / 2 + 58 + w, ScrH() / 2 + 41 - h, Color(0, 255, 255, 255), 0)
+                end
+
                 draw.DrawText("Status", "center2", ScrW() / 2 + 40 + w, ScrH() / 2 + 65 - h, Color(209, 238, 238, 255), 0)
                 draw.DrawText("Energy", "center2", ScrW() / 2 + 40 + w, ScrH() / 2 + 115 - h, Color(209, 238, 238, 255), 0)
                 draw.DrawText("Capacity", "center2", ScrW() / 2 + 40 + w, ScrH() / 2 + 165 - h, Color(209, 238, 238, 255), 0)
@@ -465,7 +522,11 @@ if CLIENT then
             zpmcol = Color(50,50,255,255)
             lightadd = 10
         else
-            zpmcol = Color(255, 165, 0, alpha)
+            if(self.Entity:GetNWString("zpmtype") == "mk4") then
+                zpmcol = Color(0, 102, 255, alpha)
+            else
+                zpmcol = Color(255, 165, 0, alpha)
+            end
             lightadd = 25
         end
 
@@ -481,12 +542,12 @@ if CLIENT then
                     size = 6
                 end
                 
-                if(self:GetNWBool("zpmshowaccurate") or self:GetNWBool("zpmactive") == true) then
+                if(self:GetNWString("zpmskinmode") == "TV" or self:GetNWBool("zpmactive") == true) then
                     render.DrawSprite(self.Entity:LocalToWorld(self.SpritePositions[i]), size, size, zpmcol)
                 end
             end
             
-            if(self:GetNWBool("zpmshowaccurate") or self:GetNWBool("zpmactive") == true) then
+            if(self:GetNWString("zpmskinmode") == "TV" or self:GetNWBool("zpmactive") == true) then
                 local dlight = DynamicLight(self:EntIndex())
                 if(dlight) then
                     dlight.Pos = self:GetPos()

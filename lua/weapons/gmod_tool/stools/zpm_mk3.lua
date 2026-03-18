@@ -10,7 +10,8 @@ TOOL.ClientConVar["autolink"] = 1
 TOOL.ClientConVar["autoweld"] = 1
 TOOL.ClientConVar["capacity"] = 100
 TOOL.ClientConVar["model"] = "models/pg_props/pg_zpm/pg_zpm.mdl"
-TOOL.ClientConVar["skinmode"] = 0
+TOOL.ClientConVar["skinmode"] = 1
+TOOL.ClientConVar["type"] = 1
 TOOL.Entity.Class = "zpm_mk3"
 TOOL.Entity.Keys = {"model"}
 TOOL.Entity.Limit = 6
@@ -42,12 +43,31 @@ function TOOL:LeftClick(t)
 
     local c = self:Weld(e, t.Entity, weld)
     local capacity = tonumber(self:GetClientInfo("capacity"))
-    e.Energy = (e.MaxEnergy / 100) * math.Clamp(capacity, 0, 100)
+
+    if(self:GetClientNumber("type") == 2) then --mk4
+        e.MaxEnergy = StarGate.CFG:Get("zpm_mk4", "capacity", 98000000)
+        e.Energy = (StarGate.CFG:Get("zpm_mk4", "capacity", 98000000) / 100) * math.Clamp(capacity, 0, 100)
+    else
+        e.Energy = (StarGate.CFG:Get("zpm_mk3", "capacity", 88000000) / 100) * math.Clamp(capacity, 0, 100)
+    end
+    
     self:AddUndo(p, e, c)
     self:AddCleanup(p, c, e)
 
     if(self:GetClientNumber("skinmode") == 1) then
-        e.ShowAccurate = true
+        e.SkinMode = "Normal"
+    elseif(self:GetClientNumber("skinmode") == 2) then
+        e.SkinMode = "TV"
+    elseif(self:GetClientNumber("skinmode") == 3) then
+        e.SkinMode = "TZPM"
+    end
+
+    if(self:GetClientNumber("type") == 1) then
+        e.ZPMType = "mk3"
+    elseif(self:GetClientNumber("type") == 2) then
+        e.ZPMType = StarGate.CheckCami(p,"cap - allow mk4 zpm","mk4","mk3")
+    elseif(self:GetClientNumber("type") == 3) then
+        e.ZPMType = StarGate.CheckCami(p,"cap - allow tampered zpm","tampered","mk3")
     end
 
     return true
@@ -63,7 +83,26 @@ function TOOL:ControlsPanel(Panel)
 	if(StarGate.HasResourceDistribution) then
 		Panel:CheckBox(SGLanguage.GetMessage("stool_autolink"),"zpm_mk3_autolink"):SetToolTip(SGLanguage.GetMessage("stool_autolink_desc"));
 	end
-    Panel:CheckBox("TV Accurate Skin","zpm_mk3_skinmode"):SetToolTip("ZPM is always lit up with power, the red dot on top turns on or off depending on if its connected")
+
+    Panel:AddControl("ComboBox",{
+		Label = "Skin Mode",
+		Options = {
+			["Default"] = { zpm_mk3_skinmode = 1},
+			["TV Accurate"] = { zpm_mk3_skinmode = 2},
+            ["Tampered ZPM"] = {zpm_mk3_skinmode = 3}
+		}
+	})
+    
+
+    Panel:AddControl("ComboBox",{
+		Label = "ZPM Type",
+		Options = {
+			["Mk3"] = { zpm_mk3_type = 1},
+			["Mk4"] = { zpm_mk3_type = 2},
+            ["Tampered"] = {zpm_mk3_type = 3}
+		}
+	})
+    --Panel:CheckBox("TV Accurate Skin","zpm_mk3_skinmode"):SetToolTip("ZPM is always lit up with power, the red dot on top turns on or off depending on if its connected")
 	Panel:AddControl("Label", {Text = SGLanguage.GetMessage("stool_zpm_mk3_fulldesc")})
 end
 
