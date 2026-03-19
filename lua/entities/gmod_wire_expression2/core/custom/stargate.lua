@@ -890,3 +890,10 @@ e2function number entity:hasATA()
 	end
 end
 __e2setcost(5)
+
+e2function number entity:stargateHasATA()
+	if(IsValid(this) and this:IsPlayer()) then
+		return this:GetNWInt('ATAGene',0)
+	end
+end
+__e2setcost(5)

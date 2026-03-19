@@ -70,6 +70,12 @@ local Sounds = {
 function SWEP:Initialize()
 	self:SetWeaponHoldType(self.HoldType)
 	--self.Owner:SetNWFloat("pShieldStrength", 0)
+
+	timer.Create("Personal Shield ATACheck"..self:EntIndex(),1,0,function()
+		if(self.Owner.pShielded and self.Owner:GetNWInt("ATAGene",0) == 0) then
+			self:TurnOff()
+		end
+	end)
 end
 
 local function EngageEffect(ply)
@@ -101,22 +107,50 @@ local function HitEffect(pos, ply)
 	end
 end
 
-function SWEP:PrimaryAttack()
+function SWEP:TurnOn()
 	if(not self.Owner.pShielded) then
 		self.Owner.pShielded = true
 		EngageEffect(self.Owner)
 		self.Weapon:SetNextSecondaryFire(CurTime()+0.8)
 	end
-	return true
 end
 
-function SWEP:SecondaryAttack()
+function SWEP:TurnOff()
 	if(self.Owner.pShielded) then
 		self.Owner.pShielded = false
 		DisengageEffect(self.Owner)
 		self.Weapon:SetNextPrimaryFire(CurTime()+0.8)
 	end
-	return true
+end
+
+function SWEP:PrimaryAttack()
+	if(self.Owner:GetNWInt("ATAGene",0) == 1) then
+		self:TurnOn()
+	else
+		if(self.Owner:GetNWInt("ATAGene",0) == 0) then
+            self.Owner:SendLua( "GAMEMODE:AddNotify('You are missing the gene required to use this!', NOTIFY_GENERIC, 7);" )
+            self.Owner:EmitSound("buttons/button18.wav",100,100)
+        end
+	end
+end
+
+function SWEP:SecondaryAttack()
+	if(self.Owner:GetNWInt("ATAGene",0) == 1) then
+		self:TurnOff()
+	else
+		if(self.Owner:GetNWInt("ATAGene",0) == 0) then
+            self.Owner:SendLua( "GAMEMODE:AddNotify('You are missing the gene required to use this!', NOTIFY_GENERIC, 7);" )
+            self.Owner:EmitSound("buttons/button18.wav",100,100)
+        end
+	end
+end
+
+function SWEP:OnDrop()
+	timer.Remove("Personal Shield ATACheck"..self:EntIndex())
+end
+
+function SWEP:OnRemove()
+	timer.Remove("Personal Shield ATACheck"..self:EntIndex())
 end
 
 hook.Add("EntityTakeDamage", "Staraget.PersonalShield.StopDamage",
@@ -204,4 +238,9 @@ end
 concommand.Add("pShield_Engage", ConCommandShieldEngage)
 concommand.Add("pShield_Disengage", ConCommandShieldDisengage)
 
+else --client
+
+function SWEP:PrimaryAttack() end
+
+function SWEP:SecondaryAttack() end
 end
