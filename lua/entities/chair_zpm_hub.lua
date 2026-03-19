@@ -141,6 +141,8 @@ if SERVER then
 
     function ENT:Touch(ent)
         timer.Simple(0.1,function()--stop the game from crashing if someone spawns a zpm near the hub
+            if(self.Entity == nil or not IsValid(self.Entity)) then return end
+    
             local pos = self.Entity:GetPos()
             local ang = self.Entity:GetAngles()
 
