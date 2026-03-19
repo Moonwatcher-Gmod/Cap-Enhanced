@@ -323,7 +323,7 @@ function ENT:Think()
 						local e = ents.Create("zpm_mk3");
 						e:SetPos(self.Ent:GetPos());
 						e:Spawn();
-						e.IsTampered = true
+						e.ZPMType = "tampered"
 						e:SetAngles(self.Ent:GetAngles());
 						e:SetParent(self.Entity);
 						if CPPI and IsValid(self.Owner) and e.CPPISetOwner then e:CPPISetOwner(self.Owner) end

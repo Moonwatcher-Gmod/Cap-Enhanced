@@ -197,7 +197,7 @@ if SERVER then
 			if self.Percentcomp == 100 then
 				self:TurnOff()
 
-				if (self.ZPM.IsTampered) then
+				if (self.ZPM.ZPMType == "tampered") then
 					self.Entity:SetNWInt("Result",1)
 					self:SetWire("Tainted",1)
 					self:EmitSound("sg/scanner/deactivate2.wav")
