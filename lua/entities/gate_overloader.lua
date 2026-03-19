@@ -219,6 +219,11 @@ if SERVER then
         self:SetIsActive(false)
         self:SetIsFiring(false)
 
+        self:SetUseType(SIMPLE_USE)
+
+        self.ATAMode = false 
+        self.Locked = false
+
         -- Set resources
         if (self.HasRD) then
             self:AddResource("energy", 1)
@@ -226,7 +231,7 @@ if SERVER then
 
         -- Set up wire inputs and outputs
         if (self.HasWire) then
-            self:CreateWireInputs("Fire")
+            self:CreateWireInputs("Fire","Lock","ATA Mode")
             self:CreateWireOutputs("Active", "Percent", "Energy", "Time")
         end
 
@@ -244,11 +249,27 @@ if SERVER then
             else
                 self:Disarm()
             end
+        elseif(inputName == "Lock") then
+            if(inputValue > 0) then
+                self.Locked = true
+            else
+                self.Locked = false
+            end
+        elseif(inputName == "ATA Mode") then
+            if(inputValue > 0) then
+                self.ATAMode = true
+            else
+                self.ATAMode = false
+            end
         end
     end
 
     -- Toggle armed state when the USE key is pressed on the overloader
-    function ENT:Use()
+    function ENT:Use(ply)
+        if(self.ATAMode and not StarGate.HasATA(ply,true)) then return end
+
+        if(self.Locked) then return end
+
         if (self.lastUseTime + 3 >= CurTime()) then return end
 
         if (self.isArmed == false) then

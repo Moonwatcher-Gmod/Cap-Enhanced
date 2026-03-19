@@ -55,7 +55,7 @@ function ENT:FindATA(pos)
 
         if(dist <= self.Radius) then
 			if(self:GetWire("ATA Mode") > 0) then
-				if(v:GetNWInt("ATAGene",0) == 1) then
+				if(StarGate.HasATA(v,false)) then
 					near = true
 				end
 			else
@@ -162,7 +162,7 @@ function ENT:Use(ply)
 	if(self:GetWire("Disable Use") > 0) then return end
 
 	if(self:GetWire("ATA Mode") > 0) then
-		if(ply:GetNWInt("ATAGene",0) == 1) then
+		if(StarGate.HasATA(ply,true)) then
 			self:PressConsole(not self.Light);
 		else return end
 	else

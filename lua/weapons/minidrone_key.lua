@@ -50,7 +50,7 @@ function SWEP:Think()
 	p.Target = trace.HitPos
 
 	if IsValid(p.MiniDronePlatform) then
-		if(self.Owner:GetNWInt("ATAGene",0) == 1) then
+		if(StarGate.HasATA(self.Owner,false)) then
 			local len = (p:GetPos() - p.MiniDronePlatform:GetPos()):Length()
 			if (len < 500) then
 				p.CanMinidroneControll = true
@@ -63,6 +63,10 @@ function SWEP:Think()
 			end
 		end
 	end
+end
+
+function SWEP:Deploy()
+	StarGate.HasATA(self.Owner,true)
 end
 
 function SWEP:OnDrop()

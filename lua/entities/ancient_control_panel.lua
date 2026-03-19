@@ -44,6 +44,8 @@ if SERVER then
         self.AlreadyOpened = false
         self.AnimRunning = false
         self.SlotOpen = false
+        self.ATAMode = false
+        self:CreateWireInputs("ATA Mode")
         --self.SelectiveTargeting = false
         
         -- Register the console command once during initialization
@@ -88,8 +90,20 @@ if SERVER then
         end)
     end
 
+    function ENT:TriggerInput(k, v)
+        if(k == "ATA Mode") then
+            if(v > 0) then
+                self.ATAMode = true 
+            else
+                self.ATAMode = false
+            end
+        end
+    end
+
     -----------------------------------USE----------------------------------
     function ENT:Use(ply)
+        if(self.ATAMode and not StarGate.HasATA(ply,true)) then return end
+        
         if (not self.Busy) then
             umsg.Start("AncientPanel", ply)
             umsg.Entity(self.Entity)

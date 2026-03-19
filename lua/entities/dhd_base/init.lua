@@ -623,7 +623,7 @@ end
 
 --################# Call address @aVoN
 function ENT:Use(p)
-	if(self.IsCityDHD and self.ATAMode and p:GetNWInt("ATAGene",0) == 0) then return end
+	if(self.IsCityDHD and self.ATAMode and not StarGate.HasATA(p,true)) then return end
 
 	--Player is calling the gate and it is not busy
 	if(IsValid(p) and p:IsPlayer() and not self.busy and not self.Destroyed and (not self.Disabled or self.ButtonsMode)) then
