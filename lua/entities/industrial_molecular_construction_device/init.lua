@@ -134,18 +134,16 @@ function ENT:TriggerInput(k,v)
 		if (v>=1) then
 			self.AtlSkin = true
     		if(self.Create)then
-		        self.Entity:SetMaterial("soren/mcd/mcd_on.vmt");
+		        self.Entity:SetMaterial("MarkJaw/mcd/mcd_on.vmt");
 		  	else
-		        self.Entity:SetMaterial("soren/mcd/mcd.vmt");
+		        self.Entity:SetMaterial("MarkJaw/mcd/mcd.vmt");
 		  	end
 		else
 			self.AtlSkin = false
-    		if(self.Create)then
-		        --self.Entity:SetMaterial("MarkJaw/mcd/mcd_on_atl.vmt");
-		        self.Entity:SetMaterial("soren/mcd/mcd_on.vmt");
+			if(self.Create)then
+		        self.Entity:SetMaterial("MarkJaw/mcd/mcd_on_atl.vmt")
 		  	else
-		        --self.Entity:SetMaterial("MarkJaw/mcd/mcd_atl.vmt");
-		        self.Entity:SetMaterial("soren/mcd/mcd.vmt");
+		        self.Entity:SetMaterial("MarkJaw/mcd/mcd_atl.vmt")
 		  	end
 		end
 	elseif (k=="Effect Color") then
@@ -242,9 +240,9 @@ function ENT:Think()
 		    self.InitCreate = false;
 			self.Forw = false;
 		    if (self.AtlSkin) then
-	        	self.Entity:SetMaterial("soren/mcd/mcd_on_v2.vmt");
+	        	self.Entity:SetMaterial("MarkJaw/mcd/mcd_on.vmt");
 		    else
-	        	self.Entity:SetMaterial("soren/mcd/mcd_on_v2.vmt");
+	        	self.Entity:SetMaterial("MarkJaw/mcd/mcd_on_atl.vmt")
 	        end
 			self.Entity:SetNWBool("IdleSound",true);
 			local color = self.Ent:GetColor();
@@ -407,9 +405,9 @@ function ENT:Think()
 	    timer.Simple(2,function()
 		    if(IsValid(self.Entity))then
 		    	if (self.AtlSkin) then
-		       		self.Entity:SetMaterial("soren/mcd/mcd.vmt");
+		        	self.Entity:SetMaterial("MarkJaw/mcd/mcd.vmt");
 		    	else
-		       		self.Entity:SetMaterial("soren/mcd/mcd.vmt");
+		        	self.Entity:SetMaterial("MarkJaw/mcd/mcd_atl.vmt")
 		        end
 				self.Entity:SetNWInt("Advance",0);
 				self.Entity:SetNWBool("IdleSound",false);
