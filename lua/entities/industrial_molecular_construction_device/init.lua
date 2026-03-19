@@ -121,9 +121,11 @@ function ENT:Initialize()
 	self.Speed = StarGate.CFG:Get("imcd","speed",20);
 	self.CheckRights = StarGate.CFG:Get("imcd","check_rights",true);
 
+	self.LockMCD = false
+
 	if(self.HasWire) then
-		self:CreateWireInputs("Alternative Skin","Effect Color [VECTOR]","Class Name [STRING]","Create")
-		self:CreateWireOutputs("Active","Creation Class [STRING]","Percent Completed", "Conscruction Complete")
+		self:CreateWireInputs("Alternative Skin","Effect Color [VECTOR]","Class Name [STRING]","Create","Lock")
+		self:CreateWireOutputs("Active","Creation Class [STRING]","Percent Completed", "Conscruction Complete","Locked")
 	end
 end
 
@@ -161,6 +163,14 @@ function ENT:TriggerInput(k,v)
 		if (self.CreateClass and IsValid(self.Owner)) then
 			self:StartCreate(self.CreateClass,self.Owner);
 		end
+	elseif(k == "Lock") then
+		if(v > 0) then
+			self.LockMCD = true
+			self:SetWire("Locked",1)
+		else
+			self.LockMCD = false
+			self:SetWire("Locked",0)
+		end
 	end
 end
 
@@ -192,26 +202,28 @@ function ENT:SpawnFunction(p,t)
 end
 
 function ENT:Use(ply)
-	self:EmitSound("sg/jumper/jumper_screen_activate.wav",100,120)
-    if(not self.Create and self.Forw)then
-		net.Start("MCD")
-	    net.WriteEntity(self.Entity);
-		local classes = {}
-		for k,v in pairs(MCDEntities) do
-			if (k=="replicator") then continue end
-			local pl = ply
-			if (not self.CheckRights) then pl = nil end
-			if (not StarGate.NotSpawnable(v.check or k,pl,v.type or "tool",true)) then
-				classes[k] = true;
+	if(not self.LockMCD) then
+		self:EmitSound("sg/jumper/jumper_screen_activate.wav",100,120)
+		if(not self.Create and self.Forw)then
+			net.Start("MCD")
+			net.WriteEntity(self.Entity);
+			local classes = {}
+			for k,v in pairs(MCDEntities) do
+				if (k=="replicator") then continue end
+				local pl = ply
+				if (not self.CheckRights) then pl = nil end
+				if (not StarGate.NotSpawnable(v.check or k,pl,v.type or "tool",true)) then
+					classes[k] = true;
+				end
 			end
+			net.WriteTable(classes)
+			net.Send(ply)
+			self.Player = ply;
+		else
+			net.Start("MCD_Abort")
+			net.WriteEntity(self.Entity)
+			net.Send(ply)
 		end
-		net.WriteTable(classes)
-	    net.Send(ply)
-		self.Player = ply;
-	else
-		net.Start("MCD_Abort")
-		net.WriteEntity(self.Entity)
-		net.Send(ply)
 	end
 end
 
