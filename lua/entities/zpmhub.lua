@@ -49,7 +49,7 @@ if SERVER then
         end
 
         self:CreateWireInputs("Deactivate ZPM 1", "Deactivate ZPM 2", "Deactivate ZPM 3", "Eject ZPM 1", "Eject ZPM 2", "Eject ZPM 3", "Unhide ZPM Text", "Disable Use", "Disable Sound", "Disable Failsafe")
-        self:CreateWireOutputs("Active", "ZPM Hub %", "ZPM Hub Energy", "ZPM 1 %", "ZPM 2 %", "ZPM 3 %", "Flowrate", "Current Overload", "Max transfer rate")
+        self:CreateWireOutputs("Active", "ZPM Hub %", "ZPM Hub Energy", "ZPM 1 %", "ZPM 2 %", "ZPM 3 %", "Flowrate", "Current Overload", "Max transfer rate","Failsafe Enabled")
         self.CanEject = true
         self.C = true
         self.HaveRD3 = false
@@ -70,6 +70,7 @@ if SERVER then
         self.CheckOverloadConfig = 0
         self.IsOverloadOn = true
         self.Failsafe = true
+        self:SetWire("Failsafe Enabled",1)
     
         self:SetNWBool("HubAdvButtons", StarGate.CFG:Get("cap_enhanced_cfg", "hub_advbuttons", false))
         self.ZPM1_Current_energy = 0
@@ -297,7 +298,13 @@ if SERVER then
         if (variable == "Unhide ZPM Text" and value >= 1) then
             self.Entity:SetNWBool("DrawText", true)
         elseif (variable == "Disable Failsafe") and not self.Selfdestruct then
-            if value >= 1 then self.Failsafe = false else self.Failsafe = true end
+            if value >= 1 then 
+                self.Failsafe = false
+                self:SetWire("Failsafe Enabled",0) 
+            else 
+                self.Failsafe = true
+                self:SetWire("Failsafe Enabled",1)
+            end
         elseif (variable == "Unhide ZPM Text" and value <= 0) then
             self.Entity:SetNWBool("DrawText", false)
         elseif (variable == "Disable Sound") then
@@ -1031,9 +1038,11 @@ if SERVER then
                 if (self.Selfdestruct) then self:EmitSound("door/atlantis_door_fail.wav",60) return end
                 self:EmitSound("button/ancient_button1.wav",90,math.Rand(90,110))
                 if (self.Failsafe) then 
-                    self.Failsafe = false 
+                    self.Failsafe = false
+                    self:SetWire("Failsafe Enabled",0)
                 else 
-                    self.Failsafe = true 
+                    self.Failsafe = true
+                    self:SetWire("Failsafe Enabled",1)
                 end
             end
         end

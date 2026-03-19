@@ -39,15 +39,64 @@ function ENT:Initialize()
 	self.HasEnergy = false
 	self.Time = 0
 	self.Radius = 100
+	self.PlyNear = false
+	self.ATANear = false
 	self:SetWire("Radius",self.Radius)
 	if(self:GetModel() == "models/micropro/ancientconsole/ancient_console.mdl") then
 		self:SetSkin(1);
 	end
 end
 
+function ENT:FindATA(pos)
+	local near = false
+
+    for _, v in pairs(player.GetAll()) do
+        local dist = (pos - v:GetPos()):Length()
+
+        if(dist <= self.Radius) then
+			if(self:GetWire("ATA Mode") > 0) then
+				if(v:GetNWInt("ATAGene",0) == 1) then
+					near = true
+				end
+			else
+				near = true
+			end
+        end
+    end
+
+    return near
+end
+
+function ENT:TurnOn()
+	self:SetWire("Active",1)
+
+	if (self:GetWire("Mute") == 0) then
+		self:EmitSound("zpmhub/zpm_power_up.wav")
+	end
+	if (self:GetModel()=="models/micropro/ancientconsole/ancient_console.mdl") then
+		self:SetSkin(0)
+	else
+		self:SetSkin(1)
+	end
+end
+
+function ENT:TurnOff()
+	self:SetWire("Active",0)
+
+	if(self:GetWire("Mute") == 0) then
+		self:EmitSound("zpmhub/zpm_power_down.wav")
+	end
+	if(self:GetModel()=="models/micropro/ancientconsole/ancient_console.mdl") then
+		self:SetSkin(1)
+	else
+		self:SetSkin(0)
+	end
+end
+
 function ENT:Think()
-	if(CurTime() > self.Time) then
-		self.ply = StarGate.FindPlayer(self:GetPos(), self.Radius)
+	if(self.Auto and CurTime() > self.Time) then
+		self.PlyNear = self:FindATA(self.Entity:GetPos())
+
 		self.Time = CurTime()+1
 	end
 
@@ -65,45 +114,21 @@ function ENT:Think()
 		self.HasEnergy = true
 	end
 
-	if (self.HasEnergy == true) then
-		if(self.ply and not self.Light and self.Auto) then
+	if(self.HasEnergy == true) then
+		if(self.Auto and not self.Light and self.PlyNear) then
 			self.Light = true
-			self:SetWire("Active",1)
 
-			if (self:GetWire("Mute") == 0) then
-				self:EmitSound("zpmhub/zpm_power_up.wav")
-			end
-			if (self:GetModel()=="models/micropro/ancientconsole/ancient_console.mdl") then
-				self:SetSkin(0)
-			else
-				self:SetSkin(1)
-			end
-		elseif(not self.ply and self.Light and self.Auto) then
+			self:TurnOn()
+		elseif(self.Auto and self.Light and not self.PlyNear) then
 			self.Light = false
-			self:SetWire("Active",0)
-
-			if(self:GetWire("Mute") == 0) then	
-				self:EmitSound("zpmhub/zpm_power_down.wav")
-			end
-			if(self:GetModel()=="models/micropro/ancientconsole/ancient_console.mdl") then
-				self:SetSkin(1)
-			else
-				self:SetSkin(0)
-			end
+			
+			self:TurnOff()
 		end
 	elseif(self.HasEnergy == false) then
 		if(self.Light) then
 			self.Light = false
-			self:SetWire("Active",0)
-
-			if(self:GetWire("Mute") == 0) then	
-				self:EmitSound("zpmhub/zpm_power_down.wav")
-			end
-			if(self:GetModel()=="models/micropro/ancientconsole/ancient_console.mdl") then
-				self:SetSkin(1)
-			else
-				self:SetSkin(0)
-			end
+			
+			self:TurnOff()
 		end
 	end
 end
@@ -128,16 +153,8 @@ function ENT:TriggerInput(variable, value)
 			self:SetWire("ATA Active",0)
 		end
 	elseif(variable == "Radius") then
-		if(value < 0) then
-			self.Radius = 0
-			self:SetWire("Radius",0)
-		elseif(value > 2048) then
-			self.Radius = 2048
-			self:SetWire("Radius",2048)
-		else
-			self.Radius = value
-			self:SetWire("Radius",value)
-		end
+		self.Radius = math.Clamp(value,0,2048)
+		self:SetWire("Radius",0)
 	end
 end
 
@@ -169,24 +186,14 @@ function ENT:PressConsole(pressed)
 		if(self.HasEnergy and self.Light == false) then
 			self:EmitSound("button/ancient_button1.wav")
 			self.Light = true
-			self:SetWire("Active",1)
-
-			if(self:GetModel()=="models/micropro/ancientconsole/ancient_console.mdl") then
-				self:SetSkin(9)
-			else
-				self:SetSkin(1)
-			end
+			
+			self:TurnOn()
 		end
 	elseif(self.Light == true) then
 		self:EmitSound("button/ancient_button2.wav")
 		self.Light = false
-		self:SetWire("Active",0)
-
-		if(self:GetModel()=="models/micropro/ancientconsole/ancient_console.mdl") then
-			self:SetSkin(1)
-		else
-			self:SetSkin(0)
-		end
+		
+		self:TurnOff()
 	end
 end
 

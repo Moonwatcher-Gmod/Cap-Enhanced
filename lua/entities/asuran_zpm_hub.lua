@@ -48,7 +48,7 @@ if SERVER then
         end
 
         self:CreateWireInputs("Deactivate ZPM", "Eject ZPM", "Disable Use", "Disable Sound","Disable Failsafe")
-        self:CreateWireOutputs("Active", "ZPM Hub %", "ZPM Hub Energy","Flowrate","Current Overload", "Max transfer rate")
+        self:CreateWireOutputs("Active", "ZPM Hub %", "ZPM Hub Energy","Flowrate","Current Overload", "Max transfer rate","Failsafe Enabled")
         self.CanEject = true
         self.HaveRD3 = false
         self.C = true
@@ -65,6 +65,8 @@ if SERVER then
         self.OverloadFactor = 16
         self.ZapTime = 0
         self.SoundPitch = 46
+        self.Failsafe = true
+        self:SetWire("Failsafe Enabled",1)
         ------------------
 
 
@@ -184,6 +186,14 @@ if SERVER then
                     self.IdleSound:SetSoundLevel(70)
                     self.IdleSound:PlayEx(1, 86)
                 end
+            end
+        elseif(variable == "Disable Failsafe") then
+            if(value > 0) then
+                self.Failsafe = false
+                self:SetWire("Failsafe Enabled",0)
+            else
+                self.Failsafe = true
+                self:SetWire("Failsafe Enabled",1)
             end
         end
     end
@@ -389,7 +399,7 @@ if SERVER then
                 self.Overload =  math.Clamp( self.Overload +  ((self.CurrentOverload * self.OverloadFactor)/100),0,100 )
 
                     if (self.Overload > 20) then
-                        if (not (self:GetWire("Disable Failsafe") > 0)) then
+                        if (self.Failsafe) then
                             timer.Simple(1, function()
                                 if (IsValid(self.Entity) and self.ZPM) then
                                         self.ZPM.Dir = 1            

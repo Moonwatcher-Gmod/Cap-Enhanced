@@ -710,10 +710,21 @@ function ENT:AddChevron(btn, nosound, lightup, gate, city, fail)
 				self.Chevron[self.ChevronNumber[btn]]:Fire("skin",self.SkinNumber+1);
 			end
 			if IsValid(gate) and btn != "DIAL" and lightup then
-				local n = table.getn(self.DialledAddress);
-				local action = gate.Sequence:New();
-				action = gate.Sequence:OnButtonChevron(true, n, self.DialledAddress, btn, fail,false,self.DisRingRotate);
-				gate:RunActions(action);
+				if(self.DisRingRotate) then
+					timer.Simple(0.25,function()
+						if(IsValid(gate) and IsValid(self)) then
+							local n = table.getn(self.DialledAddress);
+							local action = gate.Sequence:New();
+							action = gate.Sequence:OnButtonChevron(true, n, self.DialledAddress, btn, fail,false,self.DisRingRotate);
+							gate:RunActions(action);
+						end
+					end)
+				else
+					local n = table.getn(self.DialledAddress);
+					local action = gate.Sequence:New();
+					action = gate.Sequence:OnButtonChevron(true, n, self.DialledAddress, btn, fail,false,self.DisRingRotate);
+					gate:RunActions(action);
+				end
 			end
 
 			if (fail) then
@@ -734,24 +745,19 @@ function ENT:AddChevron(btn, nosound, lightup, gate, city, fail)
 						--self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,40*2)
 						--self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,20*4)
 						--self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,20*6)
-					if (self.Inf_ChevSounds) then
-						self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,30)
-						self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,40)
-						self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,60)
-						if (self:FindGate():GetClass() == "stargate_virgo") then
-							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,80)
-							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,100)
-							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,120)
-							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,140)
-							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,160)
-							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,200)
+						if (self.Inf_ChevSounds) then
+							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,30)
+							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,40)
+							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,60)
+							if (self:FindGate():GetClass() == "stargate_virgo") then
+								self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,80)
+								self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,100)
+								self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,120)
+								self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,140)
+								self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,160)
+								self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,200)
+							end
 						end
-					end
-
-					 end
-				elseif(self.Entity:GetClass()=="dhd_atlantis" or self.Entity:GetClass()=="dhd_city") then
-					if (not self.DisRingRotate) then
-						self.Entity:EmitSound(Sound(self.PlorkSound),130,math.random(97,103));
 					end
 				else
 					if (self.Inf_ChevSounds) then
@@ -761,15 +767,15 @@ function ENT:AddChevron(btn, nosound, lightup, gate, city, fail)
 						if (self:FindGate():GetClass() == "stargate_virgo") then
 							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,crystal_harmony[table.getn(self.DialledAddress)])
 						else
-						self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,crystal_pitch);
-						self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,crystal_pitch);
-						self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,crystal_pitch/0.25)
-						self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,crystal_pitch/0.25)
-						self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,crystal_pitch/1.25)
-						self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,crystal_pitch/1.25)
-						self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,crystal_pitch/2)
-						self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,crystal_pitch/2)
-						--self.Entity:EmitSound(self.ChevSounds[math.random(1,table.getn(self.ChevSounds))],500,crystal_pitch/2.5)
+							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,crystal_pitch);
+							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,crystal_pitch);
+							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,crystal_pitch/0.25)
+							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,crystal_pitch/0.25)
+							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,crystal_pitch/1.25)
+							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,crystal_pitch/1.25)
+							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,crystal_pitch/2)
+							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,crystal_pitch/2)
+							--self.Entity:EmitSound(self.ChevSounds[math.random(1,table.getn(self.ChevSounds))],500,crystal_pitch/2.5)
 						end
 					elseif (ChevSounds) then
 						self.Entity:EmitSound(Sound(self.ChevSounds),70,math.random(97,103))
@@ -993,9 +999,8 @@ function ENT:PressButton(btn, nolightup, no_menu)
 			end
 		end
 		if (not remove and IsValid(e) and (e:GetClass()=="stargate_sg1" or e:GetClass()=="stargate_infinity" or e.IsStargateMovieType or atlantis) and (btn=="#" or num==8 or atlantis) and (not self.DisRingRotate and GetConVar("stargate_dhd_ring"):GetBool() or atlantis and self.DisRingRotate or e.Ring.WireMoving)) then
-			
 			if (atlantis) then
-				self:SetBusy(2.0,true);
+				self:SetBusy(3,true);
 			else
 				self:SetBusy(1.5);
 			end
