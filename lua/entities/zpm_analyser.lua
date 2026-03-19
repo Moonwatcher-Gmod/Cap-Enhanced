@@ -130,7 +130,7 @@ if SERVER then
 				self.InContact = false
 				self:TurnOff()
 
-				if (self.ZPM.IsTampered) then
+				if (self.ZPM.ZPMType == "tampered") then
 					self.Entity:SetNWInt("Result",1)
 					self:SetWire("Tainted",1)
 					self:EmitSound("sg/scanner/deactivate2.wav")

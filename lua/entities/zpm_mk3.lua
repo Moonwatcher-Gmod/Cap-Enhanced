@@ -547,7 +547,7 @@ if CLIENT then
                 end
             end
             
-            if(self:GetNWString("zpmskinmode") == "TV" or self:GetNWBool("zpmactive") == true) then
+            if(self:GetNWString("zpmskinmode") == "TV" or self:GetNWBool("zpmactive") == true or self.Entity:GetNWInt("ZPMScannedTainted") == 1) then
                 local dlight = DynamicLight(self:EntIndex())
                 if(dlight) then
                     dlight.Pos = self:GetPos()

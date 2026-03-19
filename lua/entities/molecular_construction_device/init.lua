@@ -280,7 +280,7 @@ function ENT:Think()
 				self.Entity:SetNWBool("IdleSound",false);
 				if (self.Ent._MCDTampered) then
 					local e = ents.Create("zpm_mk3");
-					e.IsTampered = true
+					e.ZPMType = "tampered"
 					e:SetPos(self.Ent:GetPos());
 					e:Spawn();
 					e:SetAngles(self.Ent:GetAngles());
