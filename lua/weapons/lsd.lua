@@ -63,7 +63,6 @@ if SERVER then
 		self:SetNWBool("WorldNoDraw",true);
 		return true;
 	end
-
 end
 
 if CLIENT then
@@ -136,7 +135,7 @@ function SWEP:RenderScreen()
     render.PushRenderTarget( NewRT )
 
     cam.Start2D();
-		if(self.Owner:GetNWInt("ATAGene",0) == 0) then
+		if(StarGate.HasATA(ply,false) == false) then
 			
 			render.Clear( 50, 50, 100, 0 );
 			surface.SetDrawColor(0,0,0, 255 );
@@ -244,16 +243,11 @@ function SWEP:Initialize()
 end
 
 function SWEP:Deploy()
-
-	if self.Owner:GetNWInt("ATAGene",0) == 0 then
-		self.Owner:SendLua( "GAMEMODE:AddNotify('You are missing the gene required to operate this!', NOTIFY_GENERIC, 7);" )
-		self.Owner:EmitSound("buttons/button18.wav",100,100)
-	else
-		self.Sound:PlayEx(0.5,100);
+	if(StarGate.HasATA(self.Owner,true)) then
+		self.Sound:PlayEx(0.25,100)
 	end
+
 	return true
-
-
 end
 
 function SWEP:OnRemove()

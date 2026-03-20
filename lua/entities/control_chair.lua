@@ -692,7 +692,7 @@ if SERVER then
     function ENT:Use(p)
         if (IsValid(self) and (not (self.Controlling))) then
             if (self.RequireATAGene) then
-                if (p:GetNWInt('ATAGene', 0)==1) then
+                if(StarGate.HasATA(p,true)) then
                     self:ActivateChair(p)
                 end
             else
@@ -908,7 +908,7 @@ if SERVER then
             
             for _, ent in ipairs(entities) do
                 if IsValid(ent) and ent:IsPlayer() then
-                    if self.RequireATAGene and ent:GetNWInt('ATAGene', 0) ~= 1 then
+                    if self.RequireATAGene and StarGate.HasATA(ent,false) == false then
                         continue
                     end
                     

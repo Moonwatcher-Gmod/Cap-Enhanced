@@ -177,6 +177,8 @@ if SERVER then
         self:SetIsActive(false)
         self:SetIsFiring(false)
 
+        self:SetUseType(SIMPLE_USE)
+
         -- Set resources
         if (self.HasRD) then
             self:AddResource("energy", 1)
@@ -190,6 +192,7 @@ if SERVER then
 
         -- The time when the USE key was last pressed on this entity
         self.lastUseTime = 0
+        self.Locked = false
     end
 
     -- Respond to a given wire input
@@ -206,12 +209,20 @@ if SERVER then
             else
                 self.ATAMode = false
             end
+        elseif(iname == "Lock") then
+            if(value > 0) then
+                self.Locked = true
+            else
+                self.Locked = false
+            end
         end
     end
 
     -- Toggle armed state when the USE key is pressed on the overloader
     function ENT:Use(ply)
-        if(self.ATAMode == true and ply:GetNWInt("ATAGene",0) == 0) then return end
+        if(self.ATAMode and not StarGate.HasATA(ply,true)) then return end
+
+        if(self.Locked) then return end
 
         if (self.lastUseTime + 3 >= CurTime()) then return end
 

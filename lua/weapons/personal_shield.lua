@@ -72,7 +72,7 @@ function SWEP:Initialize()
 	--self.Owner:SetNWFloat("pShieldStrength", 0)
 
 	timer.Create("Personal Shield ATACheck"..self:EntIndex(),1,0,function()
-		if(self.Owner.pShielded and self.Owner:GetNWInt("ATAGene",0) == 0) then
+		if(self.Owner.pShielded and StarGate.HasATA(ply,false)) then
 			self:TurnOff()
 		end
 	end)
@@ -124,24 +124,14 @@ function SWEP:TurnOff()
 end
 
 function SWEP:PrimaryAttack()
-	if(self.Owner:GetNWInt("ATAGene",0) == 1) then
+	if(StarGate.HasATA(self.Owner,true)) then
 		self:TurnOn()
-	else
-		if(self.Owner:GetNWInt("ATAGene",0) == 0) then
-            self.Owner:SendLua( "GAMEMODE:AddNotify('You are missing the gene required to use this!', NOTIFY_GENERIC, 7);" )
-            self.Owner:EmitSound("buttons/button18.wav",100,100)
-        end
 	end
 end
 
 function SWEP:SecondaryAttack()
-	if(self.Owner:GetNWInt("ATAGene",0) == 1) then
+	if(StarGate.HasATA(self.Owner,true)) then
 		self:TurnOff()
-	else
-		if(self.Owner:GetNWInt("ATAGene",0) == 0) then
-            self.Owner:SendLua( "GAMEMODE:AddNotify('You are missing the gene required to use this!', NOTIFY_GENERIC, 7);" )
-            self.Owner:EmitSound("buttons/button18.wav",100,100)
-        end
 	end
 end
 

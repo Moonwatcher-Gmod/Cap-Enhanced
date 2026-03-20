@@ -591,3 +591,25 @@ function StarGate.CheckCami(ply,permission,allowed,disallowed)
 
     return ret
 end
+
+function StarGate.HasATA(ply,print)
+    if(ply:IsPlayer() == false) then return end
+
+    local ret = false
+
+    if(ply:GetNWInt("ATAGene",0) == 0) then
+        ret = false
+
+        if SERVER then
+            if(print == true) then
+                ply:SendLua("GAMEMODE:AddNotify('You are missing the gene required to use this!', NOTIFY_GENERIC, 7);")
+                ply:EmitSound("buttons/button18.wav",100,100)
+            end
+        end
+    else
+        ret = true
+    end
+
+    return ret
+end
+

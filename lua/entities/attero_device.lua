@@ -358,7 +358,7 @@ if SERVER then
     end
 
     function ENT:Use(p)
-        if(self.ATAMode == true and p:GetNWInt("ATAGene",0) == 0) then return end
+        if(self.ATAMode and not StarGate.HasATA(p,true)) then return end
 
         if (self.On) then
             self:Off()
