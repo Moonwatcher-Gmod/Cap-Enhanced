@@ -268,9 +268,30 @@ if SERVER then
         return e
     end
 
+    function ENT:FindATA(pos)
+        local near = false
+
+        for _, v in pairs(player.GetAll()) do
+            local dist = (pos - v:GetPos()):Length()
+
+            if(dist <= 300) then
+                if(self:GetWire("ATA Mode") > 0) then
+                    if(StarGate.HasATA(v,false)) then
+                        near = true
+                    end
+                else
+                    near = true
+                end
+            end
+        end
+
+        return near
+    end
+
     function ENT:LightThink()
         if (not IsValid(self.Entity)) then return end
-        local ply = StarGate.FindPlayer(self.Entity:GetPos(), 300)
+        
+        local ply = self:FindATA(self.Entity:GetPos())
 
         if (ply and self:GetNWBool("HasEnergy",false))then
             self:ConsumeResource("energy",10)

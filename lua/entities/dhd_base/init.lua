@@ -1136,12 +1136,16 @@ end
 --################# Called by the OnScreen click function @aVoN
 concommand.Remove("_StarGate.DHD.AddSymbol_Group"); -- In case of a lua_reloadents
 concommand.Add("_StarGate.DHD.AddSymbol_Group",
-	function(_,_,arg)
+	function(ply,_,arg)
 		local e = ents.GetByIndex(tonumber(arg[1])); -- Entity
 		if(IsValid(e) and arg[2] and arg[2] ~= "") then
 			local num = tonumber(arg[2]);
 			if(num) then arg[2] = num end; -- If it is a number, we make this string to a number again
-			if not e.busy then e:PressButton(arg[2],false); end
+			if not e.busy then
+				if(e.IsCityDHD and e.ATAMode and not StarGate.HasATA(ply,true)) then return end
+
+				e:PressButton(arg[2],false); 
+			end
 		end
 	end
 );
