@@ -60,7 +60,7 @@ if SERVER then
             self.Mobilegate2 = nil
             self.EntitiesOnRoute = 0
         else
-            self:CreateWireInputs("Activate","ATA Mode")
+            self:CreateWireInputs("Activate","Disable Use","ATA Mode")
         end
         self:CreateWireOutputs("Active")
         self.EntHealth = 100
@@ -358,6 +358,8 @@ if SERVER then
     end
 
     function ENT:Use(p)
+        if(self:GetWire("Disable Use") > 0) then return end
+
         if(self.ATAMode and not StarGate.HasATA(p,true)) then return end
 
         if (self.On) then
