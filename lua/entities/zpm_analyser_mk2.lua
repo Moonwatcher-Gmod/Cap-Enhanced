@@ -184,6 +184,13 @@ if SERVER then
 	end
 
 	function ENT:Think()
+		if(self.ZPM.IsValid and not IsValid(self.ZPM.Ent)) then
+			self.ZPM.IsValid = false
+			self.ZPM.On = false
+			self.CanEject = true
+			self.Percentcomp = 0
+		end
+
 		if self.Active then
 			if CurTime() > self.Time then
 				self.Percentcomp = math.Clamp(self.Percentcomp + math.floor(math.Rand(0.5, 5)) , 0, 100) 
@@ -196,11 +203,14 @@ if SERVER then
 
 			if self.Percentcomp == 100 then
 				self:TurnOff()
-
-				if (self.ZPM.ZPMType == "tampered") then
+				print(self.ZPM.Ent)
+				if(self.ZPM.Ent.ZPMType == "tampered") then
+					print("tamp")
 					self.Entity:SetNWInt("Result",1)
 					self:SetWire("Tainted",1)
 					self:EmitSound("sg/scanner/deactivate2.wav")
+
+					self.ZPM.Ent:SetNWInt("ZPMScannedTainted",1)
 				else
 					self.Entity:SetNWInt("Result",2)
 					self:SetWire("Tainted",0)
