@@ -1,6 +1,9 @@
 --[[
 	ZPM MK IV for GarrysMod 10
 	Copyright (C) 2010 Llapp
+
+
+    --Nova Astral / 2026 / 03 / 29 / This entity is deprecated, it only exists now in the unlikely case someone had a dupe with these in it, this entity should be deleted later
 ]]
 if (StarGate ~= nil and StarGate.LifeSupportAndWire ~= nil) then
     StarGate.LifeSupportAndWire(ENT)

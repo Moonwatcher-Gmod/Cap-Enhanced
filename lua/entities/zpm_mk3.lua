@@ -51,7 +51,7 @@ if SERVER then
         self.Boom = false
         self.SkinMode = "Normal"
 
-        timer.Simple(0.1,function() --toolgun only sets values after initialize :angy:
+        timer.Simple(0,function() --toolgun only sets values after initialize :angy:
             if(self.ZPMType == "mk4") then
                 self.WireDebugName = "ZPM MK IV"
                 self.Entity:SetModel("models/pg_props/pg_zpm/pg_zpm4.mdl")
@@ -464,7 +464,6 @@ if CLIENT then
 
     function ENT:Draw()
         self.Entity:DrawModel()
-        hook.Remove("HUDPaint", tostring(self.Entity) .. "ZMK")
         if (not StarGate.VisualsMisc("cl_draw_huds", true)) then return end
 
         if (LocalPlayer():GetEyeTrace().Entity == self.Entity and not self.Cloaked and EyePos():Distance(self.Entity:GetPos()) < 1024) then
@@ -513,6 +512,8 @@ if CLIENT then
                 draw.SimpleText(tostring(eng), "center", ScrW() / 2 + 40 + w, ScrH() / 2 + 135 - h, Color(255, 255, 255, 255), 0)
                 draw.SimpleText(tostring(perc) .. "%", "center", ScrW() / 2 + 40 + w, ScrH() / 2 + 185 - h, Color(255, 255, 255, 255), 0)
             end)
+        else
+            hook.Remove("HUDPaint", tostring(self.Entity) .. "ZMK")
         end
         
         render.SetMaterial(self.ZpmSprite)
