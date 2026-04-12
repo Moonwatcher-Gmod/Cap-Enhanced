@@ -100,13 +100,15 @@ end
 if SERVER then
     function SWEP:PrimaryAttack()
         if(self.Active == false) then
+            self:SetNextPrimaryFire(CurTime()+1)
+
             local tr = self.Owner:GetEyeTrace()
             local ent = tr.Entity
             self.tent = tr.Entity
 
-            if(IsValid(ent) and self.Owner:GetShootPos():Distance(tr.HitPos) < 50) then
+            if(IsValid(ent) and self.Owner:GetShootPos():Distance(tr.HitPos) < 50 and table.HasValue(self.DHDs,ent:GetClass())) then
                 local gate = ent:FindGate()
-                if(IsValid(gate) and gate.Active == false and table.HasValue(self.DHDs,ent:GetClass())) then
+                if(IsValid(gate) and gate.Active == false) then
                     self.Active = true
 
                     ent.Disabled = true
@@ -136,6 +138,9 @@ if SERVER then
                         end
                     end)
                 end
+            else
+                self.Owner:SendLua("GAMEMODE:AddNotify('This is not a valid DHD for the Adria Dialer', NOTIFY_GENERIC, 7);")
+                self.Owner:EmitSound("buttons/button18.wav",100,100)
             end
         end
     end

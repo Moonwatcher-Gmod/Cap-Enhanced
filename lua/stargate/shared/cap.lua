@@ -568,12 +568,16 @@ permission is the permission name you register in cap_cami.lua
 allowed is what is returned if the player has the permission
 disallowed is what is returned if the player doesn't have the permission
 
-it will always return allowed if CAMI isn't detected (CAMI is included with ULX and most other admin mods)
+it will always return allowed if the player is superadmin or CAMI isn't detected (CAMI is included with ULX and most other admin mods)
 
 possibly this should be updated later to include a 'disallowed error' string which will tell the player they dont have permission to use that
 */
 function StarGate.CheckCami(ply,permission,allowed,disallowed)
     if(ply:IsPlayer() == false) then return end
+
+    if(ply:IsSuperAdmin()) then
+        return allowed
+    end
 
     local ret = disallowed
 

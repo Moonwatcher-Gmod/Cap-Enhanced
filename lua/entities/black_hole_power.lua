@@ -131,8 +131,6 @@ if SERVER then
             self.blackHoleMass = self.blackHoleMass + self.bmass
             local size = self.blackHoleMass / 1000
 
-            print("size increase "..size)
-
             self.Entity:SetCollisionBounds(Vector(-size, -size, -size), Vector(size, size, size))
             self.Entity:PhysicsInitSphere(size, "metal_bouncy")
             local phys = self.Entity:GetPhysicsObject()

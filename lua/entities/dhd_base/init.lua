@@ -327,7 +327,11 @@ function ENT:TriggerInput(k,v)
 					self:PressButton(self.DialledAddress[table.getn(self.DialledAddress)],nil,true);
 				end
 			elseif(char:find("["..symbols.."]")) then -- Only alphanumerical and the @, #
-				self:PressButton(char,nil,true);
+				if(self.ButtonsMode) then
+					self:ButtonMode(char)
+				else
+					self:PressButton(char,nil,true);
+				end
 			end
 		end
 	elseif (k == "Disable Ring Rotation" or k == "Slow Mode") then
