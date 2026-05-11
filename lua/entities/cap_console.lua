@@ -33,7 +33,7 @@ function ENT:Initialize()
 	self:AddResource("energy",0);
 	self.Pressed = false;
 	self:CreateWireInputs("Disable Auto-mode","ATA Mode","Radius","Press","Disable Use","Mute");
-	self:CreateWireOutputs("Active","ATA Active","Radius");
+	self:CreateWireOutputs("Active","Pressed","ATA Active","Radius");
 	self.Auto = true
 	self.Light = false
 	self.HasEnergy = false
@@ -139,6 +139,14 @@ function ENT:TriggerInput(variable, value)
 			self:PressConsole(false)
 		else
 			self:PressConsole(true)
+
+			self:SetWire("Pressed",1)
+
+			timer.Simple(0.1,function()
+				if(self.Entity ~= nil) then
+					self:SetWire("Pressed",0)
+				end
+			end)
 		end
 	elseif(variable == "Disable Auto-mode") then
 		if (value > 0) then 
@@ -161,6 +169,14 @@ end
 function ENT:Use(ply)
 	if(self:GetWire("Disable Use") > 0) then return end
 
+	self:SetWire("Pressed",1)
+
+	timer.Simple(0.1,function()
+		if(self.Entity ~= nil) then
+			self:SetWire("Pressed",0)
+		end
+	end)
+	
 	if(self:GetWire("ATA Mode") > 0) then
 		if(StarGate.HasATA(ply,true)) then
 			self:PressConsole(not self.Light);
