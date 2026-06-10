@@ -107,6 +107,36 @@ if SERVER then
         end
     end
 
+    function ENT:CheckBlackhole()
+        for _,ent in ents.Iterator() do --this should only trigger every 1s so shouldn't be bad
+            if(ent.IsStargate and ent:GetClass() ~= "stargate_supergate") then
+                local entities = ents.FindInSphere(ent:GetPos(),2000)
+                local tab = {}
+
+                for k,v in pairs(entities) do --this might not be the best way, but its the only way i can think of :<
+                    if(v:GetClass() == "black_hole_power") then
+                        table.insert(tab,ent)
+                    end
+                end
+
+                if(IsValid(tab[1])) then
+                    ent.BlackholeActive = true
+                    ent.HasBlackhole = true
+
+                    if(ent.IsOpen and IsValid(ent.Target)) then
+                        ent.Target.BlackholeActive = true
+                    end
+                else
+                    if(not IsValid(ent.Target)) then
+                        ent.BlackholeActive = false
+                    end
+
+                    ent.HasBlackhole = false
+                end
+            end
+        end
+    end
+
     function ENT:Think()
         if (not IsValid(self)) then return false end
 
@@ -142,11 +172,18 @@ if SERVER then
                 phys:EnableCollisions(false)
             end
         end
+
+        --stargate.target needs blackhole too
+        
+        self:CheckBlackhole()
+        
         return true
     end
 
     function ENT:OnRemove()
         StarGate.WireRD.OnRemove(self)
+
+        self:CheckBlackhole()
 
         if self.LoopSound then
             self.LoopSound:Stop()

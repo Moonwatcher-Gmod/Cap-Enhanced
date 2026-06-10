@@ -718,12 +718,19 @@ function ENT:TriggerInput(k,v,mobile,mdhd)
 				if (self.Ring.WireMoving) then self.Ring:Fire("start","",0); end
 				if (self.RingSound) then self.RingSound:ChangePitch(122,0); end
 			end
-		elseif (v >= 7) then
+		elseif (v <= 7 and v < 100) then
 			self.RingSpeed = 7;
 			if (not self.NewActive or self.WireManualDial) then
 				self.Ring.Entity:SetKeyValue("maxspeed",120);
 				if (self.Ring.WireMoving) then self.Ring:Fire("start","",0); end
 				if (self.RingSound) then self.RingSound:ChangePitch(127,0); end
+			end
+		elseif (v == 100) then
+			self.RingSpeed = 100;
+			if (not self.NewActive or self.WireManualDial) then
+				self.Ring.Entity:SetKeyValue("maxspeed",360);
+				if (self.Ring.WireMoving) then self.Ring:Fire("start","",0); end
+				if (self.RingSound) then self.RingSound:ChangePitch(255,0); end
 			end
 		elseif (v <= -1) then
 			self.RingSpeed = -1;
