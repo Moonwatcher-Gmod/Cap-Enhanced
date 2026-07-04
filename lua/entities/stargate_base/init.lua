@@ -114,6 +114,10 @@ function ENT:Initialize()
 	self.Charged = false
 	self.GateCaller = nil
 	self.EntitiesOnRoute = 0
+	
+	self.BlackholeActive = false
+	self.HasBlackhole = false
+
 	self.Entity:SetUseType(SIMPLE_USE);
 	--################# Wire!
 	self:ChangeSystemType(GetConVar("stargate_group_system"):GetBool());
@@ -245,6 +249,10 @@ function ENT:OnRemove()
 	StarGate.StopUpdateGateTemperatures(self);
 	if timer.Exists("LowPriorityThink"..self:EntIndex()) then timer.Remove("LowPriorityThink"..self:EntIndex()) end
 	if timer.Exists("ConvarsThink"..self:EntIndex()) then timer.Remove("ConvarsThink"..self:EntIndex()) end
+	timer.Remove("Stargate_blackhole_active"..self:EntIndex())
+	timer.Remove("stargate_blackhole_whirlpool"..self:EntIndex())
+	timer.Remove("stargate_whirlpool_check"..self:EntIndex())
+
 	self:Close(); -- Close the horizon
 	self:StopActions(); -- Stop all actions and sounds
 	self:DHDDisable(0); -- Shutdown near DHD's
@@ -286,6 +294,101 @@ function ENT:LowPriorityThink()
 		end
 		--self.EnergyDelay = CurTime()+1
 	--end
+	
+	if(not timer.Exists("Stargate_blackhole_active"..self:EntIndex()) and self.IsOpen and IsValid(self.EventHorizon) and self.EventHorizon:IsOpen() and self.BlackholeActive) then --black hole searches for gate and turns this on
+		local EHAng = 0
+		local HasWhirl = false
+		local pullforce = 50
+
+		if(util.IsValidModel("models/props_random/whirlpool22_narrow.mdl")) then -- if the server has https://steamcommunity.com/sharedfiles/filedetails/?id=1524799867 whirlpool model, do fun things
+			HasWhirl = true --this is unused currently
+
+			timer.Create("stargate_blackhole_whirlpool"..self:EntIndex(),60,1,function()
+				if(IsValid(self.EventHorizon)) then
+					self.EventHorizon:SetModelScale(0,2)
+
+					pullforce = 100
+				
+					--possibly invert angle and pos when its the black hole gate to show it being 'sucked' out
+					self.whirlpool = ents.Create("prop_physics")
+					self.whirlpool:SetModel("models/props_random/whirlpool22_narrow.mdl")
+					self.whirlpool:SetPos(self.Entity:GetPos() + self.Entity:GetForward() * -80)
+					self.whirlpool:SetAngles(self.Entity:GetAngles()+Angle(0,90,90)) 
+					self.whirlpool:Spawn()
+					self.whirlpool:SetModelScale(0.8,0)
+					self.whirlpool:SetNotSolid(true)
+					self.whirlpool:SetParent(self)
+
+					self.whirlpool:SetColor(Color(171,81,255))
+
+					self.backprop = ents.Create("prop_physics") --whirlpool doesnt have a 'back' to it, this is a workaround to that
+					self.backprop:SetModel("models/props_random/whirlpool22_narrow.mdl")
+					self.backprop:SetPos(self.Entity:GetPos() + self.Entity:GetForward() * -80)
+					self.backprop:SetAngles(self.Entity:GetAngles()+Angle(0,-90,90))
+					self.backprop:Spawn()
+					self.backprop:SetModelScale(-0.8,0)
+					self.backprop:SetNotSolid(true)
+					self.backprop:SetParent(self)
+
+					self.backprop:SetColor(Color(171,81,255))
+
+					--extra layer for visual reasons
+					self.whirlpool2 = ents.Create("prop_physics")
+					self.whirlpool2:SetModel("models/props_random/whirlpool22_narrow.mdl")
+					self.whirlpool2:SetPos(self.Entity:GetPos() + self.Entity:GetForward() * -95)
+					self.whirlpool2:SetAngles(self.Entity:GetAngles()+Angle(0,90,90))
+					self.whirlpool2:Spawn()
+					self.whirlpool2:SetModelScale(0.85,0)
+					self.whirlpool2:SetNotSolid(true)
+					self.whirlpool2:SetParent(self)
+
+					self.whirlpool2:SetColor(Color(171,81,255))
+				end
+			end)
+
+			timer.Create("stargate_whirlpool_check"..self:EntIndex(),0.1,0,function()
+				if(IsValid(self.EventHorizon) ~= true) then
+					timer.Remove("stargate_whirlpool_check"..self:EntIndex())
+
+					if(IsValid(self.whirlpool)) then self.whirlpool:Remove() end
+					if(IsValid(self.backprop)) then self.backprop:Remove() end
+					if(IsValid(self.whirlpool2)) then self.whirlpool2:Remove() end
+				end
+			end)
+		end
+
+		--setting angular velocity might be better, will have to test later, but i know this will just work so
+		timer.Create("Stargate_blackhole_active"..self:EntIndex(),0.01,0,function()
+			if(IsValid(self.EventHorizon)) then
+				if(self.Outbound and not self.HasBlackhole) then
+					local targets = ents.FindInSphere(self.Entity:GetPos(),2000) --make this range slowly increase later
+
+					for k,v in pairs(targets) do
+						if(v:GetClass() ~= "black_hole_power") then
+							local direction = (v:GetPos() - self.Entity:GetPos()):GetNormalized()
+
+							if(v:IsPlayer()) then
+								v:SetVelocity(direction * -pullforce) --make push force increase slowly to something like 2x gravity so it can pull you off the ground
+							elseif(IsValid(v:GetPhysicsObject())) then
+								v:GetPhysicsObject():AddVelocity(direction * -pullforce)
+							end
+						end
+					end
+				end
+
+				EHAng = EHAng+1 --just make it spin, make it spin up to speed later, maybe use the milkyway ring rotation code idk
+
+				if(EHAng >= 360) then
+					EHAng = 0
+				end
+
+				self.EventHorizon:SetAngles(self:GetAngles()+Angle(0,0,-EHAng))
+				
+			else
+				timer.Remove("Stargate_blackhole_active"..self:EntIndex())
+			end
+		end)
+	end
 end
 
 --################# Server convars to client by AlexALX

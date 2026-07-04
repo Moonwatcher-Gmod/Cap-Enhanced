@@ -17,11 +17,11 @@ ENT.Models = {
 }
 -- Sounds
 ENT.Sounds = {
-	Gate=Sound("Stargate Orlin.wav"),
+	Gate=Sound("stargate/orlin/orlin_dial.wav"),
 	Ring=Sound("stargate/universe/gate_roll.mp3"),
-	Open=Sound("stargate/universe/gate_open.mp3"),
+	Open=Sound("stargate/orlin/orlin_open.wav"),
 	Travel=Sound("stargate/gate_travel.mp3"),
-	Close=Sound("stargate/universe/gate_close.mp3"),
+	Close=Sound("stargate/orlin/orlin_close.wav"),
 	ChevronDHD=Sound("stargate/universe/chevron.mp3"),
 	Inbound=Sound("stargate/universe/chevron.mp3");
 	Lock=Sound("stargate/universe/chevron_lock.mp3"),
@@ -186,9 +186,6 @@ function ENT:LowThink()
 				self.Entity:SetNWInt("timer",0);
 		        self.Entity:SetNWInt("closetimer",0);
 				self:JammingGates(true);
-				timer.Simple(0.2,function()
-			        self.Entity:EmitSound(self.Sounds.Fail,90,math.random(130,150));
-				end)
 			end
 			if(tim >= self.Entity:GetNWInt("deactivetimer"))then
 		        self.DeactivateGate = false;

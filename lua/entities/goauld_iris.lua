@@ -30,8 +30,8 @@ if SERVER then
     ENT.hasdamagecase = true
 
     ENT.Sounds = {
-        Open = Sound("stargate/iris_atlantis_open.mp3"),
-        Close = Sound("stargate/iris_atlantis_close.mp3"),
+        Open = Sound("stargate/iris/goauld_deactivate.mp3"),
+        Close = Sound("stargate/iris/goauld_activate.mp3"),
         Hit = Sound("stargate/iris_atlantis_hit.mp3"),
         Idle = Sound("stargate/iris_atlantis_loop.wav"),
         OpenEnergy = Sound("stargate/iris_open_atlantis.mp3"),
@@ -48,7 +48,7 @@ if SERVER then
         self.Entity:SetSolid(SOLID_NONE)
         self.Entity:DrawShadow(false)
         self.Entity:SetRenderMode(RENDERMODE_TRANSALPHA)
-        self.Entity:SetColor(Color(0, 0, 0, 0))
+        self.Entity:SetColor(Color(200, 100, 0, 0))
         self.NextAction = 0
         self:CreateWireInputs("Activate", "Toggle")
         self:CreateWireOutputs("Activated")
@@ -60,7 +60,7 @@ if SERVER then
         if (#StarGate.GetConstrainedEnts(self.Entity, 1) == 0) then
             self.Phys:EnableMotion(false)
         end
-        self.Color = Vector(255,255,255)
+        self.Color = Vector(200,100,0)
         self.Color = self:GetNWVector("shield_color",Vector(0,255,0))
         --print(self.Color)
         self.IsActivated = false
@@ -219,7 +219,7 @@ if SERVER then
     function ENT:Close()
         self.Entity:SetNoDraw(false)
         local id = "ShieldSound." .. self.Entity:EntIndex()
-        self.Entity:EmitSound(self.Sounds.Close, 90, math.random(88, 93))
+        self.Entity:EmitSound(self.Sounds.Close, 90, math.random(98, 102))
 
         if (self.IdleSound) then
             self.IdleSound:Stop()
@@ -246,7 +246,7 @@ if SERVER then
         if (energy) then
             self.Entity:EmitSound(self.Sounds.OpenEnergy, 90, math.random(88, 93))
         else
-            self.Entity:EmitSound(self.Sounds.Open, 90, math.random(88, 93))
+            self.Entity:EmitSound(self.Sounds.Open, 90, math.random(98, 102))
         end
 
         timer.Remove("ShieldSound." .. self.Entity:EntIndex())
