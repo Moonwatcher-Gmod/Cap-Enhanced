@@ -185,11 +185,11 @@ end
 function ENT:SpawnButton()
 	local button = ents.Create("shield_core_button");
 	button:SetParent(self);
-	button:SetRenderMode(RENDERMODE_TRANSALPHA);
+	--button:SetRenderMode(RENDERMODE_TRANSALPHA);
 	button.Parent = self;
-	button:SetPos(self:GetPos()-self:GetForward()*0.2+self:GetRight()*40+self:GetUp()*20)
+	button:SetPos(self:GetPos()-self:GetForward()*0.2+self:GetRight()*40+self:GetUp()*18)
 	button:SetAngles(self:GetAngles()+Angle(0,0,0))
-	button:SetColor(Color(0,0,0,0))
+	--button:SetColor(Color(0,0,0,0))
 	button:DrawShadow(false)
 	button:Spawn();
 	button:Activate();

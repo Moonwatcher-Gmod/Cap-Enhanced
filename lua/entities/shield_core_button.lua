@@ -15,8 +15,9 @@ ENT.CAP_NotSave = true;
 
 function ENT:Initialize()
 
-	self:SetModel("models/jaanus/thruster_flat.mdl")
-	--self:SetMaterial("james/teltac/gold_plain.vtf")
+	self:SetModel("models/Mechanics/gears/gear12x6_small.mdl")
+	self:SetModelScale(0.8)
+	self:SetMaterial("Boba_Fett/textures/catwalk_metal")
 	self:SetSolid(SOLID_VPHYSICS)
 	self:PhysicsInit(SOLID_VPHYSICS)
 	self:SetMoveType(MOVETYPE_VPHYSICS)
@@ -37,7 +38,9 @@ end
 end
 
 if CLIENT then
-
-function ENT:Draw() end
-                      
+	function ENT:Draw(flags)
+		if(GetConVar("r_rootlod"):GetString() == "2") then -- is 2 when 'low' model detail
+			self:DrawModel(flags)
+		end
+	end
 end

@@ -22,6 +22,14 @@ end
 
 --################# Close the Iris @aVoN
 function ANIM:Close()
+	local gate = self:FindGate()
+
+	if(gate ~= nil and IsValid(gate) and gate.IsOpen and gate.BlackholeActive) then
+		self.Sounds.Close = Sound("stargate/iris/struggle.mp3")
+	else
+		self.Sounds.Close = Sound("stargate/iris_close.mp3")
+	end
+
 	self.Iris:SetNoDraw(false);
 	timer.Remove("Iris.Open."..self.Entity:EntIndex());
 	self.Iris:Fire("SetAnimation","iris_close",0.2); -- Delay it to make it synced with the sound

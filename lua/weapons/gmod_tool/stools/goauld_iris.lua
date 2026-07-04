@@ -13,6 +13,7 @@ TOOL.ClientConVar["deactivate"] = KEY_C;
 TOOL.ClientConVar["r"] = 255;
 TOOL.ClientConVar["g"] = 255;
 TOOL.ClientConVar["b"] = 255;
+TOOL.ClientConVar["defaultcol"] = 0
 
 TOOL.Entity.Class = "goauld_iris";
 TOOL.Entity.Keys = {"toggle","activate","deactivate","IsActivated","r","g","b"}; -- These keys will get saved from the duplicator
@@ -35,6 +36,11 @@ function TOOL:LeftClick(t)
 	local r = self:GetClientNumber("r");
 	local g = self:GetClientNumber("g");
 	local b = self:GetClientNumber("b");
+	if(self:GetClientNumber("defaultcol") == 1) then
+		r = 200
+		g = 100
+		b = 0
+	end
 	if(not IsValid(t.Entity) or not t.Entity.IsStargate) then
 	    p:SendLua("GAMEMODE:AddNotify(SGLanguage.GetMessage(\"stool_stargate_iris_err\"), NOTIFY_ERROR, 5); surface.PlaySound( \"buttons/button2.wav\" )");
 	    return
@@ -124,6 +130,8 @@ function TOOL:ControlsPanel(Panel)
 		ShowRGB = 1,
 		Multiplier = 255,
 	});
+
+	Panel:CheckBox("Default Color?","goauld_iris_defaultcol");
 end
 
 if SERVER then
