@@ -828,6 +828,7 @@ function StarGate.Update_Check(Panel)
 end
 
 function CAP_Outdated()
+    --[[
     local addons = GetAddonList(true)
 
     if (StarGate.HasInternet and StarGate.InstalledOnClient()) then
@@ -867,6 +868,7 @@ function CAP_Outdated()
             UpdateFrame:Close()
         end
     end
+    ]]--
 end
 
 concommand.Add("CAP_Outdated", CAP_Outdated)

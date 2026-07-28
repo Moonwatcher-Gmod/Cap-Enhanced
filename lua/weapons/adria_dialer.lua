@@ -106,7 +106,7 @@ if SERVER then
             local ent = tr.Entity
             self.tent = tr.Entity
 
-            if(IsValid(ent) and self.Owner:GetShootPos():Distance(tr.HitPos) < 50 and table.HasValue(self.DHDs,ent:GetClass())) then
+            if(IsValid(ent) and self.Owner:GetShootPos():Distance(tr.HitPos) < 50 and ent.IsDHD) then
                 local gate = ent:FindGate()
                 if(IsValid(gate) and gate.Active == false) then
                     self.Active = true

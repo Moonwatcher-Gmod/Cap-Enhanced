@@ -235,13 +235,19 @@ if SERVER then
                 if (objRange < self.Range) then
                     local allow = hook.Call("StarGate.BlackHole.PushEnt", nil, entVal, self)
                     if (allow == false) then continue end
-                    local phys = entVal:GetPhysicsObject()
 
-                    if (phys:IsValid()) then
-                        difference:Normalize()
-                        local sqrRange = (1 / objRange)
-                        local fApplied = difference * sqrRange * self.blackHoleMass * phys:GetMass()
-                        phys:ApplyForceCenter(fApplied)
+                    if(entVal:IsPlayer()) then
+                        local direction = (entVal:GetPos() - self.Entity:GetPos()):GetNormalized()
+                        entVal:SetVelocity(-direction * 100)
+                    else
+                        local phys = entVal:GetPhysicsObject()
+
+                        if (phys:IsValid()) then
+                            difference:Normalize()
+                            local sqrRange = (1 / objRange)
+                            local fApplied = difference * sqrRange * self.blackHoleMass * phys:GetMass()
+                            phys:ApplyForceCenter(fApplied)
+                        end
                     end
                 end
             end
