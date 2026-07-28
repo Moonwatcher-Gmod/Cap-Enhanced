@@ -718,7 +718,7 @@ function ENT:TriggerInput(k,v,mobile,mdhd)
 				if (self.Ring.WireMoving) then self.Ring:Fire("start","",0); end
 				if (self.RingSound) then self.RingSound:ChangePitch(122,0); end
 			end
-		elseif (v <= 7 and v < 100) then
+		elseif (v >= 7 and v < 100) then
 			self.RingSpeed = 7;
 			if (not self.NewActive or self.WireManualDial) then
 				self.Ring.Entity:SetKeyValue("maxspeed",120);

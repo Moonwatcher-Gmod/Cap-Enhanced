@@ -294,13 +294,25 @@ function ENT:LowPriorityThink()
 		end
 		--self.EnergyDelay = CurTime()+1
 	--end
-	
+
+	/* --this simply does not work, it prevents the gate from dialing out, but its staying here as a reminder to make it work later
+	if(not IsValid(self.EventHorizon) and (self.IsOpen or self.Active)) then --properly shutdown the gate if something deletes the horizon
+		timer.Remove("Stargate_blackhole_active"..self:EntIndex())
+		timer.Remove("stargate_blackhole_whirlpool"..self:EntIndex())
+		timer.Remove("stargate_whirlpool_check"..self:EntIndex())
+
+		self:Close()
+		self:StopActions()
+		self:DHDDisable(0)
+	end
+	*/
+
 	if(not timer.Exists("Stargate_blackhole_active"..self:EntIndex()) and self.IsOpen and IsValid(self.EventHorizon) and self.EventHorizon:IsOpen() and self.BlackholeActive) then --black hole searches for gate and turns this on
 		local EHAng = 0
 		local HasWhirl = false
 		local pullforce = 50
 
-		if(util.IsValidModel("models/props_random/whirlpool22_narrow.mdl")) then -- if the server has https://steamcommunity.com/sharedfiles/filedetails/?id=1524799867 whirlpool model, do fun things
+		if(self:GetClass() ~= "stargate_orlin" and util.IsValidModel("models/props_random/whirlpool22_narrow.mdl")) then -- if the server has https://steamcommunity.com/sharedfiles/filedetails/?id=1524799867 whirlpool model, do fun things
 			HasWhirl = true --this is unused currently
 
 			timer.Create("stargate_blackhole_whirlpool"..self:EntIndex(),60,1,function()
