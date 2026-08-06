@@ -44,7 +44,7 @@ if SERVER then
         --self.Entity:SetCollisionBounds(-1*Vector(1,1,1)*self.Size/10,Vector(1,1,1)*self.Size/10);
         self.Entity:PhysicsInitSphere(10, "metal")
         self.Entity:SetCollisionBounds(Vector(1, 1, 1) * -5, Vector(1, 1, 1) * 5)
-        self.Entity:PhysicsInit(SOLID_VPHYSICS)
+        --self.Entity:PhysicsInit(SOLID_VPHYSICS)
         self.Entity:SetMoveType(MOVETYPE_VPHYSICS)
         self.Entity:SetSolid(SOLID_VPHYSICS)
         self:DrawShadow(false)

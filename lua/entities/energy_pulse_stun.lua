@@ -42,7 +42,7 @@ if SERVER then
     function ENT:Initialize()
         self.Entity:PhysicsInitSphere(self.Size / 10, "metal")
         self.Entity:SetCollisionBounds(-1 * Vector(1, 1, 1) * self.Size / 10, Vector(1, 1, 1) * self.Size / 10)
-        self.Entity:PhysicsInit(SOLID_VPHYSICS)
+        --self.Entity:PhysicsInit(SOLID_VPHYSICS)
         self.Entity:SetMoveType(MOVETYPE_VPHYSICS)
         self.Entity:SetSolid(SOLID_VPHYSICS)
         self:DrawShadow(false)
