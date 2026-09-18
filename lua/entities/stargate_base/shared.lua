@@ -31,16 +31,30 @@ ENT.IsGroupStargate = true;
 ENT.EventHorizonData = {
 	OpeningDelay = 0.9,
 	OpenTime = 2.2,
-	Type = "sg1",
+	Type = "new_sg1",
 	Kawoosh = "sg1",
 	NNFix = 0,
 }
 
-StarGate.RegisterEventHorizon("sg1",{
-	ID=1,
+StarGate.RegisterEventHorizon("old_sg1",{
+	ID=5,
 	Name=SGLanguage.GetMessage("stargate_c_tool_21_sg1"),
 	Material="",
 	UnstableMaterial="sgorlin/effect_shock.vmt",
+	LightColor={
+		r = Vector(20,40),
+		g = Vector(60,80),
+		b = Vector(150,230),
+		sync = false, -- sync random (for white), will be used only first value from this table (r)
+	},
+	Color=Color(255,255,255),
+})
+
+StarGate.RegisterEventHorizon("new_sg1",{
+	ID=1,
+	Name="New SG1",
+	Material="enhanced_textures/enhanced_sg1_horizon.vmt",
+	UnstableMaterial="enhanced_textures/enhanced_shock.vmt",
 	LightColor={
 		r = Vector(20,40),
 		g = Vector(60,80),

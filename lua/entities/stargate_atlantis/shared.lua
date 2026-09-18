@@ -11,7 +11,22 @@ ENT.EventHorizonData = {
 	OpeningDelay = 0.9,
 	OpenTime = 2.2,
 	NNFix = 0,
+	Type = "new_sga",
 }
+
+StarGate.RegisterEventHorizon("new_sga",{
+	ID=6,
+	Name="SGA ",
+	Material="enhanced_textures/enhanced_atlantis_horizon.vmt",
+	UnstableMaterial="enhanced_textures/enhanced_shock.vmt",
+	LightColor={
+		r = Vector(20,40),
+		g = Vector(60,80),
+		b = Vector(150,230),
+		sync = false, -- sync random (for white), will be used only first value from this table (r)
+	},
+	Color=Color(255,255,255),
+})
 
 -- this names should be unique for each option!
 -- if you using this code as base for another gate please change this names to new one!
