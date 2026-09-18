@@ -237,7 +237,7 @@ local function logError(errorCode, errorMessage, htmlCode, extraInfo)
     MsgN("-------")
     MsgN("Error #"..errorCode.."\n"..errorMessage:Replace("\\n","\n"))
 end
-
+--[[
 if not StarGate.WorkShop then
     if cap_installed and not table.HasValue(addonlist, "Carter Addon Pack - Resources") then
         logError("09", "Cap Enhanced Resources cannot be located on your Garry's Mod installation.", "sg_err_09")
@@ -273,6 +273,7 @@ else
         logError("04", "The Git version of the Code pack from CAP Enhanced is installed.\\nPlease remove it or remove the workshop version to prevent possible problems.", "sg_err_04")
     end
 end
+]]--
 
 if table.getn(oldfiles) > 0 then
     logError("13", "Old workshop files found, please remove it.", {"sg_err_13", oldfiles, "C:/Program Files (x86)/Steam/SteamApps/common/GarrysMod/garrysmod/addons"})

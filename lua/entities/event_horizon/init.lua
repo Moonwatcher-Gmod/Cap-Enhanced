@@ -194,6 +194,10 @@ function ENT:Initialize()
 		phys:EnableCollisions(false);
 	end
 
+	if(self:GetParent() ~= nil and self:GetParent():GetClass() == "stargate_supergate") then
+		util.AddNetworkString("supergate_sounds"..self:EntIndex())
+	end
+
 	if (pewpew and pewpew.NeverEverList and not table.HasValue(pewpew.NeverEverList,self.Entity:GetClass())) then table.insert(pewpew.NeverEverList,self.Entity:GetClass()); end -- pewpew support
 end
 
@@ -354,7 +358,15 @@ function ENT:Open()
 		if (nox_type) then
 			self.Entity:EmitSound(self.Sounds.OpenNox,90,math.random(98,102));
 		else
-			self.Entity:EmitSound(self.Sounds.Open,90,math.random(98,102));
+			if(self:GetParent():GetClass() == "stargate_supergate") then
+				timer.Simple(0.1,function()
+					net.Start("supergate_sounds"..self:EntIndex())
+					net.WriteString(self.Sounds.Open)
+					net.Broadcast()
+				end)
+			else
+				self.Entity:EmitSound(self.Sounds.Open,90,math.random(98,102));
+			end
 		end
 		
 		local Gate = self.Entity:GetParent()
@@ -612,7 +624,16 @@ function ENT:Shutdown(override)
 	if(IsValid(self.Target)) then
 		self.Target:Shutdown(override);
 	end
-	self.Entity:EmitSound(self.Sounds.Close,90,math.random(97,103));
+	if(self:GetParent():GetClass() == "stargate_supergate") then
+		timer.Simple(0.1,function()
+			net.Start("supergate_sounds"..self:EntIndex())
+			net.WriteString(self.Sounds.Close)
+			net.Broadcast()
+		end)
+	else
+		self.Entity:EmitSound(self.Sounds.Close,90,math.random(97,103));
+	end
+
 	local e = self.Entity;
 	for k,v in pairs(self.AllBuffer) do
 		if (IsValid(v)) then

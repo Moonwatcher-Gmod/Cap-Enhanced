@@ -879,7 +879,7 @@ function PANEL:RegisterHooks()
         --####### Save Width/Heigth
         self.VGUI.AddressSelect:SetSize(w - 20, h - (60 + 10))
         self.Data.SizeW, self.Data.SizeH = w, h
-        self._PerformLayout(self)
+        self._PerformLayout(self,w,h)
     end
 
     -- for new gmod

@@ -12,6 +12,23 @@ if(file.Exists("materials/VGUI/weapons/event_horizon_killicon.vmt","GAME")) then
 	killicon.Add("event_horizon","VGUI/weapons/event_horizon_killicon",Color(255,255,255));
 end
 
+function ENT:Initialize()
+	net.Receive("supergate_sounds"..self:EntIndex(),function(len)
+		local SndPath = "sound/"..net.ReadString()
+
+		sound.PlayFile(SndPath,"3d mono",function(snd,ercode,erstr)
+			print(erstr)
+			if(IsValid(snd)) then
+				snd:Set3DFadeDistance(10000,33000)
+				snd:SetPos(self:GetPos())
+				snd:SetVolume(2.5)
+				snd:Set3DEnabled(true)
+				snd:Play()
+			end
+		end)
+	end)
+end
+
 --################# Think @aVoN
 function ENT:Think()
 	--###### Update the clientside self.Target (Necessary for the ENT:GetTeleportedVector function, if used clientside)

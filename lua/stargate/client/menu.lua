@@ -587,7 +587,9 @@ local info_page = [[<html>
 </html>]]
 
 --################# Adds the tab to the spawnmenu @aVoN
+--
 function StarGate.Hook.AddToolTab()
+    --[[
     if (not StarGate.Installed or not StarGate.InstalledOnClient()) then
         local cat_name = "Stargate"
 
@@ -621,6 +623,7 @@ function StarGate.Hook.AddToolTab()
 
         return
     end
+    ]]--
 
     -- Add Tab
     -- local logo;
