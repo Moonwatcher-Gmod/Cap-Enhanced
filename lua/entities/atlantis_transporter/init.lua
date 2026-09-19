@@ -269,7 +269,7 @@ function ENT:SetAtlGrp(grp)
 			end
 		end
 	end
-	
+
 	self.TGroup = grp;
 	net.Start("UpdateAtlTp");
 	net.WriteInt(self:EntIndex(),16);
@@ -288,7 +288,7 @@ function ENT:SetAtlLocal(loc)
 	net.WriteInt(5,4)
 	net.WriteBit(loc)
 	net.Broadcast()
-	
+
 end
 
 function ENT:SetAtlPrivate(private)

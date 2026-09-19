@@ -72,7 +72,7 @@ function SWEP:Initialize()
 	--self.Owner:SetNWFloat("pShieldStrength", 0)
 
 	timer.Create("Personal Shield ATACheck"..self:EntIndex(),1,0,function()
-		if(self.Owner.pShielded and StarGate.HasATA(ply,false)) then
+		if(self.Owner.pShielded and StarGate.HasATA(self.Owner,false)) then
 			self:TurnOff()
 		end
 	end)

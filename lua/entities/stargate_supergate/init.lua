@@ -27,9 +27,9 @@ include("modules/dialling.lua");
 ENT.Sounds = {
 	Dial=Sound("stargate/supergate/supergate.wav"),
 	Ring=Sound("stargate/gate_roll.mp3"),
-	Open=Sound("stargate/sg1/open.mp3"),
+	Open=Sound("stargate/supergate/supergate_open.wav"),
 	Travel=Sound("stargate/gate_travel.mp3"),
-	Close=Sound("stargate/gate_close.mp3"),
+	Close=Sound("stargate/supergate/supergate_close.wav"),
 	ChevronDHD=Sound("stargate/chevron_dhd.mp3"),
 	Inbound=Sound("stargate/chevron_incoming.mp3");
 	Lock=Sound("stargate/chevron_lock.mp3"),
@@ -112,6 +112,7 @@ function ENT:Initialize()
 
 	end);
 
+	util.AddNetworkString("supergate_sounds_dial"..self.Entity:EntIndex())
 end
 
 --#################  Called when stargate_group_system changed
@@ -241,73 +242,19 @@ function ENT:Fade(segment, tofull)
 	end);
 end
 
---################# @Madman07,Assassin21 Light Effect
---Madman, do NOT remove this, your fix failed
---next time you chang this, check if it works ingame, before upload
 function ENT:LightUps(Tick)
-
-	local i=1;
-	local ent = self.Entity;
-
-	timer.Create( "Effectss"..ent:EntIndex(), Tick, 72, function()
-		if (not IsValid(ent)) then return end
-		self:Fades(self.EffectSegments[i], true);
-		self:SetWire("Active Segment",i);
-
-		local pos = self.Segments[i]:GetPos();
-		local e = self.Segments[i];
-
-		timer.Create("Zappings"..e:EntIndex()..math.Rand(0,100),0.07,5,function()
-			if (not IsValid(e)) then return end
-			-- hmm, i decreased them as spawn effect is also nice and les laggy
-
-			local fx3 = EffectData()
-				fx3:SetStart(pos);
-				fx3:SetOrigin(pos);
-				fx3:SetScale(50);
-				fx3:SetMagnitude(50);
-				fx3:SetEntity(e);
-			util.Effect("TeslaHitBoxes",fx3);
-
-		end);
-        /*
-		local ed = EffectData()
-			ed:SetEntity(e)
-		util.Effect( "old_propspawn", ed, true, true )
-        */
-		i=i+1;
-
-	end )
-
+	self:LightUp(Tick)
 end
 
---################# Segments Fadding @Madman07
 function ENT:Fades(segment, tofull)
-	if tofull then
-		segment.direction = 16;
-		segment.alpha = 0;
-	else
-		segment.direction = -16;
-		segment.alpha = 255;
-	end
-	local color = self.Segments[1]:GetColor()
-	timer.Create("FadeSegmentss"..segment:EntIndex(),0.001,13,function()
-		if (IsValid(segment)) then
-			segment.alpha = segment.alpha + segment.direction;
-			if (not tofull and segment.alpha < 17 ) then segment.alpha = 0 end
-			if (tofull and segment.alpha > 237 ) then segment.alpha = 255 end
-			color.a = segment.alpha
-			segment:SetColor(color)
-		end
-	end);
+	self:Fade(segment, tofull)
 end
 
 --################# Sound @LLapp, Assassin21
 function ENT:GateSound()
-	self.ActiveSound = util.PrecacheSound(self.Sounds.Dial);
-    self.ActiveSound = CreateSound(self.Entity, Sound(self.Sounds.Dial));
-    self.ActiveSound:Play();
-	--self.ActiveSound:ChangeVolume(100);
+	net.Start("supergate_sounds_dial"..self.Entity:EntIndex())
+	net.WriteString(self.Sounds.Dial)
+	net.Broadcast()
 end
 
 function ENT:OnEventHorizonType(eh,reset,type,Data)

@@ -37,3 +37,18 @@ function ENT:Think()
 	end
 end
 
+function ENT:Initialize()
+	net.Receive("supergate_sounds_dial"..self:EntIndex(),function(len)
+		local SndPath = "sound/"..net.ReadString()
+
+		sound.PlayFile(SndPath,"3d mono",function(snd,ercode,erstr)
+			if(IsValid(snd)) then
+				snd:Set3DFadeDistance(10000,33000)
+				snd:SetPos(self:GetPos())
+				snd:SetVolume(0.8)
+				snd:Set3DEnabled(true)
+				snd:Play()
+			end
+		end)
+	end)
+end
