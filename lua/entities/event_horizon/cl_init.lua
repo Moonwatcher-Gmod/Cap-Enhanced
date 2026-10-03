@@ -295,6 +295,9 @@ usermessage.Hook( "Lib.EventHorizon.WormHoleStart", function(um)
 	hook.Add( "HUDDrawScoreBoard", "Wormholeefffect", function()
 		
 		--wormhole_material:SetVector("$color", Vector(0, 1, 1))
+		-- DrawTexturedRect uses whatever draw color the last HUD element left behind, which can be
+		-- black or fully transparent - set it explicitly so the wormhole is always visible
+		surface.SetDrawColor(255, 255, 255, 255)
 		surface.SetMaterial(wormhole_material)
 		surface.DrawTexturedRect( 0, 0, ScrW(), ScrH() )
 		wormhole_material:SetFloat("$frame", 0)
