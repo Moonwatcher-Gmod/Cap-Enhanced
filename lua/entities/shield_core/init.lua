@@ -32,7 +32,8 @@ function ENT:Initialize()
 	self.Mod = "models/Madman07/shields/sphere.mdl";
 	self.Anim = false;
 	self.ThinkTime = CurTime()+0.5;
-	self.MenuData = "0 0 0 0 5";
+	self.MenuData = "0 0 0 0 5 0";
+	self.AntiNoclip = false;
 
 	self.Entity:SetNWBool("Kill", false);
 	self.Entity:SetNWVector("Size", Vector(100,100,100));
@@ -94,10 +95,11 @@ function ENT:Initialize()
 		self.Immunity = util.tobool(tonumber(args[2]));
 		self.Draw = util.tobool(tonumber(args[3]));
 		self.Atlantis = util.tobool(tonumber(args[4])) and self.HasResourceDistribution; -- this is working only with power attached, so it need RS
+		self.AntiNoclip = util.tobool(tonumber(args[6] or "0")); -- Kick noclipping players out of noclip when they hit the shield
 
   		numpad.OnDown(self.Owner, tonumber(args[5]), "Toggle_Shield_Core", self.Entity);
 
-		self.MenuData = args[1].." "..args[2].." "..args[3].." "..args[4].." "..args[5];
+		self.MenuData = args[1].." "..args[2].." "..args[3].." "..args[4].." "..args[5].." "..(args[6] or "0");
 		self.Entity:SetNWString("MenuData", self.MenuData);
 
 		// for tracelines

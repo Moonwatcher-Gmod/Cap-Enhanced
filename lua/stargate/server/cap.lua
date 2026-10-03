@@ -913,3 +913,128 @@ function StarGate.RandomGateName(ply, ent, count, wire, mode)
 end
 
 hook.Add("PlayerSpawnedSENT", "RandomGateName", StarGate.RandomGateName)
+--################# Pushes an entity away from a shield along normal @aVoN
+-- Shared by the regular shield and the shield core so both reflect things the same way.
+-- Returns false if nothing was reflected (the entity isn't moving, or a player is holding it).
+function StarGate.ShieldReflectEntity(shield, e, normal)
+    local velo = e:GetVelocity()
+    local IS_NPC = e:IsNPC()
+    if (not IS_NPC and velo == Vector(0, 0, 0)) then return false end -- Not moving = no collision!
+    local class = e:GetClass()
+    local e_pos = e:LocalToWorld(e:OBBCenter())
+    local phys = e:GetPhysicsObject()
+
+    -- First, we trigger the Entity's Touch trigger and make sure, the shield and the entity are synchronized (Makes staffblasts explode where they hit the shield)
+    if (e.Touch) then e:Touch(shield) end
+    if (e.StartTouch) then e:StartTouch(shield) end
+
+    -- Now, we will override the Entitiy's ENT:PhysicsSimulate() function for a moment (To e.g. reflect Catdaemons shuttle or other SENTs which otherwise wouldn't get reflected)
+    if (e.PhysicsSimulate and not e.AlreadyOverwritten) then
+        local old_PhysicsSimulate = e.PhysicsSimulate
+        e.AlreadyOverwritten = true
+        e.PhysicsSimulate = function() end
+
+        -- Reset old
+        timer.Simple(1, function()
+            if (e and e:IsValid()) then
+                e.PhysicsSimulate = old_PhysicsSimulate
+                e.AlreadyOverwritten = nil
+            end
+        end)
+    end
+
+    -- Props
+    if (phys:IsValid() and not (IS_NPC or e:IsPlayer())) then
+        -- Anyone holds this object (Makes theses MingeBags unavailable to move props with physgun into the shield with the intention to exploit it)
+        if (e:IsPlayerHolding()) then
+            local id = e:EntIndex()
+            phys:EnableMotion(false)
+
+            timer.Create("Ungrab" .. id, 0.2, 0, function()
+                if (e and phys and e:IsValid() and phys:IsValid()) then
+                    if (e:IsPlayerHolding()) then return end
+                    phys:EnableMotion(true)
+                    phys:Wake()
+                end
+
+                timer.Destroy("Ungrab" .. id)
+            end)
+
+            return false
+        end
+
+        -- Removes all old velocity from it before
+        phys:EnableMotion(false)
+        phys:EnableMotion(true)
+        phys:Wake()
+        -- Now apply force!
+        phys:ApplyForceOffset(normal * phys:GetMass() * 1000, e_pos - 20 * normal)
+    elseif (class == "rpg_missile") then
+        e:SetLocalVelocity(normal * 1000)
+        e:SetAngles(normal:Angle())
+        e:SetHealth(0) -- Take his health
+        -- Shoot a bullet on it (Catdaemons Idea), to make it fall down
+        shield:FireBullets({Num = 1, Src = e_pos, Dir = Vector(0, 0, 0), Spread = Vector(0, 0, 0), Tracer = 0, Force = 1, Damage = 100})
+        e.IgnoreShield = true -- Do not register it anymore
+    else
+        local vel = normal * 600
+
+        if (class == "crossbow_bolt") then
+            vel = normal * 1000
+        end
+
+        e:SetLocalVelocity(vel)
+    end
+
+    -- Make the player killable by his own shot
+    if (class == "crossbow_bolt" or class == "rpg_missile" or class == "prop_combine_ball") then
+        e:SetOwner(shield)
+    end
+
+    return true
+end
+
+--################# Things every shield does when something hits it while it has strength left @aVoN
+-- Reflects constrained contraptions as a whole, kicks noclipping players out of noclip (anti noclip)
+-- and calls hooks for other addons. Shared by the regular shield and the shield core.
+function StarGate.ShieldOnTouch(shield, e, reflect, anti_noclip)
+    local cons_check = ((e.LastConstraintCheck or 0) + 2 < CurTime())
+    reflect(e, not cons_check)
+
+    -- Reflect a bit more (like ships )- so they won't take the complete energy of a shield when colliding and it will "really" get reflected (more force)
+    if (constraint.HasConstraints(e) and cons_check) then
+        local time = CurTime()
+        local entities = StarGate.GetConstrainedEnts(e, 3) -- Maxcheck 3 seems to be OK
+
+        for _, v in pairs(entities) do
+            if (v ~= e) then
+                reflect(v, true)
+            end
+
+            v.LastConstraintCheck = time
+        end
+    end
+
+    -- for support another addons/ents
+    if (e.CAPOnShieldTouch) then
+        e:CAPOnShieldTouch(shield)
+    end
+
+    -- cartman300 code, edited by AlexALX
+    if anti_noclip then
+        if (e:IsPlayer() and e:GetMoveType() == MOVETYPE_NOCLIP) then
+            e:SetMoveType(MOVETYPE_WALK)
+
+            timer.Simple(0.2, function()
+                if (IsValid(e)) then
+                    e:SetMoveType(MOVETYPE_NOCLIP)
+                end
+            end)
+        end
+    end
+
+    if (e:GetClass() == "lvs_bomb" or e:GetClass() == "lvs_missile" or e:GetClass() == "lvs_protontorpedo") then --proper lvs support because their missiles go through shields
+        e:SetRadius(1)
+        e:Detonate(shield)
+    end
+end

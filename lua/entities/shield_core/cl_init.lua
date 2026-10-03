@@ -412,7 +412,7 @@ function VGUI:Init()
     VGUI.Pos_y = Pos_y
     VGUI.Pos_z = Pos_z
     --///// OTHER
-    local menudata = string.Explode(" ", e:GetNWString("MenuData", "0 0 0 0 5"))
+    local menudata = string.Explode(" ", e:GetNWString("MenuData", "0 0 0 0 5 0"))
     local Power = vgui.Create("DNumSlider", Sheet_Other)
     Power:SetPos(25, 40)
     Power:SetSize(250, 50)
@@ -441,6 +441,12 @@ function VGUI:Init()
     Atlantis:SetValue(tobool(menudata[4]))
     Atlantis:SizeToContents()
     Atlantis:SetToolTip("When this is enabled, shield is active as long, as it have enought power. Be carefull, it drains power really fast.")
+    local AntiNoclip = vgui.Create("DCheckBoxLabel", Sheet_Other)
+    AntiNoclip:SetPos(25, 160)
+    AntiNoclip:SetText("Anti Noclip")
+    AntiNoclip:SetValue(tobool(menudata[6]))
+    AntiNoclip:SizeToContents()
+    AntiNoclip:SetToolTip("When this is enabled, players in noclip can't fly through the shield.")
     local NumPad = vgui.Create("CtrlNumPad", Sheet_Other)
     NumPad:SetPos(200, 100)
     NumPad.NumPad1:SetValue(menudata[5])
@@ -469,6 +475,7 @@ function VGUI:Init()
         local Imm = 0
         local Draw = 0
         local Atl = 0
+        local ANC = 0
 
         if (Immunity:GetChecked()) then
             Imm = 1
@@ -482,12 +489,16 @@ function VGUI:Init()
             Atl = 1
         end
 
+        if (AntiNoclip:GetChecked()) then
+            ANC = 1
+        end
+
         LocalPlayer():ConCommand("SC_Size" .. e:EntIndex() .. " " .. VGUI.Size_x:GetValue() .. " " .. VGUI.Size_y:GetValue() .. " " .. VGUI.Size_z:GetValue())
         LocalPlayer():ConCommand("SC_Angle" .. e:EntIndex() .. " " .. VGUI.Angle_x:GetValue() .. " " .. VGUI.Angle_y:GetValue() .. " " .. VGUI.Angle_z:GetValue())
         LocalPlayer():ConCommand("SC_Pos" .. e:EntIndex() .. " " .. VGUI.Pos_x:GetValue() .. " " .. VGUI.Pos_y:GetValue() .. " " .. VGUI.Pos_z:GetValue())
         LocalPlayer():ConCommand("SC_Visual_Model" .. e:EntIndex() .. " " .. "models/Madman07/shield/sphere.mdl")
         LocalPlayer():ConCommand("SC_Visual_Col" .. e:EntIndex() .. " " .. Col:GetColor().r .. " " .. Col:GetColor().g .. " " .. Col:GetColor().b)
-        LocalPlayer():ConCommand("SC_Apply" .. e:EntIndex() .. " " .. Power:GetValue() .. " " .. Imm .. " " .. Draw .. " " .. Atl .. " " .. NumPad.NumPad1:GetValue())
+        LocalPlayer():ConCommand("SC_Apply" .. e:EntIndex() .. " " .. Power:GetValue() .. " " .. Imm .. " " .. Draw .. " " .. Atl .. " " .. NumPad.NumPad1:GetValue() .. " " .. ANC)
         DermaPanel:Remove()
     end
 end

@@ -134,12 +134,15 @@ if SERVER then
         if self.StargateTrace.Hit then
             local ent = self.StargateTrace.Entity
 
-            if (IsValid(ent) and (ent:GetClass() == "shield" or ent:GetClass() == "shield_core_buble")) then
-                ent:Hit(self.Entity, self.StargateTrace.HitPos, 3, self.StargateTrace.HitNormal, self.FireFrequency)
-            end
-
             self.EndPos = self.StargateTrace.HitPos
-            util.BlastDamage(self.Entity, self.Entity, self.EndPos, 250, 50)
+
+            if (IsValid(ent) and (ent:GetClass() == "shield" or ent:GetClass() == "shield_core_buble")) then
+                -- The shield takes the hit. No blast here: it reached through the shield and hurt
+                -- everything within 250 units of the impact, inside the shield too
+                ent:Hit(self.Entity, self.StargateTrace.HitPos, 3, self.StargateTrace.HitNormal, self.FireFrequency)
+            else
+                util.BlastDamage(self.Entity, self.Entity, self.EndPos, 250, 50)
+            end
         end
     end
 
