@@ -1833,7 +1833,10 @@ end
 -- On arrival the parts get their entry velocities back and the normal Teleport() moves them as one
 -- unit, exactly like an instant trip would. If the gate closes first, everything in transit is lost.
 
+-- Transit time per wormhole style (config: [stargate] atlantisWormhole). Must match the length of
+-- the client-side animation and sound in cl_init.lua
 local WORMHOLE_TRANSIT_TIME = 3.2
+local WORMHOLE_TRANSIT_TIME_ATLANTIS = 5.0
 -- These go straight through without waiting (fast projectiles)
 local WORMHOLE_INSTANT = {npc_grenade_frag=true, rpg_missile=true}
 local WORMHOLE_SHIPS = {puddle_jumper=true, sg_vehicle_gate_glider=true, sg_vehicle_dart=true}
@@ -1850,10 +1853,12 @@ hook.Add("EntityTakeDamage","StarGate.EH.WormHoleNoDamage",function(ent)
 	if (ent.__EHTransit) then return true end
 end)
 
-local function SendWormholeMessage(name,players)
+-- atlantis: only for WormHoleStart, tells the client which transition to show
+local function SendWormholeMessage(name,players,atlantis)
 	for _,ply in pairs(players) do
 		if (IsValid(ply)) then
 			umsg.Start(name,ply);
+			if (atlantis ~= nil) then umsg.Bool(atlantis) end
 			umsg.End();
 		end
 	end
@@ -2059,7 +2064,8 @@ function ENT:DoWormHole(v,block,attached,bcfd,totalkill)
 		self:SuspendForTransit(rec);
 	end
 
-	SendWormholeMessage("Lib.EventHorizon.WormHoleStart",trip.ScreenPlayers);
+	local atlantis = StarGate.CFG:Get("stargate","atlantisWormhole",false) == true;
+	SendWormholeMessage("Lib.EventHorizon.WormHoleStart",trip.ScreenPlayers,atlantis);
 	ChangeEntitiesOnRoute(trip,1);
 
 	TransitCounter = TransitCounter + 1;
@@ -2073,7 +2079,7 @@ function ENT:DoWormHole(v,block,attached,bcfd,totalkill)
 
 	table.insert(self.timer_table,trip.TimerName);
 	local eh = self.Entity;
-	timer.Create(trip.TimerName,WORMHOLE_TRANSIT_TIME,1,function()
+	timer.Create(trip.TimerName,atlantis and WORMHOLE_TRANSIT_TIME_ATLANTIS or WORMHOLE_TRANSIT_TIME,1,function()
 		if (IsValid(eh)) then
 			eh:FinishTransit(trip);
 		else

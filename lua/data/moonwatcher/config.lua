@@ -69,6 +69,8 @@
 #### Stargate config
 [stargate]
 doWormholeSequence = true
+# Use the Atlantis wormhole transition (5 second video and sound) instead of the classic one (3.2 seconds)?
+atlantisWormhole = true
 nox_bypass = true
 # Autoclose gates, after you left it?
 autoclose=true
