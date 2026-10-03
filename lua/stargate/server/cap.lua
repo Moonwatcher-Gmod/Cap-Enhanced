@@ -160,7 +160,8 @@ function StarGate.IsInShield(ent)
                 local Size = 200
                 if (sh_dist <= Size) then return true end
             else
-                if (not v.Depleted and v.Enabled and StarGate.IsInsideShieldCore(ent, v)) then return true end
+                -- Exact visible shape, only where it has risen to (IsInsideShieldCore uses the ~28% bigger trace size)
+                if (v.ProtectsPoint and v:ProtectsPoint(ent:LocalToWorld(ent:OBBCenter()))) then return true end
             end
         end
     end
@@ -1038,3 +1039,52 @@ function StarGate.ShieldOnTouch(shield, e, reflect, anti_noclip)
         e:Detonate(shield)
     end
 end
+
+--################# Does a shield stand between a blast at `from` and `target`? Returns that shield.
+-- A normal shield keeps blasts from outside away from what is inside it; a containment field keeps
+-- blasts inside it away from what is outside. Used for splash damage, the gate nuke and the AG3 wave.
+function StarGate.ShieldBlocksBlast(target, from)
+    if (not IsValid(target)) then return end
+    local tpos = target:LocalToWorld(target:OBBCenter())
+
+    for _, s in ipairs(ents.FindByClass("shield_core_buble")) do
+        if (s.ProtectsPoint) then
+            local target_in, from_in = s:ProtectsPoint(tpos), s:ProtectsPoint(from)
+
+            if (s:IsContainment()) then
+                if (from_in and not target_in) then return s end
+            elseif (target_in and not from_in) then
+                return s
+            end
+        end
+    end
+
+    for _, s in ipairs(ents.FindByClass("shield")) do
+        local parent = s.Parent
+
+        if (IsValid(parent) and not parent.Depleted and s.Size) then
+            local center = s:GetPos()
+            local target_in = tpos:Distance(center) < s.Size
+            local from_in = from:Distance(center) < s.Size
+
+            if (s:IsContainment()) then
+                if (from_in and not target_in) then return s end
+            elseif (target_in and not from_in) then
+                return s
+            end
+        end
+    end
+end
+
+hook.Add("EntityTakeDamage", "StarGate.ShieldSplashProtect", function(target, dmginfo)
+    if (not dmginfo:IsExplosionDamage()) then return end -- Bullets, beams and shots are stopped by the shields themselves
+    local from = dmginfo:GetDamagePosition() -- The explosion's centre
+
+    if (from:IsZero()) then
+        local inflictor = dmginfo:GetInflictor()
+        if (not IsValid(inflictor)) then return end
+        from = inflictor:GetPos()
+    end
+
+    if (StarGate.ShieldBlocksBlast(target, from)) then return true end
+end)

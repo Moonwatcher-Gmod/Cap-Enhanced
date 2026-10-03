@@ -140,6 +140,14 @@ if SERVER then
                 -- The shield takes the hit. No blast here: it reached through the shield and hurt
                 -- everything within 250 units of the impact, inside the shield too
                 ent:Hit(self.Entity, self.StargateTrace.HitPos, 3, self.StargateTrace.HitNormal, self.FireFrequency)
+
+                if (ent:GetClass() == "shield_core_buble") then
+                    -- Clients draw veins spreading through the shield from here (shield_core_buble/cl_init.lua)
+                    ent:SetNWVector("BeamHitPos", self.StargateTrace.HitPos)
+                    ent:SetNWFloat("BeamHitTime", CurTime())
+                    ent:SetNWVector("BeamVeinColor", Vector(255, 60, 20))
+                    ent:SetNWFloat("BeamVeinScale", 1)
+                end
             else
                 util.BlastDamage(self.Entity, self.Entity, self.EndPos, 250, 50)
             end

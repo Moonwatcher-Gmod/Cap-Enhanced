@@ -96,8 +96,9 @@ function StarGate.IsInAltantisoid(pos, ent, dimension)
     if (pos2.z > (2 * dimension.z / 5)) then
         is_in = StarGate.IsInEllipsoid(pos, ent, dimension)
     else
-        dimension.z = dimension.z / 2
-        is_in = StarGate.IsInEllipsoid(pos, ent, dimension) -- lower than 2/5c its flatened
+        -- Use a copy: dimension is usually the shield's own size vector, and halving it in place
+        -- made Atlantis shields shrink a bit more with every trace
+        is_in = StarGate.IsInEllipsoid(pos, ent, Vector(dimension.x, dimension.y, dimension.z / 2)) -- lower than 2/5c its flatened
     end
 
     return is_in
@@ -425,9 +426,14 @@ function StarGate.ShieldTrace(pos, dir, filter)
 end
 
 -- Thanks PyroSpirit for the help :})<<<(P.S. It has a moustache).
-function StarGate.ArePointsInsideAShield(points)
+-- Which of these points (e.g. explosion ring particles) does a shield hide? origin: where the blast went
+-- off (optional). Normal shields hide points inside them (for a blast outside); containment fields hide
+-- points outside them (for a blast inside). Without an origin, only normal shields are used (as before).
+function StarGate.ArePointsInsideAShield(points, origin)
+    if (not isvector(origin)) then origin = nil end -- Callers used to pass a number here, which was ignored
     local IsInShield = {}
-    local num = table.getn(points)
+    local num = #points
+    local MARGIN = 200 -- The particles are big sprites: keep them this far away from the other side
 
     for i = 1, num do
         IsInShield[i] = false
@@ -435,29 +441,40 @@ function StarGate.ArePointsInsideAShield(points)
 
     for _, v in pairs(ents.FindByClass("shield")) do
         local Pos = v:GetPos()
-        local rad = v:GetNWInt("size") + 200
+        local size = v:GetNWInt("size")
 
-        if ((not v:GetNWBool("depleted", false)) and (not v:GetNWBool("containment", false))) then
-            for i = 1, num do
-                local dis = points[i]:Distance(Pos)
-
-                if dis <= rad then
-                    IsInShield[i] = true
+        if (not v:GetNWBool("depleted", false)) then
+            if (v:GetNWBool("containment", false)) then
+                if (origin and origin:Distance(Pos) < size) then
+                    for i = 1, num do
+                        if (points[i]:Distance(Pos) > size - MARGIN) then IsInShield[i] = true end
+                    end
+                end
+            elseif (not origin or origin:Distance(Pos) >= size) then
+                for i = 1, num do
+                    if (points[i]:Distance(Pos) <= size + MARGIN) then IsInShield[i] = true end
                 end
             end
         end
     end
 
+    -- Shield cores: the visible shape, only while it is up and only where it has risen to.
+    -- (This used SGESize, the size multiplier, as a radius in units.)
     for _, v in pairs(ents.FindByClass("shield_core_buble")) do
-        local Pos = v:GetPos()
-        local rad = v:GetNWInt("SGESize") + 200
-
-        if not v:GetNWBool("depleted", false) then
-            for i = 1, num do
-                local dis = points[i]:Distance(Pos)
-
-                if dis <= rad then
-                    IsInShield[i] = true
+        if (v.ContainsPoint and v.IsShieldUp and not v:GetNWBool("depleted", false) and v:IsShieldUp()) then
+            if (v:IsContainment()) then
+                if (origin and v:ContainsPoint(origin) and v:IsCoveredAt(origin)) then
+                    local r = v:GetShapeRadii()
+                    local inner = -math.min(MARGIN, math.min(r.x, r.y, r.z)*0.5)
+                    for i = 1, num do
+                        if (not v:ContainsPoint(points[i], inner) and v:IsCoveredAt(points[i])) then IsInShield[i] = true end
+                    end
+                end
+            elseif (not origin or not v:ContainsPoint(origin)) then
+                for i = 1, num do
+                    if (not IsInShield[i] and v:ContainsPoint(points[i], MARGIN) and v:IsCoveredAt(points[i])) then
+                        IsInShield[i] = true
+                    end
                 end
             end
         end

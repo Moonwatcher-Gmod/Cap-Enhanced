@@ -89,7 +89,7 @@ function ENT:Think()
 	for k,v in pairs(ents.FindInSphere(self.Entity:GetPos(), self.Radius )) do
 		if IsValid(v) then
 
-			local allow = hook.Call("StarGate.SatBlast.DamageEnt",nil,v);
+			local allow = hook.Call("StarGate.SatBlast.DamageEnt",nil,v,self.SplodePos);
 			if (allow==false) then continue end
 
 			local zrange = v:GetPos().z - self.Entity:GetPos().z;
@@ -150,6 +150,21 @@ function ENT:DamageShields()
 		local dmgmul = 1/(self.SplodePos:Distance(v:GetPos())*50/100)^2
 		v:Hit(self.Entity, self.SplodePos, 1e7*(20-self.Radius/100)*dmgmul)
 	end
+
+	-- Shield cores pay for stopping the wave while the ring crosses them: every tick it takes a hit
+	-- (strength, or energy in Atlantis mode), harder the closer the blast went off
+	for _,v in pairs(ents.FindByClass("shield_core_buble")) do
+		if (v.Enabled and not v.Depleted and v.ShapeRadii and IsValid(v.Parent)) then
+			local center = v:GetPos()
+			local dist = center:Distance(self.SplodePos)
+			local size = math.max(v.ShapeRadii.x, v.ShapeRadii.y, v.ShapeRadii.z)
+			if (math.abs(self.Radius - dist) <= size) then -- The ring is passing through the shield
+				local strength = math.Clamp(40*(1 - dist/8000), 5, 40)
+				local toward = (self.SplodePos - center):GetNormalized()
+				v:Hit(self.Entity, center + toward*size, strength, toward)
+			end
+		end
+	end
 end
 
 end
@@ -186,8 +201,14 @@ function ENT:Think()
 			spawn[i] = self.StartPos+self.Relative*1000*(math.sin(Ang)*ri+math.cos(Ang)*fw)
 		end
 
+		-- Shields stop the ring (same setting and check as the gate nuke's rings)
+		local blocked = {}
+		if StarGate.VisualsWeapons("cl_gate_nuke_shieldrings") then
+			blocked = StarGate.ArePointsInsideAShield(spawn, self.StartPos)
+		end
 
 		for i=1,num do
+			if (blocked[i]) then continue end
 
 			local part = self.Emitter:Add("sprites/gmdm_pickups/light", spawn[i])
 			part:SetVelocity(Vector(0,0,0))

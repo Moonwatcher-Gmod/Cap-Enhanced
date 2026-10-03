@@ -71,41 +71,44 @@ local VGUI = {}
 function VGUI:Init()
     -- SHIELD CORE MENU
     local DermaPanel = vgui.Create("DFrame")
+    DermaPanel:SetSize(370, 400)
     DermaPanel:SetPos(ScrW() / 10, ScrH() / 10)
-    DermaPanel:SetSize(370, 350)
     DermaPanel:SetTitle("Shield Core Control Panel")
     DermaPanel:SetVisible(true)
-    DermaPanel:SetDraggable(false)
-    DermaPanel:ShowCloseButton(false)
+    DermaPanel:SetDraggable(true) -- Can be moved around (drag the title bar)
+    DermaPanel:ShowCloseButton(true)
+    DermaPanel:SetScreenLock(true)
     DermaPanel:MakePopup()
+    local applied = false
 
-    DermaPanel.Paint = function()
+    -- Closing the window in any way other than OK cancels the changes
+    DermaPanel.OnClose = function()
+        if (not applied and IsValid(e)) then
+            LocalPlayer():ConCommand("SC_Close" .. e:EntIndex())
+        end
+    end
+
+    DermaPanel.Paint = function(pnl, w, h)
         -- Thanks Overv, http://www.facepunch.com/threads/1041686-What-are-you-working-on-V4-John-Lua-Edition
-        local x, y = self:ScreenToLocal(0, 0)
-        -- Background
+        -- Blurred background, lined up with the screen wherever the window is
+        local x, y = pnl:LocalToScreen(0, 0)
         surface.SetMaterial(matBlurScreen)
         surface.SetDrawColor(255, 255, 255, 255)
         matBlurScreen:SetFloat("$blur", 5)
         render.UpdateScreenEffectTexture()
-        surface.DrawTexturedRect(-ScrH() / 10, -ScrH() / 10, ScrW(), ScrH())
-        surface.SetDrawColor(100, 100, 100, 150)
-        surface.DrawRect(0, 0, ScrW(), ScrH())
-        -- Border
-        surface.SetDrawColor(50, 50, 50, 255)
-        surface.DrawOutlinedRect(0, 0, DermaPanel:GetWide(), DermaPanel:GetTall())
+        surface.DrawTexturedRect(-x, -y, ScrW(), ScrH())
+        surface.SetDrawColor(60, 70, 85, 190)
+        surface.DrawRect(0, 0, w, h)
+        surface.SetDrawColor(40, 50, 65, 230) -- Title bar
+        surface.DrawRect(0, 0, w, 24)
+        surface.SetDrawColor(110, 170, 255, 255) -- Border
+        surface.DrawOutlinedRect(0, 0, w, h)
     end
 
     local image = vgui.Create("TGAImage", DermaPanel)
     image:SetSize(10, 10)
     image:SetPos(10, 10)
     image:LoadTGAImage("materials/gui/cap_logo.tga", "MOD")
-    local Button_color = vgui.Create("DPanel", DermaPanel)
-    Button_color:SetPos(150, 260)
-    Button_color:SetSize(195, 75)
-
-    Button_color.Paint = function()
-        draw.RoundedBox(6, 0, 0, 195, 75, Color(170, 170, 170, 255))
-    end
 
     --///// TABS
     local Sheet = vgui.Create("DPropertySheet", DermaPanel)
@@ -207,6 +210,34 @@ function VGUI:Init()
     Size_z.OnValueChanged = function(Size_z, fValue)
         LocalPlayer():ConCommand("SC_Size" .. e:EntIndex() .. " " .. VGUI.Size_x:GetValue() .. " " .. VGUI.Size_y:GetValue() .. " " .. VGUI.Size_z:GetValue())
     end
+
+    -- Keep proportions: moving one size slider scales the other two with it
+    local KeepRatio = vgui.Create("DCheckBoxLabel", Sheet_Size)
+    KeepRatio:SetPos(Slider_pos_x, 165)
+    KeepRatio:SetText("Keep proportions")
+    KeepRatio:SetValue(false)
+    KeepRatio:SizeToContents()
+    local syncing = false
+    local last_size = {x = Size_x:GetValue(), y = Size_y:GetValue(), z = Size_z:GetValue()}
+
+    local function SizeChanged(axis)
+        if (syncing) then return end
+        local sliders = {x = Size_x, y = Size_y, z = Size_z}
+        if (KeepRatio:GetChecked() and last_size[axis] > 0) then
+            local factor = sliders[axis]:GetValue() / last_size[axis]
+            syncing = true
+            for k, slider in pairs(sliders) do
+                if (k ~= axis) then slider:SetValue(math.Clamp(last_size[k] * factor, 100, 4096)) end
+            end
+            syncing = false
+        end
+        last_size = {x = Size_x:GetValue(), y = Size_y:GetValue(), z = Size_z:GetValue()}
+        LocalPlayer():ConCommand("SC_Size" .. e:EntIndex() .. " " .. Size_x:GetValue() .. " " .. Size_y:GetValue() .. " " .. Size_z:GetValue())
+    end
+
+    Size_x.OnValueChanged = function() SizeChanged("x") end
+    Size_y.OnValueChanged = function() SizeChanged("y") end
+    Size_z.OnValueChanged = function() SizeChanged("z") end
 
     local Reset_Size = vgui.Create("DButton")
     Reset_Size:SetParent(Sheet_Size)
@@ -336,11 +367,16 @@ function VGUI:Init()
     local b_get = e:GetNWVector("Col", Vector(170, 189, 255)).z
     Col:SetColor(Color(r_get, g_get, b_get, 255))
 
+    local last_col = ""
+
     Col.Think = function(aa)
         Col:ConVarThink()
         local r = Col:GetColor().r
         local g = Col:GetColor().g
         local b = Col:GetColor().b
+        local col = r .. " " .. g .. " " .. b
+        if (col == last_col) then return end -- Was sent to the server every frame
+        last_col = col
         --[[VGUI.col_r:SetText("R: "..tostring(r));
 		VGUI.col_r:SizeToContents();
 
@@ -412,7 +448,7 @@ function VGUI:Init()
     VGUI.Pos_y = Pos_y
     VGUI.Pos_z = Pos_z
     --///// OTHER
-    local menudata = string.Explode(" ", e:GetNWString("MenuData", "0 0 0 0 5 0"))
+    local menudata = string.Explode(" ", e:GetNWString("MenuData", "0 0 0 0 5 0 0"))
     local Power = vgui.Create("DNumSlider", Sheet_Other)
     Power:SetPos(25, 40)
     Power:SetSize(250, 50)
@@ -447,6 +483,12 @@ function VGUI:Init()
     AntiNoclip:SetValue(tobool(menudata[6]))
     AntiNoclip:SizeToContents()
     AntiNoclip:SetToolTip("When this is enabled, players in noclip can't fly through the shield.")
+    local Containment = vgui.Create("DCheckBoxLabel", Sheet_Other)
+    Containment:SetPos(25, 180)
+    Containment:SetText("Containment")
+    Containment:SetValue(tobool(menudata[7]))
+    Containment:SizeToContents()
+    Containment:SetToolTip("Keep things in instead of out: anything can enter, nothing inside can leave.\nExplosions inside (e.g. a naquadah bomb) stay inside.")
     local NumPad = vgui.Create("CtrlNumPad", Sheet_Other)
     NumPad:SetPos(200, 100)
     NumPad.NumPad1:SetValue(menudata[5])
@@ -454,21 +496,65 @@ function VGUI:Init()
     NumPad:SetLabel1("Activate shield")
     NumPad:SetSize(100, 50)
     --//////// BUTTONS
+    --//////// WHAT OK WILL DO (updated while you edit)
+    local start = {
+        Size = e:GetNWVector("Size", Vector(100, 100, 100)),
+        Ang = e:GetNWAngle("Ang", Angle(0, 0, 0)),
+        Pos = e:GetNWVector("Pos", Vector(0, 0, 0)),
+        Col = e:GetNWVector("Col", Vector(170, 189, 255)),
+        Mod = e:GetNWString("Mod", ""),
+        Menu = menudata,
+    }
+
+    local Hint = vgui.Create("DLabel", DermaPanel)
+    Hint:SetPos(25, 300)
+    Hint:SetSize(320, 45)
+    Hint:SetWrap(true)
+    Hint:SetContentAlignment(7)
+
+    local function Differs(a, b)
+        return math.abs(a[1] - b[1]) + math.abs(a[2] - b[2]) + math.abs(a[3] - b[3]) > 0.5
+    end
+
+    Hint.Think = function()
+        if (not IsValid(e)) then return end
+        local rebuild = e:GetNWString("Mod", "") ~= start.Mod
+            or Differs(Vector(Angle_x:GetValue(), Angle_y:GetValue(), Angle_z:GetValue()), Vector(start.Ang.p, start.Ang.y, start.Ang.r))
+            or Differs(Vector(Pos_x:GetValue(), Pos_y:GetValue(), Pos_z:GetValue()), start.Pos)
+            or Differs(e:GetNWVector("Col", start.Col), start.Col)
+            or math.abs(Power:GetValue() - (tonumber(start.Menu[1]) or 0)) > 0.001
+            or Draw_B:GetChecked() ~= tobool(start.Menu[3]) or Atlantis:GetChecked() ~= tobool(start.Menu[4])
+            or AntiNoclip:GetChecked() ~= tobool(start.Menu[6])
+        local resize = Differs(Vector(Size_x:GetValue(), Size_y:GetValue(), Size_z:GetValue()), start.Size)
+        local text, col
+        if (rebuild) then
+            text, col = "OK switches the shield off and rebuilds it (shape, angle, position, colour, strength or the other options changed).", Color(255, 170, 90)
+        elseif (resize) then
+            text, col = "OK keeps the shield up and smoothly resizes it.", Color(140, 220, 140)
+        else
+            text, col = "OK keeps the shield up. Immunity, Containment and the key apply immediately.", Color(200, 220, 255)
+        end
+        if (Hint:GetText() ~= text) then
+            Hint:SetText(text)
+            Hint:SetTextColor(col)
+        end
+    end
+
     local MenuButtonClose = vgui.Create("DButton")
     MenuButtonClose:SetParent(DermaPanel)
-    MenuButtonClose:SetText("Close")
-    MenuButtonClose:SetPos(260, 300)
+    MenuButtonClose:SetText("Cancel")
+    MenuButtonClose:SetPos(270, 360)
     MenuButtonClose:SetSize(Button_size_x, Button_size_y)
+    MenuButtonClose:SetToolTip("Close without changing anything.")
 
     MenuButtonClose.DoClick = function(btn)
-        LocalPlayer():ConCommand("SC_Close" .. e:EntIndex())
-        DermaPanel:Remove()
+        DermaPanel:Close() -- OnClose sends SC_Close
     end
 
     local MenuButtonCreate = vgui.Create("DButton")
     MenuButtonCreate:SetParent(DermaPanel)
     MenuButtonCreate:SetText("OK")
-    MenuButtonCreate:SetPos(160, 300)
+    MenuButtonCreate:SetPos(185, 360)
     MenuButtonCreate:SetSize(Button_size_x, Button_size_y)
 
     MenuButtonCreate.DoClick = function(btn)
@@ -476,6 +562,7 @@ function VGUI:Init()
         local Draw = 0
         local Atl = 0
         local ANC = 0
+        local Cont = 0
 
         if (Immunity:GetChecked()) then
             Imm = 1
@@ -493,13 +580,17 @@ function VGUI:Init()
             ANC = 1
         end
 
+        if (Containment:GetChecked()) then
+            Cont = 1
+        end
+
         LocalPlayer():ConCommand("SC_Size" .. e:EntIndex() .. " " .. VGUI.Size_x:GetValue() .. " " .. VGUI.Size_y:GetValue() .. " " .. VGUI.Size_z:GetValue())
         LocalPlayer():ConCommand("SC_Angle" .. e:EntIndex() .. " " .. VGUI.Angle_x:GetValue() .. " " .. VGUI.Angle_y:GetValue() .. " " .. VGUI.Angle_z:GetValue())
         LocalPlayer():ConCommand("SC_Pos" .. e:EntIndex() .. " " .. VGUI.Pos_x:GetValue() .. " " .. VGUI.Pos_y:GetValue() .. " " .. VGUI.Pos_z:GetValue())
-        LocalPlayer():ConCommand("SC_Visual_Model" .. e:EntIndex() .. " " .. "models/Madman07/shield/sphere.mdl")
         LocalPlayer():ConCommand("SC_Visual_Col" .. e:EntIndex() .. " " .. Col:GetColor().r .. " " .. Col:GetColor().g .. " " .. Col:GetColor().b)
-        LocalPlayer():ConCommand("SC_Apply" .. e:EntIndex() .. " " .. Power:GetValue() .. " " .. Imm .. " " .. Draw .. " " .. Atl .. " " .. NumPad.NumPad1:GetValue() .. " " .. ANC)
-        DermaPanel:Remove()
+        LocalPlayer():ConCommand("SC_Apply" .. e:EntIndex() .. " " .. Power:GetValue() .. " " .. Imm .. " " .. Draw .. " " .. Atl .. " " .. NumPad.NumPad1:GetValue() .. " " .. ANC .. " " .. Cont)
+        applied = true
+        DermaPanel:Close()
     end
 end
 

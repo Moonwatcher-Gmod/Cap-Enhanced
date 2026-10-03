@@ -201,7 +201,14 @@ function StarGate.Trace:New(start, dir, ignore)
                 local in_box = false
 
                 if (class == "shield_core_buble") then
-                    in_box = StarGate.IsInShieldCore(e, start)
+                    if (e.ContainsPoint) then
+                        -- Exact test against the visible shape. IsInShieldCore uses the trace size, ~28% bigger,
+                        -- so shots whose start landed in that outer band counted as "from inside" and passed.
+                        in_box = e:ContainsPoint(start)
+                        if (e.ShShap == 2) then in_box = not in_box end -- The box code below expects IsInShieldCore's inverted value
+                    else
+                        in_box = StarGate.IsInShieldCore(e, start)
+                    end
                 elseif (class == "shield") then
                     in_box = (e:GetPos():Distance(start) < v.Max.x) -- in sphere! Not box!!! @ AlexALX
                 else
@@ -284,6 +291,11 @@ function StarGate.Trace:New(start, dir, ignore)
                         trace.Entity = e
                         table.insert(traced_entities, table.Copy(trace)) -- Lynix modification
                         --break;
+                    end
+
+                    -- A rising/lowering shield core only blocks where it has risen to (see shield_core_buble/shared.lua)
+                    if (hit2 and e.IsCoveredAt and not e:IsCoveredAt(hit2.HitPos)) then
+                        hit2 = nil
                     end
 
                     if (hit2) then

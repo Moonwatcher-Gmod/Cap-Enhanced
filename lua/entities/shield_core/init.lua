@@ -32,8 +32,9 @@ function ENT:Initialize()
 	self.Mod = "models/Madman07/shields/sphere.mdl";
 	self.Anim = false;
 	self.ThinkTime = CurTime()+0.5;
-	self.MenuData = "0 0 0 0 5 0";
+	self.MenuData = "0 0 0 0 5 0 0";
 	self.AntiNoclip = false;
+	self.Containment = false;
 
 	self.Entity:SetNWBool("Kill", false);
 	self.Entity:SetNWVector("Size", Vector(100,100,100));
@@ -66,56 +67,25 @@ function ENT:Initialize()
 
 	self.PlyOldEyeAngle = Angle(0,0,0);
 
+	-- The menu commands below used to accept anyone: any player could resize, move or reconfigure
+	-- (e.g. enable Immunity on) someone else's shield core from the console. Only the owner, who is
+	-- the only one allowed to open the menu (ENT:TrueUse), may use them now.
+	local core = self;
+	local function MayConfigure(ply)
+		return IsValid(ply) and ply == core.Owner and ply == core.Player;
+	end
+
 	concommand.Add("SC_Apply"..self:EntIndex(),function(ply,cmd,args)
-		self.Player:SetViewEntity(self.Player);
-		--self.Player:SnapEyeAngles(self.PlyOldEyeAngle);
-
-		self.Busy = false;
-		self.Entity:SetNWBool("Kill", true);
-		if IsValid(self.Camera) then self.Camera:Remove() end
-		if IsValid(self.Shield) then self.Shield:Remove() end
-
-		local a = ents.Create("shield_core_buble");
-		a:SetModel("models/hunter/blocks/cube025x025x025.mdl");
-		a:SetPos(self:LocalToWorld(self.Pos));
-		a:SetAngles(self:GetAngles()+self.Ang);
-		a.Parent = self;
-		if CPPI and IsValid(self.Owner) and a.CPPISetOwner then a:CPPISetOwner(self.Owner) end
-		a:SetNWVector("Col",self.Entity:GetNWVector("Col",Vector(100,100,100)));
-
-		a:Spawn();
-		a:Activate();
-
-		constraint.Weld(self.Entity,a,0,0,0,true)
-		a:SetCollisionScale(self.Mod, self.SSize/512);
-		constraint.Weld(self.Entity,a,0,0,0,true)
-		self.Shield = a;
-
-		self:SetMultiplier(tonumber(args[1]));
-		self.Immunity = util.tobool(tonumber(args[2]));
-		self.Draw = util.tobool(tonumber(args[3]));
-		self.Atlantis = util.tobool(tonumber(args[4])) and self.HasResourceDistribution; -- this is working only with power attached, so it need RS
-		self.AntiNoclip = util.tobool(tonumber(args[6] or "0")); -- Kick noclipping players out of noclip when they hit the shield
-
-  		numpad.OnDown(self.Owner, tonumber(args[5]), "Toggle_Shield_Core", self.Entity);
-
-		self.MenuData = args[1].." "..args[2].." "..args[3].." "..args[4].." "..args[5].." "..(args[6] or "0");
-		self.Entity:SetNWString("MenuData", self.MenuData);
-
-		// for tracelines
-		self.Shield:SetNWBool("Immunity",self.Immunity);
-		self.Shield:SetNWEntity("Own",self.Owner);
-
-    end);
+		if not MayConfigure(ply) then return end
+		self:ApplyMenu(args);
+	end);
 
 	concommand.Add("SC_Close"..self:EntIndex(),function(ply,cmd,args)
-		self.Player:SetViewEntity(self.Player);
-		--self.Player:SnapEyeAngles(self.PlyOldEyeAngle);
+		if not MayConfigure(ply) then return end
+		self:CloseMenu();
+		self:RestoreMenuSnapshot(); -- Undo the preview changes
 
-		self.Entity:SetNWBool("Kill", true);
-		if IsValid(self.Camera) then self.Camera:Remove() end
-
-		if (not self.Anim) then
+		if (not self.Anim and not (IsValid(self.Shield) and self.Shield.Enabled)) then
 			self.Busy = false;
 			local seq = self:LookupSequence("Close");
 			self:ResetSequence(seq);
@@ -129,21 +99,25 @@ function ENT:Initialize()
     end);
 
 	concommand.Add("SC_Size"..self:EntIndex(),function(ply,cmd,args)
+		if not MayConfigure(ply) then return end
 		self.Entity:SetNWVector("Size", Vector(tonumber(args[1]),tonumber(args[2]),tonumber(args[3])));
 		self.SSize = Vector(tonumber(args[1]),tonumber(args[2]),tonumber(args[3]));
     end);
 
 	concommand.Add("SC_Angle"..self:EntIndex(),function(ply,cmd,args)
+		if not MayConfigure(ply) then return end
 		self.Entity:SetNWAngle("Ang", Angle(tonumber(args[1]),tonumber(args[2]),tonumber(args[3])));
 		self.Ang = Angle(tonumber(args[1]),tonumber(args[2]),tonumber(args[3]));
     end);
 
 	concommand.Add("SC_Pos"..self:EntIndex(),function(ply,cmd,args)
+		if not MayConfigure(ply) then return end
 		self.Entity:SetNWVector("Pos", Vector(tonumber(args[1]),tonumber(args[2]),tonumber(args[3])));
 		self.Pos = Vector(tonumber(args[1]),tonumber(args[2]),tonumber(args[3]))
     end);
 
 	concommand.Add("SC_Visual_Model"..self:EntIndex(),function(ply,cmd,args)
+		if not MayConfigure(ply) then return end
 		if (args[1] == "1") then 	 self.Mod = "models/Madman07/shields/sphere.mdl";
 		elseif (args[1] == "2") then self.Mod = "models/Madman07/shields/box.mdl";
 		elseif (args[1] == "3") then self.Mod = "models/Madman07/shields/atlantis.mdl"; end
@@ -151,6 +125,7 @@ function ENT:Initialize()
     end);
 
 	concommand.Add("SC_Visual_Col"..self:EntIndex(),function(ply,cmd,args)
+		if not MayConfigure(ply) then return end
 		self.Col = Vector(tonumber(args[1]),tonumber(args[2]),tonumber(args[3]));
 		self.Entity:SetNWVector("Col", self.Col);
     end);
@@ -210,7 +185,8 @@ end
 
 function ENT:TrueUse(ply)
 	if(not self.Busy and ply == self.Owner and not self.Pressed)then
-		self:Status(false, true); -- shutdown old shield, close emmiter
+		-- The shield stays up while you edit it; OK compares with how it is now (see ENT:ApplyMenu)
+		self:TakeMenuSnapshot();
 
 		if (not IsValid(self.Camera)) then
 			self.Camera = ents.Create("prop_physics");
@@ -243,11 +219,129 @@ function ENT:TrueUse(ply)
 		ply.ShieldCore = self;
 
 		local fx = EffectData();
-			fx:SetEntity(self.Entity);
+		fx:SetEntity(self.Entity);
+		fx:SetOrigin(self.Entity:GetPos()); -- Effects only reach players near their origin (was 0,0,0)
 		util.Effect("shield_core_preview",fx,true,true);
 
 		//self.Entity:SetNWVector("Col", Vector(170,189,255)); // shield dont want to accept colors after menu creation, lets fix it here
 	end
+end
+
+--################# Menu: editing the shield while it stays up
+
+-- How the shield is before editing (the preview commands below change these while the menu is open)
+function ENT:TakeMenuSnapshot()
+	self.MenuSnapshot = {
+		Size = self.Entity:GetNWVector("Size", Vector(100,100,100)),
+		Ang = self.Entity:GetNWAngle("Ang", Angle(0,0,0)),
+		Pos = self.Entity:GetNWVector("Pos", Vector(0,0,0)),
+		Col = self.Entity:GetNWVector("Col", Vector(170,189,255)),
+		Mod = self.Mod,
+		MenuData = self.MenuData,
+	};
+end
+
+function ENT:RestoreMenuSnapshot()
+	local snap = self.MenuSnapshot;
+	if (not snap) then return end
+	self.SSize, self.Ang, self.Pos, self.Col, self.Mod = snap.Size, snap.Ang, snap.Pos, snap.Col, snap.Mod;
+	self.Entity:SetNWVector("Size", snap.Size);
+	self.Entity:SetNWAngle("Ang", snap.Ang);
+	self.Entity:SetNWVector("Pos", snap.Pos);
+	self.Entity:SetNWVector("Col", snap.Col);
+	self.Entity:SetNWString("Mod", snap.Mod);
+	self.MenuSnapshot = nil;
+end
+
+function ENT:CloseMenu()
+	if IsValid(self.Player) then self.Player:SetViewEntity(self.Player) end
+	self.Busy = false;
+	self.Entity:SetNWBool("Kill", true); -- Ends the preview effect
+	if IsValid(self.Camera) then self.Camera:Remove() end
+end
+
+-- (Re)creates the shield bubble with the current settings. It starts switched off.
+function ENT:BuildShield()
+	if IsValid(self.Shield) then self.Shield:Remove() end
+
+	local a = ents.Create("shield_core_buble");
+	a:SetModel("models/hunter/blocks/cube025x025x025.mdl");
+	a:SetPos(self:LocalToWorld(self.Pos));
+	a:SetAngles(self:GetAngles()+self.Ang);
+	a.Parent = self;
+	if CPPI and IsValid(self.Owner) and a.CPPISetOwner then a:CPPISetOwner(self.Owner) end
+	a:SetNWVector("Col",self.Entity:GetNWVector("Col",Vector(100,100,100)));
+
+	a:Spawn();
+	a:Activate();
+
+	a:SetCollisionScale(self.Mod, self.SSize/512);
+	-- Parented, so the shield follows the generator every frame. It used to be welded, but its physics
+	-- object is frozen, so the weld couldn't carry it and Think snapped it into place every 0.5s.
+	a:SetParent(self.Entity);
+	self.Shield = a;
+end
+
+local function Changed(a, b) -- Menu sliders aren't always exact whole numbers
+	if (isvector(a) or isangle(a)) then
+		return math.abs(a[1]-b[1]) + math.abs(a[2]-b[2]) + math.abs(a[3]-b[3]) > 0.5
+	end
+	return math.abs((tonumber(a) or 0) - (tonumber(b) or 0)) > 0.001
+end
+
+-- OK in the menu. args: strength, immunity, always show, atlantis, key, anti noclip, containment
+--  * Size: the shield stays up and smoothly resizes
+--  * Immunity, Containment, the key: applied straight away
+--  * Anything else (shape, angle, position, colour, strength, always show, atlantis, anti noclip):
+--    the shield is rebuilt with the new settings, which switches it off
+function ENT:ApplyMenu(args)
+	self:CloseMenu();
+	local snap = self.MenuSnapshot or {Size = self.SSize, Ang = self.Ang, Pos = self.Pos, Col = self.Col, Mod = self.Mod, MenuData = self.MenuData};
+	self.MenuSnapshot = nil;
+	self.SSize = self.SSize or self.Entity:GetNWVector("Size", Vector(100,100,100));
+	self.Ang = self.Ang or self.Entity:GetNWAngle("Ang", Angle(0,0,0));
+	self.Pos = self.Pos or self.Entity:GetNWVector("Pos", Vector(0,0,0));
+	self.Col = self.Col or self.Entity:GetNWVector("Col", Vector(170,189,255));
+	for i = 1, 7 do args[i] = args[i] or "0" end
+	local old = string.Explode(" ", snap.MenuData or "0 0 0 0 5 0 0");
+
+	local rebuild = not IsValid(self.Shield) or self.Mod ~= snap.Mod
+		or Changed(self.Ang, snap.Ang) or Changed(self.Pos, snap.Pos) or Changed(self.Col, snap.Col)
+		or Changed(args[1], old[1]) or Changed(args[3], old[3]) or Changed(args[4], old[4]) or Changed(args[6], old[6]);
+
+	self:SetMultiplier(tonumber(args[1]));
+	self.Immunity = util.tobool(tonumber(args[2]));
+	self.Draw = util.tobool(tonumber(args[3]));
+	self.Atlantis = util.tobool(tonumber(args[4])) and self.HasResourceDistribution; -- this is working only with power attached, so it need RS
+	self.AntiNoclip = util.tobool(tonumber(args[6])); -- Kick noclipping players out of noclip when they hit the shield
+	self.Containment = util.tobool(tonumber(args[7])); -- Keep things in instead of out
+
+	if (Changed(args[5], old[5]) or not self.NumpadSet) then
+		numpad.OnDown(self.Owner, tonumber(args[5]), "Toggle_Shield_Core", self.Entity);
+		self.NumpadSet = true;
+	end
+
+	self.MenuData = table.concat(args, " ", 1, 7);
+	self.Entity:SetNWString("MenuData", self.MenuData);
+
+	if (rebuild) then
+		if (IsValid(self.Shield) and self.Shield.Enabled) then
+			self.Pressed = false; -- Status() ignores calls for 7s after the last toggle
+			self:Status(false);
+		end
+		self:BuildShield();
+	else
+		if (Changed(self.SSize, snap.Size)) then
+			self.Shield:ResizeTo(self.SSize/512);
+		end
+		if (self.Shield.Enabled) then
+			self.Shield:SetContainment(self.Containment);
+		end
+	end
+
+	// for tracelines
+	self.Shield:SetNWBool("Immunity",self.Immunity);
+	self.Shield:SetNWEntity("Own",self.Owner);
 end
 
 function ENT:EmmiterAnimation(open)
@@ -328,8 +422,10 @@ function ENT:Think(ply)
 
 	if (self.ThinkTime < CurTime() and IsValid(self.Shield)) then
 
-		self.Shield:SetPos(self:LocalToWorld(self.Pos));
-		self.Shield:SetAngles(self:GetAngles()+self.Ang);
+		if (self.Shield:GetParent() ~= self.Entity) then -- Parented shields follow by themselves
+			self.Shield:SetPos(self:LocalToWorld(self.Pos));
+			self.Shield:SetAngles(self:GetAngles()+self.Ang);
+		end
 
 		self.ThinkTime = CurTime()+0.5
 		local enabled = self.Shield.Enabled;

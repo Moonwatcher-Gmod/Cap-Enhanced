@@ -33,6 +33,20 @@ include("modules/collision.lua");
 
 local BUFFER = {InBuffer = {}};
 
+-- Debugging wormhole travel: "stargate_wormhole_debug 1" in the server console logs what happens to
+-- non-player entities going through, and who removes them (call stack) while/just after travelling
+local WormholeDebug = CreateConVar("stargate_wormhole_debug","0",FCVAR_NONE,"Log wormhole travel of non-player entities");
+local function DebugPrint(...)
+	if (WormholeDebug:GetBool()) then print("[Wormhole]",...) end
+end
+hook.Add("EntityRemoved","StarGate.EH.WormholeDebug",function(e)
+	if (not WormholeDebug:GetBool()) then return end
+	if (e.__EHTransit or (e.__EHDebugUntil or 0) > CurTime()) then
+		print("[Wormhole] REMOVED",e,"in transit:",tostring(e.__EHTransit ~= nil));
+		print(debug.traceback());
+	end
+end);
+
 --################# Defines
 ENT.IgnoreTouch = true; -- This tells the physical objects like drones or staff not to collide with the eventhorizon (= no explode on them)
 ENT.CDSIgnore = true; -- Fixes Combat Damage System destroying this entity
@@ -719,6 +733,7 @@ end
 
 --################# The most important part - Recognizes entering props and teleports them @RononDex
 function ENT:StartTouch(e)
+	if (not e:IsPlayer()) then DebugPrint("StartTouch",e,"in transit:",tostring(e.__EHTransit ~= nil),"speed:",math.floor(e:GetVelocity():Length())) end
 	if (e.__EHTransit) then return end -- Already in the wormhole, waiting at the gate
 	local class = e:GetClass();
 	if (self.Instancing) then
@@ -1884,11 +1899,41 @@ local function SetMalpWheelsHidden(ent,hidden)
 	end
 end
 
+-- SENT callbacks that must not run while something is in the wormhole. Frozen in place, many SENTs
+-- would react to it: e.g. staff blasts (energy_pulse) destroy themselves in PhysicsUpdate once they
+-- move slower than 500 u/s, so they never came out the other side.
+local TRANSIT_CALLBACKS = {"PhysicsUpdate","PhysicsCollide","PhysicsSimulate","Touch","StartTouch","EndTouch"};
+local function TransitDummy() end
+
+local function SuspendCallbacks(rec)
+	local tab = rec.Entity:GetTable();
+	if (not tab) then return end
+	rec.Callbacks = {};
+	for _,k in ipairs(TRANSIT_CALLBACKS) do
+		if (rec.Entity[k]) then
+			rec.Callbacks[k] = {Own = rawget(tab,k)}; -- nil if it came from the entity class
+			tab[k] = TransitDummy;
+		end
+	end
+end
+
+local function RestoreCallbacks(rec)
+	local tab = rec.Entity:GetTable();
+	if (not tab or not rec.Callbacks) then return end
+	for k,v in pairs(rec.Callbacks) do
+		if (rawget(tab,k) == TransitDummy) then -- Don't undo changes something else made meanwhile
+			tab[k] = v.Own;
+		end
+	end
+	rec.Callbacks = nil;
+end
+
 --################# Puts an entity back the way it was before it entered the wormhole
 local function RestoreFromTransit(rec)
 	local ent = rec.Entity;
 	if (not IsValid(ent)) then return end
 	ent.__EHTransit = nil;
+	RestoreCallbacks(rec);
 	ent:SetColor(rec.Color);
 	ent:SetRenderMode(rec.RenderMode);
 	SetMalpWheelsHidden(ent,false);
@@ -1987,6 +2032,9 @@ function ENT:SuspendForTransit(rec)
 	local ent = rec.Entity;
 	self:CleanBufferVars(ent); -- Stop model clipping and drop it from every buffer
 	ent.__EHTransit = self.Entity;
+	if (not ent:IsPlayer()) then
+		SuspendCallbacks(rec); -- Before freezing it, or the SENT may react to the freeze
+	end
 	ent:SetRenderMode(RENDERMODE_TRANSALPHA);
 	ent:SetColor(Color(0,0,0,0));
 	SetMalpWheelsHidden(ent,true);
@@ -2026,6 +2074,7 @@ function ENT:DoWormHole(v,block,attached,bcfd,totalkill)
 	-- Entering from the back, through a gate that isn't fully open, is unstable or is incoming kills.
 	-- (A closed iris on the other side is checked on arrival instead - it can close while we travel.)
 	if (totalkill or self.ShuttingDown or self.Unstable or not self:IsOpen() or not IsValid(self.Target)) then
+		DebugPrint("killed on entry",v,"from back:",tostring(totalkill),"shutting down:",tostring(self.ShuttingDown),"unstable:",tostring(self.Unstable),"open:",tostring(self:IsOpen()),"target:",tostring(self.Target));
 		self:Teleport(v,true,attached);
 		return;
 	end
@@ -2072,6 +2121,7 @@ function ENT:DoWormHole(v,block,attached,bcfd,totalkill)
 	trip.TimerName = "StarGate.EH.WormHole."..self.Entity:EntIndex().."."..TransitCounter;
 	self.Transits[trip.TimerName] = trip;
 
+	DebugPrint("entered",v,"speed:",math.floor(v:GetVelocity():Length()),"parts:",table.Count(trip.Records),"travel time:",atlantis and WORMHOLE_TRANSIT_TIME_ATLANTIS or WORMHOLE_TRANSIT_TIME);
 	if (WORMHOLE_INSTANT[trip.Class]) then
 		self:FinishTransit(trip);
 		return;
@@ -2097,6 +2147,7 @@ function ENT:FinishTransit(trip)
 	local base = trip.Base;
 	-- The gate closed, the wormhole changed, or the traveller vanished: lost in transit
 	if (self.ShuttingDown or not IsValid(self.Target) or self.Target ~= trip.Target or self.Target.ShuttingDown or not IsValid(base)) then
+		DebugPrint("lost in transit",base,"shutting down:",tostring(self.ShuttingDown),"target valid:",tostring(IsValid(self.Target)),"same target:",tostring(self.Target == trip.Target),"traveller valid:",tostring(IsValid(base)));
 		FailTransit(trip);
 		return;
 	end
@@ -2142,7 +2193,17 @@ function ENT:FinishTransit(trip)
 		end
 	end
 
+	if (not base:IsPlayer()) then
+		DebugPrint("arriving",base,"blocked:",tostring(block),"speed after restore:",math.floor(base:GetVelocity():Length()),"stored speed:",math.floor(trip.Records[base].Vel:Length()));
+		base.__EHDebugUntil = CurTime() + 3;
+	end
 	self:Teleport(base,block,attached);
+	if (not base:IsPlayer()) then
+		DebugPrint("teleported",base,"valid:",tostring(IsValid(base)),"pos:",IsValid(base) and tostring(base:GetPos()) or "-","speed:",IsValid(base) and math.floor(base:GetVelocity():Length()) or "-");
+		timer.Simple(0.1,function()
+			DebugPrint("0.1s later",base,"valid:",tostring(IsValid(base)),"pos:",IsValid(base) and tostring(base:GetPos()) or "-","speed:",IsValid(base) and math.floor(base:GetVelocity():Length()) or "-");
+		end);
+	end
 
 	if (block) then
 		SendWormholeMessage("Lib.EventHorizon.WormHoleReset",trip.ScreenPlayers);
