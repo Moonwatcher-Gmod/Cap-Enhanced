@@ -203,9 +203,7 @@ if SERVER then
 
 			if self.Percentcomp == 100 then
 				self:TurnOff()
-				print(self.ZPM.Ent)
 				if(self.ZPM.Ent.ZPMType == "tampered") then
-					print("tamp")
 					self.Entity:SetNWInt("Result",1)
 					self:SetWire("Tainted",1)
 					self:EmitSound("sg/scanner/deactivate2.wav")

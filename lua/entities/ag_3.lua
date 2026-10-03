@@ -76,15 +76,15 @@ if SERVER then
                     if v.IsMaster then
                         table.insert(v.Satellite, ent)
 
-                        if (table.getn(v.Satellite) == 1) then
+                        if (#v.Satellite == 1) then
                             v:SetNetworkedEntity("Sat1", ent)
-                        elseif (table.getn(v.Satellite) == 2) then
+                        elseif (#v.Satellite == 2) then
                             v:SetNWEntity("Sat2", ent)
-                        elseif (table.getn(v.Satellite) == 3) then
+                        elseif (#v.Satellite == 3) then
                             v:SetNWEntity("Sat3", ent)
-                        elseif (table.getn(v.Satellite) == 4) then
+                        elseif (#v.Satellite == 4) then
                             v:SetNWEntity("Sat4", ent)
-                        elseif (table.getn(v.Satellite) == 5) then
+                        elseif (#v.Satellite == 5) then
                             v:SetNWEntity("Sat5", ent)
                         end
                     end

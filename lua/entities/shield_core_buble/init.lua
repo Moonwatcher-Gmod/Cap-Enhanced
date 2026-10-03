@@ -92,7 +92,7 @@ function ENT:SetCollisionScale(model, size)
 		table.insert(self.RayModel, vec);
 	end
 
-	if (table.getn(convex) == 0) then return end //safefail
+	if (#convex == 0) then return end //safefail
 
 	if (size.x > size.y) then
 		if (size.x > size.z) then self.Radius = size.x

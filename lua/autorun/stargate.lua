@@ -205,10 +205,6 @@ if SERVER then
                 if(v:GetClass() == "shield_generator") then
                     if(v.Shield and v.Shield:IsValid()) then
                         if(v:GetPos():Distance(target:GetPos()) <= v.Size or v:GetPos():Distance(dmginfo:GetDamagePosition()) <= v.Size) then
-                            if(target:IsPlayer()) then
-                                print(dmginfo:GetDamagePosition())
-                                print(v:GetPos())
-                            end
                             dmginfo:SetDamage(0)
                         end
                     end

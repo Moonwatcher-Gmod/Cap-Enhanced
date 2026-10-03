@@ -537,21 +537,30 @@ if SERVER then
 
 
 
-    function ENT:HandleMessageFromClient(ply, originEntity, receiverEntityID, subject, ...)
-        if not originEntity:GetClass() == self:GetClass() then print("error wrong sender") return end
+    -- Only the player currently piloting this chair may control it
+    function ENT:IsPilot(ply)
+        return IsValid(ply) and self.Controlling and self.Pilot == ply
+    end
 
+    -- Same permission check the context menu would do (respects prop protection)
+    function ENT:CanUseProperty(ply, name)
+        if not IsValid(ply) then return false end
+        if self.CPPICanProperty and not self:CPPICanProperty(ply, name) then return false end
+        return hook.Run("CanProperty", ply, name, self) ~= false
+    end
+
+    function ENT:HandleMessageFromClient(ply, originEntity, receiverEntityID, subject, ...)
         local data1 = select(1, ...)
         local data2 = select(2, ...)
-        local data3 = select(3, ...)
-
 
         if subject == "ControlChair_Relay_from_client_target" then
-            --print(data1)
+            if not self:IsPilot(ply) or not isstring(data1) then return end
             self:UpdateTarget(data1)
-        elseif subject == "ToggleChairMode_Atlantis" then 
+        elseif subject == "ToggleChairMode_Atlantis" then
+            if not self:CanUseProperty(ply, "Stargate.Controlchair.DoAtlantis") then return end
 
-            local entity = data1
-            if (util.IsValidModel("models/soclesiege.mdl")) then       
+            local entity = self
+            if (util.IsValidModel("models/soclesiege.mdl")) then
                 ply:EmitSound( "buttons/button24.wav" )
                 ply:SendLua( "GAMEMODE:AddNotify('Version Toggled', NOTIFY_GENERIC, 7);" )
                 entity:AtlantisVersion()
@@ -567,12 +576,20 @@ if SERVER then
                 entity:AtlantisVersion()
             end
 
-        elseif subject == "ToggleChairMode" then 
-                local entity = data1
+        elseif subject == "ToggleChairMode" then
+                if not self:CanUseProperty(ply, "Stargate.Controlchair.DoAntartica") then return end
                 ply:EmitSound( "buttons/button24.wav" )
                 ply:SendLua( "GAMEMODE:AddNotify('Type Toggled', NOTIFY_GENERIC, 7);" )
-                entity:SwitchType()
+                self:SwitchType()
         elseif subject == "Chair_ClientClickToChair" then
+                if not self:IsPilot(ply) then return end
+                if not isentity(data1) or not isvector(data2) then return end
+                -- Clicking the world just sets the drone target; clicking an entity
+                -- fires its wire inputs, so the pilot must be allowed to wire it
+                if data1 ~= game.GetWorld() then
+                    if not IsValid(data1) then return end
+                    if data1.CPPICanTool and not data1:CPPICanTool(ply, "wire") then return end
+                end
                 self:ChairClickwire(data1,data2,ply)
         end
 
@@ -787,18 +804,19 @@ if SERVER then
         local inputs = WireLib.GetPorts(ChairclickT)
         local alt = player:KeyDown(IN_SPEED)
 
-        local Controlchair = player:GetNWEntity("chair",NULL):GetParent()
+        local Controlchair = self
 
         --Controlchair:RelayToHud(inputs,player)
 
         local playernumber = player:GetNWInt("ChairWireNumber",0)
 
         if ChairclickT:GetClass() == "cap_doors_frame" then
-             for i=1,#inputs do
-             end
-            --print(self:GetPorts(ChairclickT))
-            ChairclickT:TriggerInput(inputs[1][1],1)
+            if istable(inputs) and inputs[1] then
+                ChairclickT:TriggerInput(inputs[1][1],1)
+            end
         elseif (istable(inputs)) then
+            if (playernumber ~= 0 and not inputs[playernumber]) then return end -- entity has fewer inputs than the selected number
+
             
             --print(inputs[1][1].." :"..inputs[1][2])
             if (playernumber == 0) then
@@ -830,9 +848,44 @@ if SERVER then
         -- net.Send(ply)
     end
 
+    -- Returns the control chair this player is currently piloting, if any.
+    -- These hooks are registered once here (not in Think) so every chair on the server works.
+    local function GetPilotedChair(ply)
+        local chair = ply:GetNWEntity("ScriptedVehicle", NULL)
+        if not IsValid(chair) or chair:GetClass() ~= "control_chair" then return end
+        if not chair:IsPilot(ply) then return end
+        return chair
+    end
+
+    hook.Add( "PlayerButtonDown", "ControlChair_TargetMenu", function( ply, button )
+        local chair = GetPilotedChair(ply)
+        if not chair then return end
+        if (button == 2 and chair.Debug and not chair.PilotViewing ) then
+            SendMessageToClient(ply, chair, "controlchair_targetmenu_v2", chair.Targets)
+        end
+    end)
+
+    hook.Add( "PlayerButtonDown", "ControlChair_interact_on", function( ply, button )
+        if (button ~= 13) then return end
+        local chair = GetPilotedChair(ply)
+        if not chair then return end
+        ply:SetNWBool("Chair_viewing",true)
+        chair.PilotViewing = true
+        SendMessageToClient(ply, chair, "controlchair_interact",true)
+    end)
+
+    hook.Add( "PlayerButtonUp", "ControlChair_interact_off", function( ply, button )
+        if (button ~= 13) then return end
+        local chair = GetPilotedChair(ply)
+        if not chair then return end
+        chair.PilotViewing = false
+        ply:SetNWBool("Chair_viewing",false)
+        SendMessageToClient(ply, chair, "controlchair_interact",false)
+    end)
+
     hook.Add( "PlayerButtonDown", "ChairWirePlayerButtonDown", function( ply, button )
         
-        if (ply:GetNWBool("Chair_viewing",true)) then
+        if (ply:GetNWBool("Chair_viewing",false)) then
             
             if button == 2 then 
                 ply:SetNWInt("ChairWireNumber",1)
@@ -865,7 +918,7 @@ if SERVER then
 
     hook.Add( "PlayerButtonUp", "ChairWirePlayerButtonUp", function( ply, button )
         
-        if (ply:GetNWBool("Chair_viewing",true)) then
+        if (ply:GetNWBool("Chair_viewing",false)) then
             if button == 2 then 
                 ply:SetNWInt("ChairWireNumber",0)
             elseif button == 3 then 
@@ -1104,56 +1157,6 @@ if SERVER then
                  	self:StopSound("thrusters/hover01.wav")
             end
         end
-
-        hook.Add( "PlayerButtonDown", "ControlChair_TargetMenu", function( ply, button )
-        	if (self.Controlling and IsValid(self.Pilot) and self.Pilot == ply) then
-				if (button == 2 and self.Debug and not self.PilotViewing ) then
-                    SendMessageToClient(self.Pilot, self, "controlchair_targetmenu_v2", self.Targets)
-				end
-			end
-		end)
-
-        hook.Add( "PlayerButtonDown", "ControlChair_interact_on", function( ply, button )
-            if (self.Controlling and IsValid(self.Pilot) and self.Pilot == ply) then
-                if (button == 13) then
-                    ply:SetNWBool("Chair_viewing",true)
-                    self.PilotViewing = true
-                    SendMessageToClient(self.Pilot, self, "controlchair_interact",true)
-                    -- net.Start("controlchair_interact")
-                    -- net.WriteBool(true)
-                    -- net.Send(ply)
-                end
-            end
-        end)
-        hook.Add( "PlayerButtonUp", "ControlChair_interact_off", function( ply, button )
-            if (self.Controlling and IsValid(self.Pilot) and self.Pilot == ply) then
-                if (button == 13) then
-                    self.PilotViewing = false
-                    ply:SetNWBool("Chair_viewing",false)
-                    SendMessageToClient(self.Pilot, self, "controlchair_interact",false)
-                    -- net.Start("controlchair_interact")
-                    -- net.WriteBool(false)
-                    -- net.Send(ply)
-                end
-            end
-        end)
-
-
-
-        -- Click functions wiremod
-
-
-        -- hook.Add( "PlayerButtonDown", "Hook_ControlChair_wireclick", function( ply, button )
-        --     if (self.Controlling and IsValid(self.Pilot) and self.Pilot == ply) then
-        --         if (button == 1 ) then
-        --             net.Start("controlchair_click")
-        --                 net.WriteInt(1,32)
-        --                 net.Send(self.Pilot)
-        --         end
-        --     end
-        -- end)
-
-        ----------------------
 
         if (self.ShouldConsume) then
             if (self:GetResource("energy") < 500) then

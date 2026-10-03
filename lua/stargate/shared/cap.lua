@@ -132,7 +132,7 @@ function StarGate.RayPhysicsPluckerIntersect(trace, dir, ent, in_shape)
     local hit --imaginary variable
 
     -- ran over every triangle in physics
-    for i = 1, table.getn(ent.RayModel), 3 do
+    for i = 1, #ent.RayModel, 3 do
         -- if in shield then counter clock wise order
         if in_shape then
             TA = ent.RayModel[i]
@@ -427,7 +427,7 @@ end
 -- Thanks PyroSpirit for the help :})<<<(P.S. It has a moustache).
 function StarGate.ArePointsInsideAShield(points)
     local IsInShield = {}
-    local num = table.getn(points)
+    local num = #points
 
     for i = 1, num do
         IsInShield[i] = false
@@ -521,7 +521,7 @@ end
 -- enttab = the table of ents your trying to see
 -- postab = the corosponding table of positions
 function StarGate.LOS(ent1, enttab, postab)
-    local num = table.getn(enttab)
+    local num = #enttab
     local hitent = {}
     local hitentpos = {}
 
@@ -541,7 +541,7 @@ function StarGate.LOS(ent1, enttab, postab)
         end
     end
 
-    local size = table.getn(hitent)
+    local size = #hitent
     local inshield = StarGate.ArePointsInsideAShield(hitentpos, 50)
 
     for i = 1, size do

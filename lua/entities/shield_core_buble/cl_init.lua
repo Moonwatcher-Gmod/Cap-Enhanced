@@ -99,7 +99,7 @@ function ENT:SetCollisionScale()
 		table.insert(self.RayModel, vec);
 	end
 
-	if (table.getn(convex) == 0) then return end //safefail
+	if (#convex == 0) then return end //safefail
 
 	self.Entity:PhysicsFromMesh(convex);
 
