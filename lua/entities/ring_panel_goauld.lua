@@ -68,7 +68,7 @@ if SERVER then
         self.CantDial = true
 
         if (button == "DIAL") then
-            if (table.getn(self.DialAdress) == 0) then
+            if (#self.DialAdress == 0) then
                 ply.RingDialEnt = self
                 self:DoCallback(0, "")
             else
@@ -102,7 +102,7 @@ if SERVER then
         else
             if table.HasValue(self.DialAdress, button) then return end
 
-            if (table.getn(self.DialAdress) == 0) then
+            if (#self.DialAdress == 0) then
                 timer.Create(self.Entity:EntIndex() .. "Counting", 3, 1, function()
                     if (IsValid(self.Entity)) then
                         self.DialAdress = nil

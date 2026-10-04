@@ -275,7 +275,7 @@ else
 end
 ]]--
 
-if table.getn(oldfiles) > 0 then
+if #oldfiles > 0 then
     logError("13", "Old workshop files found, please remove it.", {"sg_err_13", oldfiles, "C:/Program Files (x86)/Steam/SteamApps/common/GarrysMod/garrysmod/addons"})
 end
 

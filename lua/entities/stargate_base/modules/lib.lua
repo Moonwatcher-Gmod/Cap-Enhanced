@@ -688,7 +688,7 @@ end
 function ENT:DHDSetChevron(ch,delay,ns)
 	if(not (self and self.FindDHD)) then return end;
 	local delay = delay or 0.4;
-	if(not self.DialledAddress or (table.getn(self.DialledAddress) < 8 or table.getn(self.DialledAddress) > 10)) then
+	if(not self.DialledAddress or (#self.DialledAddress < 8 or #self.DialledAddress > 10)) then
 		self.DialledAddress={"","","","","","","","DIAL"};
 		if (IsValid(self.Target)) then
 			if (#self.Target.DialledAddress==9) then
@@ -710,7 +710,7 @@ function ENT:DHDSetChevron(ch,delay,ns)
 					if(IsValid(v)) then
 						v:AddChevron(btn,true,true);
 						v:SetBusy(10);
-						if(ch == table.getn(DialledAddress)) then
+						if(ch == #DialledAddress) then
 							v:SetBusy(0.8); -- Unset busy
 						end
 					end

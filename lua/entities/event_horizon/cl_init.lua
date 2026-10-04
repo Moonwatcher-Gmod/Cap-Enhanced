@@ -17,7 +17,7 @@ function ENT:Initialize()
 		local SndPath = "sound/"..net.ReadString()
 
 		sound.PlayFile(SndPath,"3d mono",function(snd,ercode,erstr)
-			print(erstr)
+			if (erstr) then print("[CAP] Supergate sound failed: " .. erstr) end
 			if(IsValid(snd)) then
 				snd:Set3DFadeDistance(10000,33000)
 				snd:SetPos(self:GetPos())

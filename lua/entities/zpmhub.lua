@@ -814,7 +814,7 @@ if SERVER then
     end
 
 
-    function MWButtonCheck (pos,targetpos,margin)
+    local function MWButtonCheck(pos,targetpos,margin)
         if math.abs(pos.x - targetpos.x) <= margin
         and math.abs(pos.y - targetpos.y) <= margin
         and math.abs(pos.z - targetpos.z) <= margin then

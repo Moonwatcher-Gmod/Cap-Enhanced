@@ -38,7 +38,7 @@ function ENT:DoCollision()
 		local vec = Vector(vertex.x*length,vertex.y,vertex.z);
 		table.insert(convex, Vertex(vec, 1, 1, Vector( 0, 0, 1 )));
 	end
-	if (table.getn(convex) == 0) then return end //safefail
+	if (#convex == 0) then return end //safefail
 
 	self.Entity:PhysicsFromMesh(convex);
 end

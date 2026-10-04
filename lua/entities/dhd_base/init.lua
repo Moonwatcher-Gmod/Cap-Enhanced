@@ -151,12 +151,12 @@ function ENT:Initialize()
 	--util.PrecacheModel(self.Model);
 	util.PrecacheSound(self.PlorkSound);
 	if (self.ChevSounds) then
-		for i=1,table.getn(self.ChevSounds) do
+		for i=1,#self.ChevSounds do
 			util.PrecacheSound(self.ChevSounds[i]);
 		end
 	end
 	if (self.Inf_ChevSounds) then
-		for i=1,table.getn(self.Inf_ChevSounds) do
+		for i=1,#self.Inf_ChevSounds do
 			util.PrecacheSound(self.Inf_ChevSounds[i]);
 		end
 	end
@@ -246,7 +246,7 @@ function ENT:SpawnChevron()
 	self.Chevron={};
 	local pos = self.Entity:GetPos();
 	local ang = self.Entity:GetAngles();
-	for i=1,table.getn(self.ChevronModel) do
+	for i=1,#self.ChevronModel do
 		if (self.ChevronModel[i] == "") then return e; end
 		local e = ents.Create("prop_dynamic");
 		--util.PrecacheModel(self.ChevronModel[i]);
@@ -280,7 +280,7 @@ function ENT:Shutdown(delay)
 				e.Target = nil;
 				timer.Remove("_StarGate.DeactivateDHDTimer"..e:EntIndex());
 				if(IsValid(e) and e.Chevron) then
-					for i=1,table.getn(e.Chevron) do
+					for i=1,#e.Chevron do
 						local f = e.Chevron[i];
 						if IsValid(f) then f:Fire("skin",e.SkinNumber); end
 					end
@@ -324,7 +324,7 @@ function ENT:TriggerInput(k,v)
 				if (e.IsOpen) then
 					e:AbortDialling();
 				elseif (e.NewActive and #self.DialledAddress>0) then
-					self:PressButton(self.DialledAddress[table.getn(self.DialledAddress)],nil,true);
+					self:PressButton(self.DialledAddress[#self.DialledAddress],nil,true);
 				end
 			elseif(char:find("["..symbols.."]")) then -- Only alphanumerical and the @, #
 				if(self.ButtonsMode) then
@@ -693,7 +693,7 @@ end
 
 --################# Adding address @aVoN
 function ENT:AddChevron(btn, nosound, lightup, gate, city, fail)
-	--if(table.getn(self.DialledAddress) < 10) then
+	--if(#self.DialledAddress < 10) then
 		if(not table.HasValue(self.DialledAddress,btn)) then
 			timer.Remove("_StarGate.DeactivateDHDTimer"..self.Entity:EntIndex());
 			timer.Create("_StarGate.DeactivateDHDTimer"..self.Entity:EntIndex(),20,1,
@@ -717,14 +717,14 @@ function ENT:AddChevron(btn, nosound, lightup, gate, city, fail)
 				if(self.DisRingRotate) then
 					timer.Simple(0.25,function()
 						if(IsValid(gate) and IsValid(self)) then
-							local n = table.getn(self.DialledAddress);
+							local n = #self.DialledAddress;
 							local action = gate.Sequence:New();
 							action = gate.Sequence:OnButtonChevron(true, n, self.DialledAddress, btn, fail,false,self.DisRingRotate);
 							gate:RunActions(action);
 						end
 					end)
 				else
-					local n = table.getn(self.DialledAddress);
+					local n = #self.DialledAddress;
 					local action = gate.Sequence:New();
 					action = gate.Sequence:OnButtonChevron(true, n, self.DialledAddress, btn, fail,false,self.DisRingRotate);
 					gate:RunActions(action);
@@ -733,33 +733,33 @@ function ENT:AddChevron(btn, nosound, lightup, gate, city, fail)
 
 			if (fail) then
 				if (self.Inf_ChevSounds) then
-					self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,83.2)
-					self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,99.8)
-					self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,163.2)
-					self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,174.6)
+					self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,#self.Inf_ChevSounds)],500,83.2)
+					self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,#self.Inf_ChevSounds)],500,99.8)
+					self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,#self.Inf_ChevSounds)],500,163.2)
+					self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,#self.Inf_ChevSounds)],500,174.6)
 				end
 			end
 
-			if((not fail or btn == "#" or table.getn(self.DialledAddress)==9 and not table.HasValue(self.DialledAddress,"DIAL")) and not nosound) then
+			if((not fail or btn == "#" or #self.DialledAddress==9 and not table.HasValue(self.DialledAddress,"DIAL")) and not nosound) then
 				
 				if (btn == "DIAL") then
 					if (self.LockSound and not fail) then self.Entity:EmitSound(Sound(self.LockSound),90,math.random(97,103));
-						--self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,40)
-						--self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,40*1.5)
-						--self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,40*2)
-						--self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,20*4)
-						--self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,20*6)
+						--self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,#self.Inf_ChevSounds)],500,40)
+						--self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,#self.Inf_ChevSounds)],500,40*1.5)
+						--self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,#self.Inf_ChevSounds)],500,40*2)
+						--self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,#self.Inf_ChevSounds)],500,20*4)
+						--self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,#self.Inf_ChevSounds)],500,20*6)
 						if (self.Inf_ChevSounds) then
-							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,30)
-							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,40)
-							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,60)
+							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,#self.Inf_ChevSounds)],500,30)
+							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,#self.Inf_ChevSounds)],500,40)
+							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,#self.Inf_ChevSounds)],500,60)
 							if (self:FindGate():GetClass() == "stargate_virgo") then
-								self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,80)
-								self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,100)
-								self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,120)
-								self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,140)
-								self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,160)
-								self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,200)
+								self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,#self.Inf_ChevSounds)],500,80)
+								self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,#self.Inf_ChevSounds)],500,100)
+								self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,#self.Inf_ChevSounds)],500,120)
+								self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,#self.Inf_ChevSounds)],500,140)
+								self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,#self.Inf_ChevSounds)],500,160)
+								self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,#self.Inf_ChevSounds)],500,200)
 							end
 						end
 					end
@@ -769,17 +769,17 @@ function ENT:AddChevron(btn, nosound, lightup, gate, city, fail)
 						local crystal_harmony = {30,40,60,80,100,120,160,200,240}
 						local crystal_pitch = math.random(80,150)
 						if (self:FindGate():GetClass() == "stargate_virgo") then
-							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,crystal_harmony[table.getn(self.DialledAddress)])
+							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,#self.Inf_ChevSounds)],500,crystal_harmony[#self.DialledAddress])
 						else
-							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,crystal_pitch);
-							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,crystal_pitch);
-							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,crystal_pitch/0.25)
-							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,crystal_pitch/0.25)
-							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,crystal_pitch/1.25)
-							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,crystal_pitch/1.25)
-							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,crystal_pitch/2)
-							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,table.getn(self.Inf_ChevSounds))],500,crystal_pitch/2)
-							--self.Entity:EmitSound(self.ChevSounds[math.random(1,table.getn(self.ChevSounds))],500,crystal_pitch/2.5)
+							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,#self.Inf_ChevSounds)],500,crystal_pitch);
+							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,#self.Inf_ChevSounds)],500,crystal_pitch);
+							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,#self.Inf_ChevSounds)],500,crystal_pitch/0.25)
+							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,#self.Inf_ChevSounds)],500,crystal_pitch/0.25)
+							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,#self.Inf_ChevSounds)],500,crystal_pitch/1.25)
+							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,#self.Inf_ChevSounds)],500,crystal_pitch/1.25)
+							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,#self.Inf_ChevSounds)],500,crystal_pitch/2)
+							self.Entity:EmitSound(self.Inf_ChevSounds[math.random(1,#self.Inf_ChevSounds)],500,crystal_pitch/2)
+							--self.Entity:EmitSound(self.ChevSounds[math.random(1,#self.ChevSounds)],500,crystal_pitch/2.5)
 						end
 					elseif (ChevSounds) then
 						self.Entity:EmitSound(Sound(self.ChevSounds),70,math.random(97,103))
@@ -794,7 +794,7 @@ end
 
 --################# Removing one button from address @aVoN
 function ENT:RemoveChevron(btn, lightup, gate)
-	--if(table.getn(self.DialledAddress) < 10) then
+	--if(#self.DialledAddress < 10) then
 		local new_t = {};
 		for _,v in pairs(self.DialledAddress) do
 			if(v ~= btn) then -- If remove any button, the Chevron 7 will be unlocked automatically!
@@ -829,7 +829,7 @@ function ENT:RemoveChevron(btn, lightup, gate)
 		self.Entity:SetNWString("ADDRESS",string.Implode(",",self.DialledAddress));
 		self:SetWire("Pressed Buttons",self:GetNWString("ADDRESS"));
 		if IsValid(gate) and lightup and btn != "DIAL" then
-			local n = table.getn(self.DialledAddress);
+			local n = #self.DialledAddress;
 			local action = gate.Sequence:New();
 			action = gate.Sequence:OnButtonChevron(false, n, self.DialledAddress, btn, false, false, self.DisRingRotate);
 			gate:RunActions(action);
@@ -861,7 +861,7 @@ function ENT:PressButton(btn, nolightup, no_menu)
 	if (e.Dialling and e.Active and not e.IsOpen or e.Jamming!=nil and e.Jamming==true or e:IsShutdown()) then return end
 	if (IsValid(e.EventHorizon) and not e.EventHorizon:IsOpen()) then return end
 	if (e.Dialling and (e.Stop!=nil and e.Stop==true or e.Gate!=nil and e.Gate.Moving!=nil and e.Gate.Moving == true) or e.WireManualDial!=nil and e.WireManualDial==true) then return end
-	local num = table.getn(self.DialledAddress);
+	local num = #self.DialledAddress;
 	if ((num==0 or btn!="DIAL") and e.IsOpen) then return end
 	local nosound = (self.WireNoSound and no_menu)
 	-- #################  Random gate dialing for concept
@@ -1026,7 +1026,7 @@ function ENT:PressButton(btn, nolightup, no_menu)
 					self:Shutdown(1.5);
 				else
 					--##### We got exact 7 chevrons, C7 as chevron7 and dialbutton activated - Lets dial out, holy crap
-					if(table.getn(self.DialledAddress) >= 8 and table.getn(self.DialledAddress) <= 10 and class != "dhd_city") then
+					if(#self.DialledAddress >= 8 and #self.DialledAddress <= 10 and class != "dhd_city") then
 						e.DialledAddress = self.DialledAddress;
 						-- Set address, dialling type and start dialling
 						
@@ -1039,8 +1039,8 @@ function ENT:PressButton(btn, nolightup, no_menu)
 						end
 						self.Target = e; -- Needs to be set, so the gate does not "relightupt" this DHD on dial
 						self:SetBusy(2.5);
-					elseif(table.getn(self.DialledAddress) >= 6 and table.getn(self.DialledAddress) <= 9 and class == "dhd_city") then
-						if (table.getn(self.DialledAddress)<9 and not table.HasValue(self.DialledAddress,"#")) then
+					elseif(#self.DialledAddress >= 6 and #self.DialledAddress <= 9 and class == "dhd_city") then
+						if (#self.DialledAddress<9 and not table.HasValue(self.DialledAddress,"#")) then
 
 							table.insert(self.DialledAddress,"#")
 							table.insert(self.DialledAddress,"DIAL");
@@ -1099,7 +1099,7 @@ function ENT:PressButton(btn, nolightup, no_menu)
 								self.Target = e; -- Needs to be set, so the gate does not "relightupt" this DHD on dial
 								--self:SetBusy(3.0);
 							end);
-						elseif (table.getn(self.DialledAddress)==9 or table.HasValue(self.DialledAddress,"#")) then
+						elseif (#self.DialledAddress==9 or table.HasValue(self.DialledAddress,"#")) then
 							table.insert(self.DialledAddress,"DIAL");
 							self.Entity:SetNWString("ADDRESS",string.Implode(",",self.DialledAddress));
 							self:SetWire("Pressed Buttons",self:GetNWString("ADDRESS"));
