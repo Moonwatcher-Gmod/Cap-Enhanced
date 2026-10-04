@@ -33,6 +33,20 @@ include("modules/collision.lua");
 
 local BUFFER = {InBuffer = {}};
 
+-- Debugging wormhole travel: "stargate_wormhole_debug 1" in the server console logs what happens to
+-- non-player entities going through, and who removes them (call stack) while/just after travelling
+local WormholeDebug = CreateConVar("stargate_wormhole_debug","0",FCVAR_NONE,"Log wormhole travel of non-player entities");
+local function DebugPrint(...)
+	if (WormholeDebug:GetBool()) then print("[Wormhole]",...) end
+end
+hook.Add("EntityRemoved","StarGate.EH.WormholeDebug",function(e)
+	if (not WormholeDebug:GetBool()) then return end
+	if (e.__EHTransit or (e.__EHDebugUntil or 0) > CurTime()) then
+		print("[Wormhole] REMOVED",e,"in transit:",tostring(e.__EHTransit ~= nil));
+		print(debug.traceback());
+	end
+end);
+
 --################# Defines
 ENT.IgnoreTouch = true; -- This tells the physical objects like drones or staff not to collide with the eventhorizon (= no explode on them)
 ENT.CDSIgnore = true; -- Fixes Combat Damage System destroying this entity
@@ -165,6 +179,7 @@ function ENT:Initialize()
 	self.OpenEffect = true; -- Need to place up here so we have the variable ready
 	self:Open(); -- Let us open :D
 	self.timer_table = {}
+	self.Transits = {}; -- Trips currently in the wormhole (see ENT:DoWormHole)
 	self.Ents={};
 	self.CollisionGroup = {};
 	self.Buffer = {};
@@ -287,6 +302,7 @@ function ENT:OnRemove()
 	if(IsValid(parent)) then
 		parent:SetCollisionGroup(COLLISION_GROUP_NONE);
 	end
+	self:FailAllTransits(); -- Anything still in the wormhole is lost
 	self:EndTouch()
 end
 
@@ -615,6 +631,7 @@ function ENT:Shutdown(override)
 	timer.Remove("EventHorizonOpening"..self.Entity:EntIndex());
 	self.ShuttingDown = true;
 	self.ShuttingDownKill = true;
+	self:FailAllTransits(); -- The wormhole is gone: whatever was travelling through it is lost
 	if self.OpenEffect then
 		local fx = EffectData();
 		fx:SetEntity(self.Entity);
@@ -716,6 +733,8 @@ end
 
 --################# The most important part - Recognizes entering props and teleports them @RononDex
 function ENT:StartTouch(e)
+	if (not e:IsPlayer()) then DebugPrint("StartTouch",e,"in transit:",tostring(e.__EHTransit ~= nil),"speed:",math.floor(e:GetVelocity():Length())) end
+	if (e.__EHTransit) then return end -- Already in the wormhole, waiting at the gate
 	local class = e:GetClass();
 	if (self.Instancing) then
 		if e:GetInstance() != self:GetInstance() then return end
@@ -750,6 +769,7 @@ end
 
 --################# Keeps clipping plane up to date @RononDex
 function ENT:Touch(e)
+	if (e.__EHTransit) then return end
 	if (self.Instancing) then
 		if e:GetInstance() != self:GetInstance() then return end
 	end
@@ -989,6 +1009,7 @@ function ENT:EndTouch(e)
 
 	if(self.ShuttingDown) then return end; -- We are shutting down
 	if(not IsValid(e)) then return end; -- Not valid or ignore
+	if(e.__EHTransit) then return end; -- Already in the wormhole
 	if(e:IsPlayer() and (IsValid(e:GetParent()) or IsValid(e:GetVehicle()) or IsValid(e:GetNWEntity("ScriptedVehicle",NULL)))) then return end;  -- No teleport/kill of parented players
 	if(e.NotTeleportable) then return end; -- Does not want to be teleported!
 
@@ -1139,23 +1160,11 @@ function ENT:EndTouch(e)
 			--Marked Moonwatcher
 
 			if (StarGate.CFG:Get("stargate", "doWormholeSequence", false)) then
-
-				if (self.Entity:GetForward():DotProduct(dir) >= 0) then
-					if (IsValid(e:GetPhysicsObject())) then
-						self:DoWormHole(e,block,attached,false,false,e:GetPhysicsObject():IsGravityEnabled());
-					else
-						self:DoWormHole(e,block,attached,false,false);
-					end
-				else
-					if (IsValid(e:GetPhysicsObject())) then
-						self:DoWormHole(e,block,attached,false,true,e:GetPhysicsObject():IsGravityEnabled());
-					else
-						self:DoWormHole(e,block,attached,false,true);
-					end
-				end
+				-- Delayed travel: DoWormHole takes the whole contraption along and handles the arrival,
+				-- the effects on the other side and autoclose itself
+				self:DoWormHole(e,block,attached,false,self.Entity:GetForward():DotProduct(dir) < 0);
 			else
-				self:Teleport(e,block,attached);
-			end
+			self:Teleport(e,block,attached);
 
 			--################# Blocked or not? Either make iris play the "blocked" sound or draw the gulping at the other end
 			local class = e:GetClass();
@@ -1169,34 +1178,8 @@ function ENT:EndTouch(e)
 				e.___InBuffer = false;
 				e.___EventHorizon = nil;
 			else
-				--Needs to be delayed, or you wont hear the teleporting gulp if your a player
-				local t = self.Target
-				timer.Simple(0.05,
-					function()
-						if(IsValid(t) and IsValid(e)) then
-							e.___dir = nil;
-							for _,v in pairs(attached.Attached) do
-								if (IsValid(v)) then
-									local dir = (t:GetPos()-v:GetPos()):GetNormalized();
-									local temp_dir = 0;
-									if(t:GetForward():DotProduct(dir) < 0) then
-										temp_dir = -1;
-									else
-										temp_dir = 1;
-									end
-                                    if (temp_dir==1) then
-										t:StartTouch(v);
-									end
-									v.___dir = nil;
-								end
-							end
-							--t:EmitSound(self.Sounds.Teleport[math.random(1,#self.Sounds.Teleport)],90,math.random(90,110));
-							-- Draw the effect on the other eventhorizon
-							--t:EnterEffectEntity(e);
-						end
-					end
-				);
-				
+				self:TouchTargetAfterTeleport(self.Target,attached);
+
 				if(
 					self.AutoClose and -- Disabled by config - Overrides every other setting
 					not (
@@ -1211,6 +1194,7 @@ function ENT:EndTouch(e)
 					self.Entity:NextThink(CurTime()+4); -- Trigger autoclose in the next 4 seconds
 				end
 			end
+			end -- doWormholeSequence
 		end
 	end
 	-- END TELEPORT CODE
@@ -1236,6 +1220,13 @@ end
 --################# For the autoclose @aVoN
 function ENT:Think()
 	if(self.DoAutoClose) then
+		local close = true; -- Was an (uninitialised) global
+
+		-- Never autoclose while something is still travelling through the wormhole
+		if(next(self.Transits)) then
+			self.Entity:NextThink(CurTime()+0.5);
+			return true;
+		end
 
 		if(not self.WaterNoClose or self:WaterLevel() < 1) then
 			-- FIXME: Add config for the autoclose
@@ -1367,21 +1358,29 @@ function BUFFER:StartTouch(EventHorizon,e)
 		umsg.Entity(EventHorizon);
 	umsg.End();
 
+	-- Gravity is switched off for the whole contraption as soon as its first part touches the EH.
+	-- Only the first call records the original value: later parts touching the EH would otherwise
+	-- record their already-disabled gravity and float forever after the trip.
 	if(not(e:GetClass()=="kino_ball")) then
-		if(IsValid(e:GetPhysicsObject())) then
-			EventHorizon.GravBuffer[e:EntIndex()] = e:GetPhysicsObject():IsGravityEnabled();
-			e:GetPhysicsObject():EnableGravity(false);
+		local phys = e:GetPhysicsObject();
+		if(IsValid(phys)) then
+			if (EventHorizon.GravBuffer[e:EntIndex()] == nil) then
+				EventHorizon.GravBuffer[e:EntIndex()] = phys:IsGravityEnabled();
+			end
+			phys:EnableGravity(false);
 		end
 	end
 
 	if(attached) then
 		for _,v in pairs(attached.Attached) do
 			if (IsValid(v)) then
+				local phys = v:GetPhysicsObject(); -- Was checked before it was defined, so this never ran
 				if(IsValid(phys) and v:GetSolid()!=SOLID_NONE) then
 					v.dir = e.dir
 					v:SetNWInt("PhysBufferedDir",e.dir);
-					local phys = v:GetPhysicsObject();
-					EventHorizon.GravBuffer[v:EntIndex()] = phys:IsGravityEnabled();
+					if (EventHorizon.GravBuffer[v:EntIndex()] == nil) then
+						EventHorizon.GravBuffer[v:EntIndex()] = phys:IsGravityEnabled();
+					end
 					phys:EnableGravity(false);
 				end
 			end
@@ -1482,9 +1481,9 @@ end
 --############# What happens when we have stopped touching the gate? Stop Clipping? @RononDex
 function BUFFER:EndTouch(EventHorizon,e,ignore,tdir)
 
-	local attached = EventHorizon:GetEntitiesForTeleport(e);
-	if(not(IsValid(e))) then return end;
+	if(not(IsValid(e)) or e.__EHTransit) then return end;
 	if(not IsValid(EventHorizon)) then return end;
+	local attached = EventHorizon:GetEntitiesForTeleport(e);
 	if(self:ClipShouldIgnore(e,true)) then return end;
     local notouch = false;
 
@@ -1660,17 +1659,14 @@ function BUFFER:ClipShouldIgnore(ent,reset_cache)
 	return false
 end
 
-local hook_added = false
+-- Registered once here; this used to share an "already added" flag with the wormhole death hook,
+-- so whichever ran first stopped the other one from ever being added
+hook.Add("PostPlayerDeath","Stargate.EH.Secret",function(ply)
+	umsg.Start("StarGate.EventHorizon.SecretStop",ply);
+	umsg.End();
+end)
 
 function ENT:DoSecret(v)
-
-	if (not hook_added) then
-		hook.Add("PostPlayerDeath","Stargate.EH.Secret",function(ply)
-			umsg.Start("StarGate.EventHorizon.SecretStop",ply);
-			umsg.End();
-		end)
-		hook_added = true
-	end
 
 	umsg.Start("StarGate.EventHorizon.SecretStart",v);
 	umsg.End();
@@ -1847,438 +1843,452 @@ function ENT:DoSecret(v)
 end
 
 
-function ENT:PauseAllRouting()
-	self.RoutingPaused = true
-	for timer_name, timer_data in pairs(self.timer_table) do
-		timer.Pause(timer_data) 
-	end
-end
+--################# Wormhole travel (delayed transit) @Elanis, reworked to carry whole contraptions
+-- While in transit, every part of a contraption is frozen, hidden and non-solid at the source gate.
+-- On arrival the parts get their entry velocities back and the normal Teleport() moves them as one
+-- unit, exactly like an instant trip would. If the gate closes first, everything in transit is lost.
 
+-- Transit time per wormhole style (config: [stargate] atlantisWormhole). Must match the length of
+-- the client-side animation and sound in cl_init.lua
+local WORMHOLE_TRANSIT_TIME = 3.2
+local WORMHOLE_TRANSIT_TIME_ATLANTIS = 5.0
+-- These go straight through without waiting (fast projectiles)
+local WORMHOLE_INSTANT = {npc_grenade_frag=true, rpg_missile=true}
+local WORMHOLE_SHIPS = {puddle_jumper=true, sg_vehicle_gate_glider=true, sg_vehicle_dart=true}
+local TransitCounter = 0
 
-function ENT:ResumeAllRouting()
-	self.RoutingPaused = false
-	for timer_name, timer_data in pairs(self.timer_table) do
-    		timer.UnPause(timer_data)
-    		timer.Adjust(timer_data,timer_name/1.5)
-	end
-end
+-- Reset the wormhole screen if a player dies mid-transit
+hook.Add("PostPlayerDeath","StarGate.EH.WormHoleDeath",function(ply)
+	umsg.Start("Lib.EventHorizon.WormHoleStop",ply);
+	umsg.End();
+end)
 
+-- Nothing in transit can be damaged (replaces the old SetHealth(2147483648) trick, which overflowed)
+hook.Add("EntityTakeDamage","StarGate.EH.WormHoleNoDamage",function(ent)
+	if (ent.__EHTransit) then return true end
+end)
 
-function ENT:DoWormHole(v,block,attached,bcfd,totalkill,gravityenabled) --Let's do travel animation ! @Elanis
-
-	local gravity_wormhole = false
-	if(v:IsPlayer() and not v:Alive()) then return end -- If the player die on enter in the gate don't do all stuff or he will be blocked !
-	if(string.sub(v:GetClass(), 1, 5 )=="sg_vehicle_" and v:GetOwner():IsPlayer() and not v:GetOwner():Alive()) then return end -- Same if he die in the ship !
-	--if(table.HasValue(self.NoTouchTeleport,v:GetClass())) then  return end 
-
-	-- Kill if shutting down
-	if(self.ShuttingDown) then 
-		if(v:IsPlayer()) then
-			v:KillSilent()
-		else
-			v:Remove();
+-- atlantis: only for WormHoleStart, tells the client which transition to show
+local function SendWormholeMessage(name,players,atlantis)
+	for _,ply in pairs(players) do
+		if (IsValid(ply)) then
+			umsg.Start(name,ply);
+			if (atlantis ~= nil) then umsg.Bool(atlantis) end
+			umsg.End();
 		end
+	end
+end
+
+local function ChangeEntitiesOnRoute(trip,delta)
+	for _,gate in pairs(trip.Gates) do
+		if (IsValid(gate) and gate.EntitiesOnRoute) then
+			gate.EntitiesOnRoute = math.max(0,gate.EntitiesOnRoute+delta);
+		end
+	end
+end
+
+local function SetMalpWheelsHidden(ent,hidden)
+	if (ent:GetClass() ~= "malp" or not ent.MalpWheels) then return end
+	for i = 1, 6 do
+		local wheel = ent.MalpWheels[i];
+		if (IsValid(wheel)) then
+			wheel:SetNotSolid(hidden);
+			wheel:SetRenderMode(hidden and RENDERMODE_NONE or RENDERMODE_NORMAL);
+			if (not hidden) then wheel:SetPos(ent:GetPos()) end
+		end
+	end
+end
+
+-- SENT callbacks that must not run while something is in the wormhole. Frozen in place, many SENTs
+-- would react to it: e.g. staff blasts (energy_pulse) destroy themselves in PhysicsUpdate once they
+-- move slower than 500 u/s, so they never came out the other side.
+local TRANSIT_CALLBACKS = {"PhysicsUpdate","PhysicsCollide","PhysicsSimulate","Touch","StartTouch","EndTouch"};
+local function TransitDummy() end
+
+local function SuspendCallbacks(rec)
+	local tab = rec.Entity:GetTable();
+	if (not tab) then return end
+	rec.Callbacks = {};
+	for _,k in ipairs(TRANSIT_CALLBACKS) do
+		if (rec.Entity[k]) then
+			rec.Callbacks[k] = {Own = rawget(tab,k)}; -- nil if it came from the entity class
+			tab[k] = TransitDummy;
+		end
+	end
+end
+
+local function RestoreCallbacks(rec)
+	local tab = rec.Entity:GetTable();
+	if (not tab or not rec.Callbacks) then return end
+	for k,v in pairs(rec.Callbacks) do
+		if (rawget(tab,k) == TransitDummy) then -- Don't undo changes something else made meanwhile
+			tab[k] = v.Own;
+		end
+	end
+	rec.Callbacks = nil;
+end
+
+--################# Puts an entity back the way it was before it entered the wormhole
+local function RestoreFromTransit(rec)
+	local ent = rec.Entity;
+	if (not IsValid(ent)) then return end
+	ent.__EHTransit = nil;
+	RestoreCallbacks(rec);
+	ent:SetColor(rec.Color);
+	ent:SetRenderMode(rec.RenderMode);
+	SetMalpWheelsHidden(ent,false);
+	if (ent:IsPlayer()) then
+		ent:SetMoveType(rec.MoveType);
+		ent:SetSolid(rec.Solid);
+		ent:Freeze(false);
+		ent:DrawViewModel(true);
+		ent:DrawWorldModel(true);
+		ent.DisableSpawning = nil;
+		ent.DisableSuicide = nil;
+		ent.DisableNoclip = nil;
+		if (rec.God) then ent:GodEnable() else ent:GodDisable() end
+	elseif (rec.Frozen) then
+		ent:SetCollisionGroup(rec.CollisionGroup);
+		local phys = ent:GetPhysicsObject();
+		if (IsValid(phys)) then
+			phys:EnableMotion(true);
+			phys:Wake();
+			if (rec.Gravity ~= nil) then phys:EnableGravity(rec.Gravity) end
+			-- The part was frozen, so this gives it exactly its entry velocity back
+			if (rec.PhysVel) then phys:SetVelocity(rec.PhysVel) end
+			if (rec.PhysAngVel) then phys:AddAngleVelocity(rec.PhysAngVel) end
+		end
+	else
+		ent:SetMoveType(rec.MoveType);
+		ent:SetSolid(rec.Solid);
+	end
+end
+
+--################# The gate closed (or the wormhole broke) while something was travelling: it is lost
+local function FailTransit(trip)
+	timer.Remove(trip.TimerName);
+	if (IsValid(trip.EH) and trip.EH.Transits) then
+		trip.EH.Transits[trip.TimerName] = nil;
+		table.RemoveByValue(trip.EH.timer_table,trip.TimerName);
+	end
+	if (trip.Done) then return end
+	trip.Done = true;
+
+	SendWormholeMessage("Lib.EventHorizon.WormHoleReset",trip.ScreenPlayers);
+	for ent,rec in pairs(trip.Records) do
+		if (IsValid(ent)) then
+			if (ent:IsPlayer()) then
+				RestoreFromTransit(rec); -- So the respawn starts from a clean state
+				if (ent:Alive()) then
+					ent:StripWeapons();
+					ent:KillSilent();
+					umsg.Start("StarGate.EventHorizon.PlayerKill");
+					umsg.Entity(ent);
+					umsg.End();
+				end
+			else
+				ent.__EHTransit = nil;
+				ent:Remove();
+			end
+		end
+	end
+	-- Pilots and drivers were inside something that no longer exists
+	for _,ply in pairs(trip.ScreenPlayers) do
+		if (IsValid(ply) and ply:Alive() and not trip.Records[ply]) then
+			ply:KillSilent();
+		end
+	end
+	ChangeEntitiesOnRoute(trip,-1);
+end
+
+--################# Snapshot of everything we change while an entity is in transit
+function ENT:CaptureTransitState(ent)
+	local rec = {
+		Entity=ent,
+		MoveType=ent:GetMoveType(),
+		Solid=ent:GetSolid(),
+		Color=ent:GetColor(),
+		RenderMode=ent:GetRenderMode(),
+		CollisionGroup=ent:GetCollisionGroup(),
+		Vel=ent:GetVelocity(),
+	};
+	if (ent:IsPlayer()) then
+		rec.God = ent:HasGodMode();
+	end
+	local phys = ent:GetPhysicsObject();
+	if (IsValid(phys)) then
+		rec.PhysVel = phys:GetVelocity();
+		rec.PhysAngVel = phys:GetAngleVelocity();
+		-- The clip buffer may already have switched gravity off; it saved the real value
+		local grav = self.GravBuffer[ent:EntIndex()];
+		if (grav == nil) then grav = phys:IsGravityEnabled() end
+		rec.Gravity = grav;
+	end
+	return rec;
+end
+
+--################# Freeze, hide and stop collisions for one entity while it is in the wormhole
+function ENT:SuspendForTransit(rec)
+	local ent = rec.Entity;
+	self:CleanBufferVars(ent); -- Stop model clipping and drop it from every buffer
+	ent.__EHTransit = self.Entity;
+	if (not ent:IsPlayer()) then
+		SuspendCallbacks(rec); -- Before freezing it, or the SENT may react to the freeze
+	end
+	ent:SetRenderMode(RENDERMODE_TRANSALPHA);
+	ent:SetColor(Color(0,0,0,0));
+	SetMalpWheelsHidden(ent,true);
+	local phys = ent:GetPhysicsObject();
+	if (ent:IsPlayer()) then
+		ent.DisableSpawning = true;
+		ent.DisableSuicide = true;
+		ent.DisableNoclip = true;
+		ent:GodEnable();
+		ent:Freeze(true);
+		ent:DrawViewModel(false);
+		ent:DrawWorldModel(false);
+		ent:SetSolid(SOLID_NONE);
+		ent:SetMoveType(MOVETYPE_NONE);
+	elseif (rec.MoveType == MOVETYPE_VPHYSICS and IsValid(phys)) then
+		-- Physics props keep their welds: freeze them in place instead of changing the movetype
+		phys:EnableMotion(false);
+		ent:SetCollisionGroup(COLLISION_GROUP_IN_VEHICLE);
+		rec.Frozen = true;
+	else
+		ent:SetSolid(SOLID_NONE);
+		ent:SetMoveType(MOVETYPE_NONE);
+	end
+end
+
+--################# Entry point: an entity (and everything attached to it) enters the wormhole
+function ENT:DoWormHole(v,block,attached,bcfd,totalkill)
+	if (not IsValid(v) or v.__EHTransit) then return end
+	if (v:IsPlayer() and not v:Alive()) then return end
+
+	local parent = self.Entity:GetParent();
+	-- Virgo gates dialled from another Virgo gate travel back to the caller
+	if (not IsValid(self.Target) and IsValid(parent) and parent:GetClass() == "stargate_virgo" and IsValid(parent.GateCaller) and parent.GateCaller:GetClass() == "stargate_virgo") then
+		self.Target = parent.GateCaller:GetChildren()[1];
+	end
+
+	-- Entering from the back, through a gate that isn't fully open, is unstable or is incoming kills.
+	-- (A closed iris on the other side is checked on arrival instead - it can close while we travel.)
+	if (totalkill or self.ShuttingDown or self.Unstable or not self:IsOpen() or not IsValid(self.Target)) then
+		DebugPrint("killed on entry",v,"from back:",tostring(totalkill),"shutting down:",tostring(self.ShuttingDown),"unstable:",tostring(self.Unstable),"open:",tostring(self:IsOpen()),"target:",tostring(self.Target));
+		self:Teleport(v,true,attached);
 		return;
 	end
 
-	-- Check the convars to know if we need to do the animation
-	local haveTowait = false;
-	local clientConvar = 0
-	-- ClientSide Convar
-
-
-	if(v:IsPlayer())then
-		clientConvar = v:GetInfoNum("cl_stargate_wormhole", 1 );
-
-	--elseif(IsValid(v:GetOwner())) then
-		--clientConvar = v:GetOwner():GetInfoNum("cl_stargate_wormhole", 1 );
-	end
-	
-	-- ServerSide Convar
-
-	block = false
-
-	clientConvar = 1;
-
-	if (self.Target == nil) then --You go in on the wrong gate so you die or will be removed. Exceptions to this rule can be entered in the if-statement. 
-		if ((self:GetParent():GetClass() == "stargate_virgo") and (self:GetParent().GateCaller:GetClass() == "stargate_virgo") ) then
-			self.Target = self:GetParent().GateCaller:GetChildren()[1]
-		else
-			if (v:IsPlayer()) then
-	
-				v:KillSilent()
-			else
-				v:Remove()
-			end
-		return
-		end
-	end
-
-	target_pos = self.Target:GetParent():GetPos();
-	target_ang = self.Target:GetParent():GetAngles();
-
-	-- Get informations about the entity to read them while spawning
-	local restore ={
-		MoveType=v:GetMoveType(),
-		Solid=v:GetSolid(),
-		Color = v:GetColor(),
-		Bones = self:GetBones(v),
-		RenderMode = v:GetRenderMode(),
-		Vel = v:GetVelocity(),
-		Health = v:Health(),
+	local trip = {
+		EH=self.Entity,
+		Base=v,
+		Class=v:GetClass(),
+		Attached=attached,
+		BCFD=bcfd,
+		Target=self.Target,
+		Gates={parent,self.Target:GetParent()},
+		EntryPos=v:GetPos(),
+		Records={},
+		ScreenPlayers={},
 	};
 
-
-	if(v:IsPlayer())then --If this is a player
-
-		if ((not hook_added) and (clientConvar==1)) then -- Hook if you die in the gate
-			hook.Add("PostPlayerDeath","Lib.EH.WormHole",function(ply)
-				umsg.Start("Lib.EventHorizon.WormHoleStop",ply);
-				umsg.End();
-			end)
-			hook_added = true
+	-- Everything that travels: the entity itself plus everything constrained to it
+	local parts = {v};
+	if (attached and attached.Attached) then
+		for _,a in pairs(attached.Attached) do
+			if (IsValid(a) and not a.__EHTransit) then table.insert(parts,a) end
 		end
-
-		if(clientConvar==1)then
-			umsg.Start("Lib.EventHorizon.WormHoleStart",v); --Start Animation !
-			umsg.End();
+	end
+	for _,ent in ipairs(parts) do
+		trip.Records[ent] = self:CaptureTransitState(ent);
+		if (ent:IsPlayer()) then
+			table.insert(trip.ScreenPlayers,ent);
+		elseif (WORMHOLE_SHIPS[ent:GetClass()] and IsValid(ent.Pilot)) then
+			table.insert(trip.ScreenPlayers,ent.Pilot);
+		elseif (ent:IsVehicle() and IsValid(ent:GetDriver())) then
+			table.insert(trip.ScreenPlayers,ent:GetDriver());
 		end
+	end
+	for _,rec in pairs(trip.Records) do
+		self:SuspendForTransit(rec);
+	end
 
-		restore.God = v:HasGodMode();
-		-- Make players spectate the gate
-		v.DisableSpawning = true; -- Can't spawn props
-		v.DisableSuicide = false; -- Can't suicide
-		v.DisableNoclip = true; -- Disallows him to move or change his movetypes
-		v:GodEnable() -- Can't be killed
-		v:Freeze(true) -- Can't move
-		v:DrawViewModel(false); --Hide weapons
-		v:DrawWorldModel(false); --Hide weapons
+	local atlantis = StarGate.CFG:Get("stargate","atlantisWormhole",false) == true;
+	SendWormholeMessage("Lib.EventHorizon.WormHoleStart",trip.ScreenPlayers,atlantis);
+	ChangeEntitiesOnRoute(trip,1);
 
-		if (clientConvar==1) then
-			haveTowait = true;
+	TransitCounter = TransitCounter + 1;
+	trip.TimerName = "StarGate.EH.WormHole."..self.Entity:EntIndex().."."..TransitCounter;
+	self.Transits[trip.TimerName] = trip;
+
+	DebugPrint("entered",v,"speed:",math.floor(v:GetVelocity():Length()),"parts:",table.Count(trip.Records),"travel time:",atlantis and WORMHOLE_TRANSIT_TIME_ATLANTIS or WORMHOLE_TRANSIT_TIME);
+	if (WORMHOLE_INSTANT[trip.Class]) then
+		self:FinishTransit(trip);
+		return;
+	end
+
+	table.insert(self.timer_table,trip.TimerName);
+	local eh = self.Entity;
+	timer.Create(trip.TimerName,atlantis and WORMHOLE_TRANSIT_TIME_ATLANTIS or WORMHOLE_TRANSIT_TIME,1,function()
+		if (IsValid(eh)) then
+			eh:FinishTransit(trip);
+		else
+			FailTransit(trip);
 		end
-	elseif(v:GetClass()=="puddle_jumper" or v:GetClass()=="sg_vehicle_gate_glider" or v:GetClass()=="sg_vehicle_dart" )then --If it's a ship
-
-		local vehicle_pilot = v.Pilot
-
-		if (IsValid(v.Pilot)) then
-			if ((not hook_added) and (clientConvar==1)) then -- Hook if you die in the gate
-				hook.Add("PostPlayerDeath","Lib.EH.WormHole",function(vehicle_owner)
-					umsg.Start("Lib.EventHorizon.WormHoleStop",vehicle_pilot);
-					umsg.End();
-				end)
-				hook_added = true
-			end
-			if(clientConvar==1)then
-				umsg.Start("Lib.EventHorizon.WormHoleStart",vehicle_pilot); --Start Animation !
-				umsg.End();
-			end
-		end
-
-
-		v:GetClass()
-		v:SetHealth(2147483648); -- Max Gmod Life
-
-		if (clientConvar==1) then
-			haveTowait = true;
-		end
-	elseif (v:GetClass()=="prop_physics") then --If it's a prop
-		v:SetHealth(2147483648); -- Max Gmod Life
-
-		haveTowait = true;
-	elseif(v:GetClass() == "malp") then --MALP wheels dont stargate good
-		for i = 1, 6 do
-            if (IsValid(v.MalpWheels[i])) then
-                v.MalpWheels[i]:SetNotSolid(true)
-				v.MalpWheels[i]:SetRenderMode(10)
-            end
-        end
-	end
-
-	-- The entity can't be see or touched
-	v:SetRenderMode( RENDERMODE_TRANSALPHA );
-	v:SetColor(Color(0,0,0,0));
-	v:SetSolid(SOLID_NONE);
-	v:SetMoveType(MOVETYPE_NONE);
-
-	--We keep this informations in memory
-	self.Ents[v] = restore;
-
-	local k = v;
-	local v = self.Ents[k];
-	haveTowait = true
-
-	if( k:GetClass() == "npc_grenade_frag" or  k:GetClass() == "rpg_missile") then 
-
-		haveTowait = false
-	end
-
-	if(totalkill) then 
-		haveTowait = false
-		block = true
-	end
-
-	if(k:IsPlayer() and not k:Alive()) then -- If the player dies at the very very wrong moment !
-		haveTowait = false;
-	end
-	
-
-	if(gravityenabled) then
-		gravity_wormhole = true
-	end
-	if (self.Entity:GetParent():GetClass()=="mobile_gate") then
-		
-	else
-		self.Entity:GetParent().EntitiesOnRoute = self.Entity:GetParent().EntitiesOnRoute + 1
-		self.Target:GetParent().EntitiesOnRoute = self.Target:GetParent().EntitiesOnRoute + 1
-	end
-	-- It's time to move !
-	if(haveTowait)then
-		--Wait after the animation end
-		if (not k:IsPlayer() or k:IsNPC()) then	if (IsValid(k:GetPhysicsObject())) then	k:GetPhysicsObject():EnableGravity(false) end end
-	 	local temp_name = "Lib.EH.WormHoleOut,".."Gate:"..self:GetParent():EntIndex()..",Ent:"..k:EntIndex()
-	 	table.insert(self.timer_table,temp_name)
-		table.Count(self.timer_table)
-	 	timer.Create(temp_name,3.2,1, function()
-	 		table.RemoveByValue(self.timer_table,temp_name)
-	 		table.Count(self.timer_table)
-	 		self:MoveToTarget(k,v,block,attached,bcfd,gravity_wormhole)
-	 	end)
-	 	if (self.RoutingPaused) then
-	 	timer.Pause(temp_name) 
-	 	end
-	else
-		self:MoveToTarget(k,v,block,attached,bcfd,gravity_wormhole);
+	end);
+	if (self.RoutingPaused) then
+		timer.Pause(trip.TimerName);
 	end
 end
 
-function ENT:MoveToTarget(k,v,block,attached,bcfd,gravity_wormhole)
-
-
-	local nox_type = self:GetParent().NoxDialingType
-
-	local t = self.Target
-	target_gate = self.Target:GetParent()
-	if(not block) then
-		if(IsValid(target_gate) and target_gate.IsStargate) then
-			block = target_gate:IsBlocked();
-		end
-
-		if (self:BlockedCFD(target_gate,k)) then
-		 	block = false;
-		  	CFD = true;
-	 	else
-	 		CFD = false
-	 	end
+--################# Arrival: restore the whole contraption and teleport it in one go
+function ENT:FinishTransit(trip)
+	if (trip.Done) then return end
+	local base = trip.Base;
+	-- The gate closed, the wormhole changed, or the traveller vanished: lost in transit
+	if (self.ShuttingDown or not IsValid(self.Target) or self.Target ~= trip.Target or self.Target.ShuttingDown or not IsValid(base)) then
+		DebugPrint("lost in transit",base,"shutting down:",tostring(self.ShuttingDown),"target valid:",tostring(IsValid(self.Target)),"same target:",tostring(self.Target == trip.Target),"traveller valid:",tostring(IsValid(base)));
+		FailTransit(trip);
+		return;
 	end
-	
-	if (k:IsPlayer()) then
-		if (StarGate.CFG:Get("stargate", "nox_bypass", false)) then
-			if (nox_type and (k:IsAdmin() or k:IsSuperAdmin()) ) then
-				block = false
-				bcfd = false
-				CFD = false
-			end
-		end
+	self.Transits[trip.TimerName] = nil;
+	table.RemoveByValue(self.timer_table,trip.TimerName);
+	trip.Done = true;
+
+	-- Is the other side blocked (iris/shield may have closed while we were travelling)?
+	local target_gate = self.Target:GetParent();
+	local block = false;
+	local forwarded = false; -- Call forwarding device sends us back out of our own gate
+	if (IsValid(target_gate) and target_gate.IsStargate) then
+		block = target_gate:IsBlocked();
 	end
-
-	if (not IsValid(k)) then return end
-	
-	local class = k:GetClass();
-	local ent;
-
-	--if(string.sub(class, 1, 5 )=="sg_vehicle_")then --Set entity owner as current entity
-
-	if(not k:IsPlayer()) then
-		
-		if(k:GetClass()=="puddle_jumper" or k:GetClass()=="sg_vehicle_gate_glider" or k:GetClass()=="sg_vehicle_dart")then
-			if (IsValid(k.Pilot)) then
-				ent = k;
-				if (k:GetClass()=="puddle_jumper") then
-					k = ent.Pilot
-				else
-					k = ent.Pilot
-				end
-			end
-		end
+	if (self:BlockedCFD(target_gate,base)) then
+		block = false;
+		forwarded = true;
+	end
+	local bcfd = trip.BCFD;
+	if (base:IsPlayer() and self.Entity:GetParent().NoxDialingType and StarGate.CFG:Get("stargate","nox_bypass",false) and (base:IsAdmin() or base:IsSuperAdmin())) then
+		block = false;
+		bcfd = false;
+		forwarded = false;
 	end
 
-
-	if(k:IsPlayer())then
-		if (not IsValid(self) or not k:Alive() or self.ShuttingDown and not self.ShuttingDownKill)then
-			if (not v.God) then
-				k:GodDisable()
-			end
-			k:SetColor(v.Color);
-			k:SetRenderMode(v.RenderMode);
-			k:Freeze(false)
-			k:DrawViewModel(true);
-			k:DrawWorldModel(true);
-			k:StripWeapons();
-			k:KillSilent();
-			timer.Simple(0.2,
-				function()
-					if(k and IsValid(k)) then
-						k:SetColor(v.Color);
-						k:SetRenderMode(v.RenderMode);
-					end
-				end
-			);
-			k.DisableSpawning = nil; -- Allow him again to spawn things
-			k.DisableSuicide = nil; -- Allow him to commit suicide again
-			k.DisableNoclip = nil;
-
-			umsg.Start("Lib.EventHorizon.WormHoleReset",k);
-			umsg.End();
-			umsg.Start("Lib.EventHorizon.PlayerKill");
-			umsg.Entity(k);
-			umsg.End();
-
-			if(ent!=nil) then
-				ent:Remove(); --Delete the ship if the owner is in
-			end
-			return
-		end
-	elseif(self.ShuttingDown) then
-		k:Remove();
-	end
-	if(ent!=nil) then
-		k = ent; -- Back to the real entity if needed
+	for _,rec in pairs(trip.Records) do
+		RestoreFromTransit(rec);
 	end
 
-	if(k:IsPlayer())then
-		umsg.Start("Lib.EventHorizon.WormHoleOut",k);
-		umsg.End();
-	elseif(k:GetClass()=="puddle_jumper" or k:GetClass()=="sg_vehicle_gate_glider" or k:GetClass()=="sg_vehicle_dart")then
-
-		local vehicle_owner = k:GetVar("Owner")
-				
-		umsg.Start("Lib.EventHorizon.WormHoleOut",vehicle_owner);
-		umsg.End();
-
-		umsg.Start("Lib.EventHorizon.WormHoleReset",vehicle_owner);
-		umsg.End();
-	elseif(k:GetClass() == "malp") then --MALP wheels dont stargate good
-		for i = 1, 6 do
-            if (IsValid(k.MalpWheels[i])) then
-                k.MalpWheels[i]:SetNotSolid(false)
-				k.MalpWheels[i]:SetRenderMode(0)
-				k.MalpWheels[i]:SetPos(k:GetPos())
-            end
-        end
+	-- A dead player (killed by an admin, etc.) just gets his state back
+	if (base:IsPlayer() and not base:Alive()) then
+		SendWormholeMessage("Lib.EventHorizon.WormHoleReset",trip.ScreenPlayers);
+		ChangeEntitiesOnRoute(trip,-1);
+		return;
 	end
 
-	-- Special settings for a player
-	if(k:IsPlayer()) then
-		k:Freeze(false)
-		k:DrawViewModel(true);
-		k:DrawWorldModel(true);
-		k.DisableSpawning = nil; -- Allow him again to spawn things
-		k.DisableSuicide = nil; -- Allow him to commit suicide again
-		k.DisableNoclip = nil;
-		k:GodDisable()
-
-		if (v.God) then k:GodEnable() end
-
-		-- This is a workaround for my own scripts. Using SelectWeapon two times (or just frequently) results into a spawnlag
-		if(v.ActiveWeapon) then
-			k.DefaultWeapon = v.ActiveWeapon;
-			timer.Simple(0,function()
-				-- We found out, WeaponManager is either in the wrong addon-load-order or not installed. So select it this way!
-				if(k:IsValid() and k.DefaultWeapon) then
-					k:SelectWeapon(k.DefaultWeapon);
-					k.DefaultWeapon = nil;
-				end
-			end);
+	-- Parts may have been removed while travelling
+	local attached = nil;
+	if (trip.Attached) then
+		attached = {Entity=base,Attached={}};
+		for _,a in pairs(trip.Attached.Attached or {}) do
+			if (IsValid(a)) then table.insert(attached.Attached,a) end
 		end
 	end
 
-	k:SetHealth(v.Health); --Reset it to its normal life
-
-	-- General settings
-	k:SetMoveType(v.MoveType);
-	k:SetSolid(v.Solid);
-	k:SetColor(v.Color);
-	k:SetRenderMode(v.RenderMode);
-	k:SetParent(nil);
-
-	-- Wake the entity up
-	if(v.MoveType==MOVETYPE_VPHYSICS) then
-		local phys=k:GetPhysicsObject();
-		if(phys:IsValid()) then
-			phys:EnableMotion(true);
-			phys:Wake();
-		end
+	if (not base:IsPlayer()) then
+		DebugPrint("arriving",base,"blocked:",tostring(block),"speed after restore:",math.floor(base:GetVelocity():Length()),"stored speed:",math.floor(trip.Records[base].Vel:Length()));
+		base.__EHDebugUntil = CurTime() + 3;
+	end
+	self:Teleport(base,block,attached);
+	if (not base:IsPlayer()) then
+		DebugPrint("teleported",base,"valid:",tostring(IsValid(base)),"pos:",IsValid(base) and tostring(base:GetPos()) or "-","speed:",IsValid(base) and math.floor(base:GetVelocity():Length()) or "-");
+		timer.Simple(0.1,function()
+			DebugPrint("0.1s later",base,"valid:",tostring(IsValid(base)),"pos:",IsValid(base) and tostring(base:GetPos()) or "-","speed:",IsValid(base) and math.floor(base:GetVelocity():Length()) or "-");
+		end);
 	end
 
-	if (IsValid(self)) then
-		self.Ents[k]=nil;
-	end
-
-	self:Teleport(k,block,attached);
-
-	--################# Blocked or not? Either make iris play the "blocked" sound or draw the gulping at the other end
-	local t = self.Target
-	target_gate = self.Target:GetParent();
-	if(block) then
-		if (not self.Unstable) then
-			-- Iris blocked us. Make hut-noise
-			if(IsValid(t) and IsValid(target_gate.Iris) and target_gate.Iris.IsActivated) then
-				target_gate.Iris:HitIris(self:GetTeleportedVector(k:GetPos(),k:GetVelocity())); -- Tell that we hit and where and how fast
-			end
+	if (block) then
+		SendWormholeMessage("Lib.EventHorizon.WormHoleReset",trip.ScreenPlayers);
+		if (not self.Unstable and IsValid(target_gate) and IsValid(target_gate.Iris) and target_gate.Iris.IsActivated) then
+			-- Iris blocked us. Make hit-noise
+			target_gate.Iris:HitIris(self:GetTeleportedVector(trip.EntryPos,trip.Records[base].Vel));
 		end
 	else
-		--t:EmitSound(self.Sounds.Teleport[math.random(1,#self.Sounds.Teleport)],90,math.random(90,110));
-		-- Needs to be delayed, or you wont hear the teleporting gulp if your a player
-		
-		local t = self.Target
-		if (CFD) then 
-			t = self.Entity
-		end
-		if (bcfd and not CFD) then else
+		SendWormholeMessage("Lib.EventHorizon.WormHoleOut",trip.ScreenPlayers);
+		-- Needs to be delayed, or you wont hear the teleporting gulp if you're a player
+		if (not bcfd or forwarded) then
+			local t = forwarded and self.Entity or self.Target;
 			timer.Simple(0.05,function()
-				if(IsValid(t) and IsValid(k)) then
+				if (IsValid(t) and IsValid(base)) then
 					t:EmitSound(self.Sounds.Teleport[math.random(1,#self.Sounds.Teleport)],90,math.random(90,110));
-					-- Draw the effect on the other eventhorizon
-					t:EnterEffectEntity(k);
+					t:EnterEffectEntity(base);
 				end
 			end);
 		end
-		--Reset his normal velocity
-		if(not k:IsPlayer()) then
-	 		k:SetVelocity(v.Vel*2); 
-	 		if (IsValid(k:GetPhysicsObject()) and IsValid(k)) then
-	 		if(k.___dir >0) then
-	 			if (gravity_wormhole) then
-	 				k:GetPhysicsObject():EnableGravity(true)
-	 			end
-	 		end
+		if (base:IsPlayer() or base:IsNPC()) then
+			local gate = forwarded and self.Entity:GetParent() or self.Target:GetParent();
+			base:SetPos(gate:GetPos() + gate:GetForward()*30 + gate:GetUp()*-80);
+			if (base:IsPlayer() and not forwarded) then
+				-- Keep the player's momentum, turned to the exit gate's direction
+				local _,vel = self:GetTeleportedVector(trip.EntryPos,trip.Records[base].Vel);
+				base:SetVelocity(vel);
+			end
+		elseif (attached) then
+			self:TouchTargetAfterTeleport(self.Target,attached);
 		end
-	end 
-	if(CFD) and (k:IsPlayer() or k:IsNPC()) then
-		k:SetPos(self.Entity:GetParent():GetPos() + self.Entity:GetParent():GetForward()*30 + self.Entity:GetParent():GetUp()*-80)
-	elseif (k:IsPlayer() or k:IsNPC()) then
-		k:SetPos(self.Target:GetParent():GetPos() + self.Target:GetParent():GetForward()*30 + self.Target:GetParent():GetUp()*-80)
-	end
 
-	local parent = self.Entity:GetParent();
-	-- Disabled by config - Overrides every other setting
-	if(self.AutoClose and not (
-			k.NoAutoClose or -- Disabled by SENT Writer
-			table.HasValue(self.AutocloseImmunity,class) or class:find("grenade") or class:find("rpg") or k:IsWeapon() or -- Disabled by me
-			(IsValid(parent) and parent.DisAutoClose) -- Wire forbids it
-		)) 
-	then
-		--################# Autoclose the gate after a delay
-		self.DoAutoClose = true;
-		self.Entity:NextThink(CurTime()+6); -- Trigger autoclose in the next 6 seconds
+		local parent = self.Entity:GetParent();
+		local class = trip.Class;
+		if (self.AutoClose and not (
+				base.NoAutoClose or -- Disabled by SENT Writer
+				table.HasValue(self.AutocloseImmunity,class) or class:find("grenade") or class:find("rpg") or base:IsWeapon() or -- Disabled by me
+				(IsValid(parent) and parent.DisAutoClose) -- Wire forbids it
+			)) then
+			--################# Autoclose the gate after a delay
+			self.DoAutoClose = true;
+			self.Entity:NextThink(CurTime()+6);
+		end
 	end
+	ChangeEntitiesOnRoute(trip,-1);
+end
 
+--################# Everything still in the wormhole is lost (gate shut down or removed)
+function ENT:FailAllTransits()
+	for _,trip in pairs(self.Transits or {}) do
+		FailTransit(trip);
 	end
-	if (self.Entity:GetParent():GetClass()=="mobile_gate") then
+	self.Transits = {};
+	self.timer_table = {};
+end
 
-	else
-		self.Entity:GetParent().EntitiesOnRoute = self.Entity:GetParent().EntitiesOnRoute - 1
-		self.Target:GetParent().EntitiesOnRoute = self.Target:GetParent().EntitiesOnRoute - 1
+--################# After a contraption arrived, let the target EH pick up the parts still sticking into it (model clipping)
+function ENT:TouchTargetAfterTeleport(t,attached)
+	timer.Simple(0.05,function()
+		if (not IsValid(t) or not IsValid(attached.Entity)) then return end
+		attached.Entity.___dir = nil;
+		for _,v in pairs(attached.Attached) do
+			if (IsValid(v)) then
+				local dir = (t:GetPos()-v:GetPos()):GetNormalized();
+				if (t:GetForward():DotProduct(dir) >= 0) then
+					t:StartTouch(v);
+				end
+				v.___dir = nil;
+			end
+		end
+	end);
+end
+
+--################# Wire "Pause Routing" / "Resume Routing": hold travellers in the wormhole
+function ENT:PauseAllRouting()
+	self.RoutingPaused = true
+	for _,name in ipairs(self.timer_table) do
+		timer.Pause(name)
+	end
+end
+
+function ENT:ResumeAllRouting()
+	self.RoutingPaused = false
+	-- Release held travellers one after another instead of all at once
+	for i,name in ipairs(self.timer_table) do
+		timer.UnPause(name)
+		timer.Adjust(name,i/1.5)
 	end
 end

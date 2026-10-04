@@ -72,7 +72,7 @@ if SERVER then
                     v:Fire("kill", "", "0.1")
                 elseif v:IsPlayer() then
                     if v:Alive() and not v:HasGodMode() then
-                        local allow = hook.Call("StarGate.GateNuke.KillPlayer", nil, v)
+                        local allow = hook.Call("StarGate.GateNuke.KillPlayer", nil, v, self.SplodePos)
 
                         if (allow == nil or allow) then
                             v:SetModel("models/player/charple.mdl")
@@ -162,7 +162,7 @@ if SERVER then
             local vecang = dir:GetNormal()
             local Damage = self.BaseDamage / (4 * math.pi * self.SplodeDist ^ 2)
             local class = v:GetClass()
-            local allow = hook.Call("StarGate.GateNuke.DamageEnt", nil, v)
+            local allow = hook.Call("StarGate.GateNuke.DamageEnt", nil, v, self.SplodePos)
             if (allow == false) then continue end
 
             if self.Rel < 5 then
