@@ -388,9 +388,15 @@ function ENT:Use(p)
 	end
 end
 
-local function cap_shield_nuke(ent)
+-- from: where the blast went off. With it, containment fields work too (a nuke inside one only hurts
+-- what is inside); without it (older callers) anything inside a normal shield is spared, as before.
+local function cap_shield_nuke(ent, from)
 	if (not IsValid(ent)) then return end
-	if (StarGate.IsInShield(ent)) then return false end
+	if (isvector(from)) then
+		if (StarGate.ShieldBlocksBlast(ent, from)) then return false end
+	elseif (StarGate.IsInShield(ent)) then
+		return false
+	end
 end
 
 hook.Add("StarGate.GateNuke.DamageEnt","CAP.Shield.Nuke",cap_shield_nuke);

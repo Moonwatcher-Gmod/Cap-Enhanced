@@ -285,21 +285,67 @@ usermessage.Hook( "StarGate.EventHorizon.SecretOut", function(um)
 		end)
 	end
 end)
-local wormhole_material = Material("williamdefly/wormhole")
+-- Wormhole travel screen. The server sends WormHoleStart with a bool: true = Atlantis transition.
+-- The animated textures are drawn through proxy-free copies of their materials, so we pick the
+-- frame ourselves and every trip starts from the first frame (the .vmt proxies loop on the game clock).
+local WORMHOLE_STYLES = {
+	classic = {
+		Texture = "williamdefly/wormhole",
+		Sound = "stargate/travelnew.mp3",
+		FPS = 30, -- Same rate as the .vmt
+		Loop = true,
+	},
+	atlantis = {
+		-- 150 frames at 30 fps = 5.0s, matches WORMHOLE_TRANSIT_TIME_ATLANTIS in init.lua
+		Texture = "williamdefly/wormhole_atlantis",
+		Sound = "stargate/wormhole_atlantis.mp3",
+		FPS = 30,
+		Loop = false, -- Hold the last (white) frame if a trip takes longer (e.g. routing paused)
+	},
+}
+
+for name,style in pairs(WORMHOLE_STYLES) do
+	style.Material = CreateMaterial("CAP_WormholeTravel_"..name,"UnlitGeneric",{
+		["$basetexture"] = style.Texture,
+	})
+	local tex = style.Material:GetTexture("$basetexture")
+	style.Frames = math.max(1, tex and tex:GetNumAnimationFrames() or 1)
+	util.PrecacheSound(style.Sound)
+end
+
+local wormhole_style = WORMHOLE_STYLES.classic
+local wormhole_start = 0
+
+local function StopWormholeScreen()
+	LocalPlayer():StopSound(wormhole_style.Sound)
+	hook.Remove("HUDDrawScoreBoard", "Wormholeefffect")
+	hook.Remove("EntityEmitSound","Lib.EH.WormHole");
+	hook.Remove("PlayerBindPress","Lib.EH.WormHole");
+end
 
 usermessage.Hook( "Lib.EventHorizon.WormHoleStart", function(um)
-	local e = LocalPlayer();
-	e:EmitSound("stargate/travelnew.mp3")
+	StopWormholeScreen() -- In case a previous trip's screen is still up
+	wormhole_style = um:ReadBool() and WORMHOLE_STYLES.atlantis or WORMHOLE_STYLES.classic
+	wormhole_start = RealTime() -- Restart the animation for this trip
+	-- Started before the hook below, which mutes every other sound during the trip
+	LocalPlayer():EmitSound(wormhole_style.Sound)
 	hook.Add("EntityEmitSound","Lib.EH.WormHole",function() return false end)
 	hook.Add("PlayerBindPress","Lib.EH.WormHole",function() return true end)
 	hook.Add( "HUDDrawScoreBoard", "Wormholeefffect", function()
-		
-		--wormhole_material:SetVector("$color", Vector(0, 1, 1))
-		surface.SetMaterial(wormhole_material)
+		local style = wormhole_style
+		local frame = math.floor((RealTime() - wormhole_start) * style.FPS)
+		if (style.Loop) then
+			frame = frame % style.Frames
+		else
+			frame = math.min(frame, style.Frames - 1)
+		end
+		style.Material:SetInt("$frame", frame)
+		-- DrawTexturedRect uses whatever draw color the last HUD element left behind, which can be
+		-- black or fully transparent - set it explicitly so the wormhole is always visible
+		surface.SetDrawColor(255, 255, 255, 255)
+		surface.SetMaterial(style.Material)
 		surface.DrawTexturedRect( 0, 0, ScrW(), ScrH() )
-		wormhole_material:SetFloat("$frame", 0)
 	end )
-
 end)
 
 usermessage.Hook( "Lib.EventHorizon.WormHoleStart_video", function(um)
@@ -317,36 +363,8 @@ usermessage.Hook( "Lib.EventHorizon.WormHoleStart_video", function(um)
 end)
 
 
-usermessage.Hook( "Lib.EventHorizon.WormHoleReset", function(um)
-	local e = LocalPlayer();
-	e:StopSound("stargate/travelnew.mp3")
-	hook.Remove("HUDDrawScoreBoard", "Wormholeefffect")
-	--hook.Remove("PreRender","Lib.EH.WormHole");
-	hook.Remove("EntityEmitSound","Lib.EH.WormHole");
-	hook.Remove("PlayerBindPress","Lib.EH.WormHole");
-end)
-
-usermessage.Hook( "Lib.EventHorizon.WormHoleOut", function(um)
-	local e = LocalPlayer();
-	e:StopSound("stargate/travelnew.mp3")
-	--hook.Remove("PreRender","Lib.EH.WormHole");
-	hook.Remove("HUDDrawScoreBoard", "Wormholeefffect")
-	hook.Remove("EntityEmitSound","Lib.EH.WormHole");
-	hook.Remove("PlayerBindPress","Lib.EH.WormHole");
-end)
-
-usermessage.Hook( "Lib.EventHorizon.WormHoleStop", function(um)
-	local e = LocalPlayer();
-	e:StopSound("stargate/travelnew.mp3")
-	hook.Remove("HUDDrawScoreBoard", "Wormholeefffect")
-	--hook.Remove("PreRender","Lib.EH.WormHole");
-	hook.Remove("EntityEmitSound","Lib.EH.WormHole");
-	hook.Remove("PlayerBindPress","Lib.EH.WormHole");
-end)
-
-
+usermessage.Hook( "Lib.EventHorizon.WormHoleReset", StopWormholeScreen)
+usermessage.Hook( "Lib.EventHorizon.WormHoleOut", StopWormholeScreen)
+usermessage.Hook( "Lib.EventHorizon.WormHoleStop", StopWormholeScreen)
 
 --universe_travel_end.mp3
-
-
-
