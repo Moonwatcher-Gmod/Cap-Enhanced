@@ -14,9 +14,6 @@ ENT.AdminSpawnable	= false
 ENT.RenderGroup = RENDERGROUP_BOTH
 ENT.AutomaticFrameAdvance = true
 
-function ENT:GetTraceSize()
-	return self.Entity:GetNWVector("TraceSize",Vector(1,1,1));
-end
 
 -- Rising/lowering with "Always show Bubble": the switch on/off effect (shield_core_flash_atl) fills the
 -- shield from the bottom up (and empties it from the top down) over 5 seconds. These make the shield only
@@ -31,9 +28,14 @@ function ENT:GetCoverRange()
 	return z - 200*scale.z, z + 200*scale.z
 end
 
+-- Does this shield rise and lower? With "Always show Bubble", or the "Rising edge" option without it.
+function ENT:Rises()
+	return self:GetNWBool("AlwaysShow",false) or self:GetNWBool("RisingEdge",false)
+end
+
 -- World height the shield covers right now. nil = all of it
 function ENT:GetCoverLevel()
-	if (not self:GetNWBool("AlwaysShow",false)) then return nil end
+	if (not self:Rises()) then return nil end
 	local on, off = self:GetNWFloat("EnabledTime",0), self:GetNWFloat("DisabledTime",0)
 	local bottom, top = self:GetCoverRange()
 	if (off > on) then -- Lowering, from the top down
@@ -52,11 +54,11 @@ end
 -- Switched on, or still lowering after being switched off
 function ENT:IsShieldUp()
 	if (self:GetNWBool("Enabled",false)) then return true end
-	return self:GetNWBool("AlwaysShow",false) and CurTime() < self:GetNWFloat("DisabledTime",0) + self.CoverTime
+	return self:Rises() and CurTime() < self:GetNWFloat("DisabledTime",0) + self.CoverTime
 end
 
 -- Radius of the visible shape in each direction (the meshes are 200 units at scale 1, the Atlantis dome
--- 279 wide and 208 high on its base). Unlike the trace size (TraceSize), which is ~28% bigger.
+-- 279 wide and 208 high on its base). This is the one size used everywhere: blocking, tracelines, effects.
 function ENT:GetShapeRadii()
 	local scale = self:GetNWVector("PhysicScale", Vector(1,1,1))
 	local base = (self:GetNWInt("PhysicModel",1) == 3) and Vector(279,279,208) or Vector(200,200,200)
@@ -79,4 +81,57 @@ end
 -- Containment field: keeps things in instead of out (shield core menu)
 function ENT:IsContainment()
 	return self:GetNWBool("Containment",false)
+end
+
+-- Where does the segment start->endpos first cross the shield's surface? Entering when it starts outside,
+-- leaving when it starts inside. Returns the hit position, the surface normal facing the ray, and the
+-- fraction of the segment, or nil. Exact maths on the visible shape (ellipsoid, box, or the Atlantis
+-- dome: the upper half of an ellipsoid on a flat base).
+function ENT:TraceIntersect(start, endpos)
+	local r = self:GetShapeRadii()
+	local shape = self:GetNWInt("PhysicModel",1)
+	local a = self:WorldToLocal(start)
+	local d = self:WorldToLocal(endpos) - a
+	local tin, tout = -math.huge, math.huge
+	local nin, nout -- Local normals at the entry and exit points (nil = work it out from the point)
+
+	-- Narrow [tin, tout] down to the part of the line inside the slab low <= a[i] + d[i]*t <= high
+	local function slab(i, low, high, axis_normal)
+		local ai, di = a[i], d[i]
+		if (di == 0) then return ai >= low and ai <= high end
+		local t1, t2 = (low - ai)/di, (high - ai)/di
+		local n1, n2 = -axis_normal, axis_normal
+		if (t1 > t2) then t1, t2, n1, n2 = t2, t1, n2, n1 end
+		if (t1 > tin) then tin, nin = t1, n1 end
+		if (t2 < tout) then tout, nout = t2, n2 end
+		return tin <= tout
+	end
+
+	if (shape == 2) then -- Box
+		if (not slab(1, -r.x, r.x, Vector(1,0,0))) then return end
+		if (not slab(2, -r.y, r.y, Vector(0,1,0))) then return end
+		if (not slab(3, -r.z, r.z, Vector(0,0,1))) then return end
+	else -- Ellipsoid: scale to a unit sphere and solve |A + D*t| = 1
+		local A = Vector(a.x/r.x, a.y/r.y, a.z/r.z)
+		local D = Vector(d.x/r.x, d.y/r.y, d.z/r.z)
+		local qa, qb, qc = D:Dot(D), 2*A:Dot(D), A:Dot(A) - 1
+		if (qa == 0) then return end
+		local disc = qb*qb - 4*qa*qc
+		if (disc < 0) then return end
+		disc = math.sqrt(disc)
+		tin, tout = (-qb - disc)/(2*qa), (-qb + disc)/(2*qa)
+		if (shape == 3 and not slab(3, 0, math.huge, Vector(0,0,1))) then return end -- Dome: only above its base
+	end
+
+	local inside = self:ContainsPoint(start)
+	local t = inside and tout or tin
+	if (t < 0 or t > 1) then return end
+	local p = a + d*t
+	local n = inside and nout or nin
+	if (not n) then -- On the curved surface
+		n = Vector(p.x/(r.x*r.x), p.y/(r.y*r.y), p.z/(r.z*r.z))
+		n:Normalize()
+	end
+	if (inside) then n = -1*n end -- Face the ray: from inside it hits the inner side of the surface
+	return self:LocalToWorld(p), self:LocalToWorld(n) - self:GetPos(), t
 end

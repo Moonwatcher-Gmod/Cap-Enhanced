@@ -104,14 +104,10 @@ function StarGate.IsInAltantisoid(pos, ent, dimension)
     return is_in
 end
 
+-- Is a position inside a shield core's visible shape? (Kept for other addons. It used to test against the
+-- ~28% bigger trace size, and returned the opposite for box shields.)
 function StarGate.IsInShieldCore(ent, v)
-    if (ent.ShShap == 1) then
-        return StarGate.IsInEllipsoid(v, ent, ent:GetTraceSize())
-    elseif (ent.ShShap == 2) then
-        return StarGate.IsInCuboid(v, ent, ent:GetTraceSize())
-    elseif (ent.ShShap == 3) then
-        return StarGate.IsInAltantisoid(v, ent, ent:GetTraceSize())
-    end
+    return ent.ContainsPoint ~= nil and ent:ContainsPoint(v)
 end
 
 function StarGate.RayPhysicsPluckerIntersect(trace, dir, ent, in_shape)

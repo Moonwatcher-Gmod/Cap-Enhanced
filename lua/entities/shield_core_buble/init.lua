@@ -13,13 +13,7 @@ ENT.NoDissolve = true;
 ENT.DoNotDuplicate = true 
 
 AddCSLuaFile("modules/bullets.lua");
-AddCSLuaFile("modules/sphere.lua");
-AddCSLuaFile("modules/box.lua");
-AddCSLuaFile("modules/atlantis.lua");
 include("modules/bullets.lua");
-include("modules/sphere.lua")
-include("modules/box.lua")
-include("modules/atlantis.lua")
 
 StarGate.Trace:Add("shield_core_buble",
 	function(e,values,trace,in_box)
@@ -37,11 +31,11 @@ StarGate.Trace:Add("shield_core_buble",
 				end
 			end
 			-- Immunity: the owner may always go or shoot through (see the shield core menu)
-			if (IsValid(own) and e.Parent.Immunity and e.Parent.Owner == own) then return false end
+			-- Trusted shooters (Immunity owner and friends, Allowed Players) always go through
+			if (e:IsTrusted(own)) then return false end
 
 			-- Containment field: shots from inside are stopped, shots from outside go in
-			local inside = in_box;
-			if (e.ShShap == 2) then inside = not in_box end -- IsInCuboid returns "outside" (see StarGate.IsInShieldCore)
+			local inside = in_box; -- Exact: e:ContainsPoint(trace start), see tracelines.lua
 			if (e:IsContainment()) then return inside end
 
 			-- Anything coming from outside is stopped. Only shots fired from inside the shield, by someone
@@ -60,7 +54,6 @@ StarGate.Trace:Add("shield_core_buble",
 -- Shape ids (also sent to clients as "PhysicModel")
 local SHAPE_SPHERE, SHAPE_BOX, SHAPE_ATLANTIS = 1, 2, 3
 -- Radius of the shield meshes at scale 1. The Atlantis dome is 279 wide, 208 high and sits on its base (z >= 0).
--- (self.Size, used for tracelines, is 256 per unit and so ~28% bigger than what you actually see)
 local SHAPE_RADII = {
 	[SHAPE_SPHERE] = Vector(200,200,200),
 	[SHAPE_BOX] = Vector(200,200,200),
@@ -70,12 +63,27 @@ local MAX_MARGIN = 64 -- Things are pushed back when their centre is this close 
 
 local function WeakTable() return setmetatable({}, {__mode = "k"}) end
 
+-- "stargate_shield_debug 1": log what the shield core decides for non-player entities (server console)
+local ShieldDebug = CreateConVar("stargate_shield_debug","0",FCVAR_NONE,"Log shield core decisions for non-player entities");
+local function DebugPrint(e, ...)
+	if (ShieldDebug:GetBool() and IsValid(e) and not e:IsPlayer()) then print("[ShieldCore]", e, ...) end
+end
+
 -----------------------------------INIT----------------------------------
 
 function ENT:Initialize()
-	self.Entity:PhysicsInit(SOLID_VPHYSICS);
-	self.Entity:SetMoveType(MOVETYPE_VPHYSICS);
-	self.Entity:SetSolid(SOLID_VPHYSICS);
+	-- The shape is pure maths (ShapeDepth here, ContainsPoint/TraceIntersect in shared.lua), and things are
+	-- stopped by ENT:Think - the shield doesn't physically collide with anything.
+	-- It still gets a small physics object with collisions off, like the regular shield: many weapons and
+	-- SENTs only react to (explode on) things that have one, e.g. in StartTouch/PhysicsCollide.
+	self.Entity:PhysicsInitSphere(8, "default_silent");
+	self.Entity:SetMoveType(MOVETYPE_NONE);
+	self.Entity:SetNotSolid(true);
+	local phys = self.Entity:GetPhysicsObject();
+	if (IsValid(phys)) then
+		phys:EnableCollisions(false);
+		phys:EnableMotion(false);
+	end
 	self.Entity:SetColor(Color(0,0,0,0));
 	self.Entity:SetRenderMode(RENDERMODE_TRANSALPHA);
 
@@ -88,8 +96,6 @@ function ENT:Initialize()
 	self.Depleted = false;
 
 	self.Radius = 0.01;
-	self.Size = Vector(1,1,1);
-	self.RayModel = {};
 
 	self.IsShieldCore = true;
 end
@@ -97,55 +103,25 @@ end
 -----------------------------------COLLISION SCALE----------------------------------
 
 function ENT:SetCollisionScale(model, size)
-	local convex = {}
-	local ShieldModel;
-	local mod = 1;
-
-	if (model == "models/Madman07/shields/sphere.mdl") then ShieldModel = SphereModel;
-	elseif (model == "models/Madman07/shields/box.mdl") then ShieldModel = BoxModel;  mod = 2;
-	elseif (model == "models/Madman07/shields/atlantis.mdl") then ShieldModel = AtlantisModel;  mod = 3; end
-
-	for _, vertex in pairs(ShieldModel) do
-		local vec = Vector(vertex.x*size.x,vertex.y*size.y,vertex.z*size.z); -- hm, somewhy it should be y,x,z not x,y,z @ now fixed?
-		table.insert(convex, Vertex(vec, 1, 1, Vector( 0, 0, 1 ) ));
-	end
-
-	if (#convex == 0) then return end //safefail
+	local mod = SHAPE_SPHERE;
+	if (model == "models/Madman07/shields/box.mdl") then mod = SHAPE_BOX;
+	elseif (model == "models/Madman07/shields/atlantis.mdl") then mod = SHAPE_ATLANTIS; end
 	self.ShShap = mod;
-	self.ShieldModelData = ShieldModel;
-
-	-- The mesh is only used for tracelines (RayModel) now. Things are stopped by ENT:Think, the same way
-	-- the regular shield does it, so the shield itself doesn't physically collide with anything.
-	-- (It isn't rebuilt when the shield is resized, see ENT:SetShapeSize.)
-	self.Entity:PhysicsFromMesh(convex)
-	local phys = self.Entity:GetPhysicsObject();
-	phys:EnableCollisions(false)
-	phys:EnableMotion(false)
-
-	self:SetNWBool("DoPhysicClientside", true);
 	self:SetNWInt("PhysicModel", mod);
-	self:SetNotSolid(true);
 	self:SetShapeSize(size);
 end
 
--- Everything that depends on the shield's size (scale = menu size/512). Cheap enough to call while it is
--- resizing: clients rebuild their traceline model when PhysicScale changes (cl_init.lua).
+-- Everything that depends on the shield's size (scale = menu size/512). Cheap, so it is also called
+-- every few ticks while the shield resizes.
 function ENT:SetShapeSize(size)
 	self.ShapeScale = size;
-	self.RayModel = {}; -- Was appended to on every call
-	for _, vertex in pairs(self.ShieldModelData or {}) do
-		table.insert(self.RayModel, Vector(vertex.x*size.x,vertex.y*size.y,vertex.z*size.z));
-	end
-
 	self.Radius = math.max(size.x, size.y, size.z);
-	self.Size = size*256;
 	local radii = SHAPE_RADII[self.ShShap or SHAPE_SPHERE];
 	self.ShapeRadii = Vector(radii.x*size.x, radii.y*size.y, radii.z*size.z);
-	self:SetCollisionBounds(-1*self.Radius*Vector(1,1,1)*256,self.Radius*Vector(1,1,1)*256)
+	local low = (self.ShShap == SHAPE_ATLANTIS) and 0 or -self.ShapeRadii.z; -- The dome sits on its base
+	self:SetCollisionBounds(Vector(-self.ShapeRadii.x, -self.ShapeRadii.y, low), self.ShapeRadii);
 
 	self:SetNWVector("PhysicScale", size);
-	self:SetNWInt("SGESize",self.Radius);
-	self:SetNWVector("TraceSize",self.Size);
 	self:SetNWVector("BubbleScale", size - Vector(10,10,10)/512); -- "Always show Bubble" (like the effects: menu size - 10)
 end
 
@@ -188,10 +164,6 @@ function ENT:SetContainment(on)
 	end
 end
 
-function ENT:GetTraceSize()
-	return self.Size;
-end
-
 -----------------------------------SHAPE----------------------------------
 
 -- How far inside the shield shape a local position is (< 1 = inside) and the outward normal there (local).
@@ -220,7 +192,7 @@ function ENT:IsEntityInShield()
 	self.nocollide = {};
 	self.nocollideID = {};
 	if (not self.ShapeRadii) then return end
-	local reach = math.max(self.ShapeRadii.x, self.ShapeRadii.y, self.ShapeRadii.z);
+	local reach = self.ShapeRadii:Length(); -- Far enough for a box's corners
 	for _,v in pairs(ents.FindInSphere(self.Entity:GetPos(), reach)) do
 		if (v ~= self.Entity and self:ShapeDepth(self:WorldToLocal(v:LocalToWorld(v:OBBCenter()))) < 1) then
 			self.nocollide[v] = true;
@@ -252,6 +224,7 @@ function ENT:Status(status)
 		-- "Always show Bubble": drawn by the client (cl_init.lua) once the switch-on effect is done
 		if (IsValid(self.Parent)) then
 			self:SetNWBool("AlwaysShow", self.Parent.Draw == true);
+			self:SetNWBool("RisingEdge", self.Parent.RisingEdge == true); -- Rise and lower without the bubble too
 			self:SetNWString("BubbleModel", self.Parent.Mod or "");
 			self:SetNWFloat("EnabledTime", CurTime());
 		end
@@ -289,9 +262,44 @@ function ENT:CanBeReflected(e, containment)
 	elseif (e:GetSolid() == SOLID_NONE) then
 		return false;
 	end
-	local owner = self.Parent.Owner;
-	if (self.Parent.Immunity and IsValid(owner) and (e == owner or e:GetOwner() == owner)) then return false end
+	-- Trusted players and their shots, and anything carrying a shield identifier on our frequency, pass both ways
+	if (self:IsTrusted(e) or self:IsTrusted(e:GetOwner()) or self:HasMatchingIdentifier(e)) then return false end
 	return true;
+end
+
+-- May this player always go and shoot through? With Immunity: the owner and his prop protection friends.
+-- Always: the players in the core's "Allowed Players" Wire input.
+function ENT:IsTrusted(ply)
+	local core = self.Parent;
+	if (not IsValid(ply) or not ply:IsPlayer() or not IsValid(core)) then return false end
+	if (core.AllowedPlayers and table.HasValue(core.AllowedPlayers, ply)) then return true end
+	local owner = core.Owner;
+	if (core.Immunity and IsValid(owner)) then
+		if (ply == owner) then return true end
+		if (owner.CPPIGetFriends) then
+			local friends = owner:CPPIGetFriends();
+			if (type(friends) == "table" and table.HasValue(friends, ply)) then return true end
+		end
+	end
+	return false;
+end
+
+-- Is something constrained to an active shield identifier on the core's frequency? (Cached for a second,
+-- looking through a contraption every tick would be slow.)
+function ENT:HasMatchingIdentifier(e)
+	local frequency = tonumber(self.Parent.Frequency) or 0;
+	if (frequency == 0 or e:IsPlayer()) then return false end
+	local cache = e.__ShieldIdentifierCache;
+	if (cache and cache.Time > CurTime() and cache.Frequency == frequency) then return cache.Result end
+	local result = false;
+	for _,v in pairs(constraint.GetAllConstrainedEntities(e) or {}) do
+		if (IsValid(v) and v:GetClass() == "shield_identifier" and v:Enabled() and v:GetFrequency() == frequency) then
+			result = true;
+			break;
+		end
+	end
+	e.__ShieldIdentifierCache = {Time = CurTime() + 1, Frequency = frequency, Result = result};
+	return result;
 end
 
 function ENT:HasStrength()
@@ -299,11 +307,20 @@ function ENT:HasStrength()
 end
 
 function ENT:ScanShield()
-	local reach = math.max(self.ShapeRadii.x, self.ShapeRadii.y, self.ShapeRadii.z) + MAX_MARGIN;
+	-- Far enough for a box's corners (the biggest radius alone missed them, so you could shoot in there)
+	local reach = self.ShapeRadii:Length() + MAX_MARGIN;
 	local level = self:GetCoverLevel(); -- While rising/lowering, only the part up to here blocks
 	local containment = self:IsContainment();
 	local min_radius = math.min(self.ShapeRadii.x, self.ShapeRadii.y, self.ShapeRadii.z);
 	for _,e in pairs(ents.FindInSphere(self.Entity:GetPos(), reach)) do
+		if (ShieldDebug:GetBool() and IsValid(e) and not e:IsPlayer() and e ~= self.Entity and not self:CanBeReflected(e, containment)) then
+			self.DebugIgnored = self.DebugIgnored or WeakTable();
+			if (not self.DebugIgnored[e] and self:ShapeDepth(self:WorldToLocal(e:LocalToWorld(e:OBBCenter()))) < 1) then
+				self.DebugIgnored[e] = true;
+				DebugPrint(e, "ignored inside the shield: on allowed list", self.nocollide[e] == true, "parented", IsValid(e:GetParent()),
+					"not solid", e:GetSolid() == SOLID_NONE, "trusted owner", self:IsTrusted(e:GetOwner()), "identifier", self:HasMatchingIdentifier(e), "IgnoreShield", e.IgnoreShield == true);
+			end
+		end
 		if (self:CanBeReflected(e, containment)) then
 			local margin = math.Clamp(e:BoundingRadius()*0.5, 0, MAX_MARGIN);
 			local center = e:LocalToWorld(e:OBBCenter());
@@ -333,13 +350,48 @@ function ENT:OnEntityInside(e, depth)
 		local _, n = self:ShapeDepth(self:WorldToLocal(e:LocalToWorld(e:OBBCenter())));
 		local outward = self:LocalToWorld(n) - self.Entity:GetPos();
 		local owner = e:GetOwner();
-		if (e:GetVelocity():Dot(outward) >= 0 and (depth <= 0.5 or (IsValid(owner) and self.nocollide[owner]))) then
+		local moving_out = e:GetVelocity():Dot(outward) >= 0;
+		local owner_allowed = IsValid(owner) and self.nocollide[owner] == true;
+		DebugPrint(e, "first seen inside: depth", math.Round(depth, 2), "speed", math.floor(e:GetVelocity():Length()), "moving out", moving_out, "owner", owner, "owner allowed", owner_allowed);
+		if (moving_out and (depth <= 0.5 or owner_allowed)) then
+			DebugPrint(e, "-> allowed through (spawned/fired inside)");
 			self.nocollide[e] = true;
 			return;
 		end
 	end
-	if (not self:HasStrength()) then return end
+	if (not self:HasStrength()) then
+		DebugPrint(e, "-> no strength left, not pushed");
+		return;
+	end
+	self:MoveShotToSurface(e, true);
 	StarGate.ShieldOnTouch(self.Entity, e, function(v, do_not_draw_hit) self:Reflect(v, do_not_draw_hit) end, self.Parent.AntiNoclip);
+end
+
+-- Fast shots are often well past the surface before we see them (staff blasts move up to ~120 units per
+-- tick). Put them back where they crossed it - just outside (or just inside for a containment field) - so
+-- they bounce or explode there, and not among the people they should be kept away from.
+function ENT:MoveShotToSurface(e, outside)
+	if (e:IsPlayer() or e:IsNPC()) then return end
+	local vel = e:GetVelocity();
+	if (not e.CAPOnShieldTouch and vel:Length() < 1500) then return end
+	local pos = e:GetPos();
+	-- Where its path of the last few ticks crossed the surface. The normal faces where it came from.
+	local hitpos, normal = self:TraceIntersect(pos - vel*engine.TickInterval()*4, pos);
+	if (not hitpos) then -- Straight out from the centre (or straight in)
+		local lp = self:WorldToLocal(pos);
+		local depth, n = self:ShapeDepth(lp);
+		if (depth <= 0) then return end
+		hitpos = self:LocalToWorld(lp/depth);
+		normal = self:LocalToWorld(n) - self.Entity:GetPos();
+		if (not outside) then normal = -1*normal end
+	end
+	e:SetPos(hitpos + normal*2);
+	-- SetPos teleports a physics object and its speed then reads 0 this tick, which made the push-back
+	-- think the shot wasn't moving: no hit effect and no strength loss. Give it its speed back.
+	local phys = e:GetPhysicsObject();
+	if (IsValid(phys)) then phys:SetVelocity(vel) end
+	e:SetLocalVelocity(vel);
+	DebugPrint(e, "moved back to the surface, speed now", math.floor(e:GetVelocity():Length()));
 end
 
 -- Containment field: entering is free, but whatever got well inside is pushed back in at the wall
@@ -355,6 +407,7 @@ function ENT:ScanContained(e, lp, inner_margin, covered)
 		return;
 	end
 	if (not self:HasStrength()) then return end
+	self:MoveShotToSurface(e, false);
 	StarGate.ShieldOnTouch(self.Entity, e, function(v, do_not_draw_hit) self:Reflect(v, do_not_draw_hit) end, self.Parent.AntiNoclip);
 end
 
@@ -370,11 +423,14 @@ function ENT:Reflect(e, do_not_draw_hit)
 	local phys = e:GetPhysicsObject();
 
 	-- The actual pushing is shared with the regular shield (StarGate.ShieldReflectEntity in stargate/server/cap.lua)
-	if (not StarGate.ShieldReflectEntity(self.Entity, e, normal)) then return end
+	if (not StarGate.ShieldReflectEntity(self.Entity, e, normal)) then
+		DebugPrint(e, "-> push-back did nothing (not moving, or held with the physgun)");
+		return;
+	end
 	if (do_not_draw_hit) then return end
 
 	local now = CurTime();
-	if ((self.NextHit[e] or 0) > now) then return end
+	if ((self.NextHit[e] or 0) > now) then DebugPrint(e, "-> pushed, hit cooldown") return end
 	self.NextHit[e] = now + 0.2;
 
 	local strength = 5;
@@ -383,16 +439,24 @@ function ENT:Reflect(e, do_not_draw_hit)
 	end
 	local hitpos = pos;
 	if (depth > 0) then hitpos = self:LocalToWorld(lp/depth) end -- On the shield's surface
+	DebugPrint(e, "-> HIT: strength", strength, "mass", IsValid(phys) and phys:GetMass() or "-", "speed", math.floor(velo:Length()));
 	self:DrawBubbleEffect(hitpos, normal, strength, false, true);
 	-- Players, NPCs and missiles don't drain the shield (same as the regular shield)
 	if (not (e:IsPlayer() or e:IsNPC() or e:GetClass() == "rpg_missile")) then
-		self.Parent:Hit(strength, normal, hitpos);
+		self.Parent:Hit(strength, normal, hitpos, e.FireFrequency);
 	end
 end
 
 -----------------------------------EFFECT----------------------------------
 
 function ENT:DrawBubbleEffect(pos, normal, strength, turn_off, hit)
+	if (hit) then -- Expanding ring along the surface (shield_core_ripple, drawn in cl_init.lua)
+		local fx = EffectData();
+		fx:SetOrigin(pos);
+		fx:SetEntity(self.Entity);
+		fx:SetScale(strength or 1);
+		util.Effect("shield_core_ripple",fx,true,true);
+	end
 	if IsValid(self.Parent) then
 		if self.Parent.Draw then -- if Atlantis type
 			if (not hit) then
@@ -441,11 +505,11 @@ end
 
 -----------------------------------HIT----------------------------------
 
-function ENT:Hit(e,pos,dmg,normal)
+function ENT:Hit(e,pos,dmg,normal,fireFrequency)
 	if(not self.Parent.Depleted) then
 		if(self.Parent.Strength > 2) then
 			normal = normal or Vector(0,0,0);
-			self.Parent:Hit(dmg,normal,pos);
+			self.Parent:Hit(dmg,normal,pos,fireFrequency);
 			self:DrawBubbleEffect(pos, normal, dmg, false, true);
 		else
 			self:Status(false);

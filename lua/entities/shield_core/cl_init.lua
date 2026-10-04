@@ -71,7 +71,7 @@ local VGUI = {}
 function VGUI:Init()
     -- SHIELD CORE MENU
     local DermaPanel = vgui.Create("DFrame")
-    DermaPanel:SetSize(370, 400)
+    DermaPanel:SetSize(370, 425)
     DermaPanel:SetPos(ScrW() / 10, ScrH() / 10)
     DermaPanel:SetTitle("Shield Core Control Panel")
     DermaPanel:SetVisible(true)
@@ -162,6 +162,15 @@ function VGUI:Init()
     Sheet:AddSheet("Position", Sheet_Pos, "icon16/user.png", false, false, "Position of the buble.")
     Sheet:AddSheet("Visual", Sheet_Visual, "icon16/user.png", false, false, "Model and color of the buble.")
     Sheet:AddSheet("Other", Sheet_Other, "icon16/user.png", false, false, "Other settings.")
+    local Sheet_Access = vgui.Create("DPanel", Sheet)
+    Sheet_Access:SetPos(0, 0)
+    Sheet_Access:SetSize(Sheet:GetWide(), Sheet:GetTall())
+
+    Sheet_Access.Paint = function()
+        draw.RoundedBox(6, 0, 0, sheet_x, sheet_y, sheet_col)
+    end
+
+    Sheet:AddSheet("Access", Sheet_Access, "icon16/key.png", false, false, "Who and what may pass.")
     --////// Const
     local Slider_pos_x = 25
     local Slider_pos_y1 = 20
@@ -172,12 +181,13 @@ function VGUI:Init()
     local Button_size_x = 75
     local Button_size_y = 25
     --////// SIZE
+    local min_size, max_size = e:GetNWFloat("MinSize", 100), e:GetNWFloat("MaxSize", 4096) -- Server config ([shield_core])
     local Size_x = vgui.Create("DNumSlider", Sheet_Size)
     Size_x:SetPos(Slider_pos_x, Slider_pos_y1)
     Size_x:SetSize(Slider_size_x, Slider_size_y)
     Size_x:SetText("Size x:")
-    Size_x:SetMin(100)
-    Size_x:SetMax(4096)
+    Size_x:SetMin(min_size)
+    Size_x:SetMax(max_size)
     Size_x:SetValue(e:GetNWVector("Size", Vector(100, 100, 100)).x)
     Size_x:SetDecimals(0)
 
@@ -189,8 +199,8 @@ function VGUI:Init()
     Size_y:SetPos(Slider_pos_x, Slider_pos_y2)
     Size_y:SetSize(Slider_size_x, Slider_size_y)
     Size_y:SetText("Size y:")
-    Size_y:SetMin(100)
-    Size_y:SetMax(4096)
+    Size_y:SetMin(min_size)
+    Size_y:SetMax(max_size)
     Size_y:SetValue(e:GetNWVector("Size", Vector(100, 100, 100)).y)
     Size_y:SetDecimals(0)
 
@@ -202,8 +212,8 @@ function VGUI:Init()
     Size_z:SetPos(Slider_pos_x, Slider_pos_y3)
     Size_z:SetSize(Slider_size_x, Slider_size_y)
     Size_z:SetText("Size z:")
-    Size_z:SetMin(100)
-    Size_z:SetMax(4096)
+    Size_z:SetMin(min_size)
+    Size_z:SetMax(max_size)
     Size_z:SetValue(e:GetNWVector("Size", Vector(100, 100, 100)).z)
     Size_z:SetDecimals(0)
 
@@ -227,7 +237,7 @@ function VGUI:Init()
             local factor = sliders[axis]:GetValue() / last_size[axis]
             syncing = true
             for k, slider in pairs(sliders) do
-                if (k ~= axis) then slider:SetValue(math.Clamp(last_size[k] * factor, 100, 4096)) end
+                if (k ~= axis) then slider:SetValue(math.Clamp(last_size[k] * factor, min_size, max_size)) end
             end
             syncing = false
         end
@@ -448,7 +458,7 @@ function VGUI:Init()
     VGUI.Pos_y = Pos_y
     VGUI.Pos_z = Pos_z
     --///// OTHER
-    local menudata = string.Explode(" ", e:GetNWString("MenuData", "0 0 0 0 5 0 0"))
+    local menudata = string.Explode(" ", e:GetNWString("MenuData", "0 0 0 0 5 0 0 0 0 0"))
     local Power = vgui.Create("DNumSlider", Sheet_Other)
     Power:SetPos(25, 40)
     Power:SetSize(250, 50)
@@ -489,6 +499,37 @@ function VGUI:Init()
     Containment:SetValue(tobool(menudata[7]))
     Containment:SizeToContents()
     Containment:SetToolTip("Keep things in instead of out: anything can enter, nothing inside can leave.\nExplosions inside (e.g. a naquadah bomb) stay inside.")
+    local RisingEdge = vgui.Create("DCheckBoxLabel", Sheet_Other)
+    RisingEdge:SetPos(25, 200)
+    RisingEdge:SetText("Rising edge")
+    RisingEdge:SetValue(tobool(menudata[10]))
+    RisingEdge:SizeToContents()
+    RisingEdge:SetToolTip("Rise and lower over 5 seconds with a glowing edge, also without \"Always show Bubble\".\nIt only blocks where it has risen to.")
+    --///// ACCESS
+    local Frequency = vgui.Create("DNumSlider", Sheet_Access)
+    Frequency:SetPos(25, 15)
+    Frequency:SetSize(260, 40)
+    Frequency:SetText("Frequency:")
+    Frequency:SetMin(0)
+    Frequency:SetMax(1500)
+    Frequency:SetDecimals(0)
+    Frequency:SetValue(tonumber(menudata[8]) or 0)
+    Frequency:SetToolTip("Contraptions with an active Shield Identifier on this frequency may pass. 0 = off.")
+    local FireFrequency = vgui.Create("DNumSlider", Sheet_Access)
+    FireFrequency:SetPos(25, 55)
+    FireFrequency:SetSize(260, 40)
+    FireFrequency:SetText("Fire frequency:")
+    FireFrequency:SetMin(0)
+    FireFrequency:SetMax(1500)
+    FireFrequency:SetDecimals(0)
+    FireFrequency:SetValue(tonumber(menudata[9]) or 0)
+    FireFrequency:SetToolTip("Weapons firing on this frequency (within 50) hit five times softer. 0 = off.\nE.g. staff weapons 325, Asuran beam 575, Asgard/Ori beams 850.")
+    local AccessInfo = vgui.Create("DLabel", Sheet_Access)
+    AccessInfo:SetPos(25, 100)
+    AccessInfo:SetSize(265, 90)
+    AccessInfo:SetWrap(true)
+    AccessInfo:SetContentAlignment(7)
+    AccessInfo:SetText("Always allowed through: whoever was inside when the shield came up, players in the Wire \"Allowed Players\" input, and with Immunity (Other tab) you and your prop protection friends. These apply without switching the shield off.")
     local NumPad = vgui.Create("CtrlNumPad", Sheet_Other)
     NumPad:SetPos(200, 100)
     NumPad.NumPad1:SetValue(menudata[5])
@@ -506,8 +547,14 @@ function VGUI:Init()
         Menu = menudata,
     }
 
+    -- Energy estimate (same formula the server uses, ENT:EstimateEnergy in shared.lua)
+    local EnergyLabel = vgui.Create("DLabel", DermaPanel)
+    EnergyLabel:SetPos(25, 298)
+    EnergyLabel:SetSize(320, 18)
+    EnergyLabel:SetTextColor(Color(255, 230, 140))
+
     local Hint = vgui.Create("DLabel", DermaPanel)
-    Hint:SetPos(25, 300)
+    Hint:SetPos(25, 318)
     Hint:SetSize(320, 45)
     Hint:SetWrap(true)
     Hint:SetContentAlignment(7)
@@ -518,13 +565,19 @@ function VGUI:Init()
 
     Hint.Think = function()
         if (not IsValid(e)) then return end
+        if (e.EstimateEnergy) then
+            local per_second, engage = e:EstimateEnergy(Vector(Size_x:GetValue(), Size_y:GetValue(), Size_z:GetValue()), e:ShapeFromModel(e:GetNWString("Mod", "")), Power:GetValue())
+            local text = string.format("Energy: %s/s while up, %s to switch on", string.Comma(math.Round(per_second)), string.Comma(math.Round(engage)))
+            if (Atlantis:GetChecked()) then text = string.format("Energy: Atlantis type, hits drain energy. %s to switch on", string.Comma(math.Round(engage))) end
+            if (EnergyLabel:GetText() ~= text) then EnergyLabel:SetText(text) end
+        end
         local rebuild = e:GetNWString("Mod", "") ~= start.Mod
             or Differs(Vector(Angle_x:GetValue(), Angle_y:GetValue(), Angle_z:GetValue()), Vector(start.Ang.p, start.Ang.y, start.Ang.r))
             or Differs(Vector(Pos_x:GetValue(), Pos_y:GetValue(), Pos_z:GetValue()), start.Pos)
             or Differs(e:GetNWVector("Col", start.Col), start.Col)
             or math.abs(Power:GetValue() - (tonumber(start.Menu[1]) or 0)) > 0.001
             or Draw_B:GetChecked() ~= tobool(start.Menu[3]) or Atlantis:GetChecked() ~= tobool(start.Menu[4])
-            or AntiNoclip:GetChecked() ~= tobool(start.Menu[6])
+            or AntiNoclip:GetChecked() ~= tobool(start.Menu[6]) or RisingEdge:GetChecked() ~= tobool(start.Menu[10])
         local resize = Differs(Vector(Size_x:GetValue(), Size_y:GetValue(), Size_z:GetValue()), start.Size)
         local text, col
         if (rebuild) then
@@ -532,7 +585,7 @@ function VGUI:Init()
         elseif (resize) then
             text, col = "OK keeps the shield up and smoothly resizes it.", Color(140, 220, 140)
         else
-            text, col = "OK keeps the shield up. Immunity, Containment and the key apply immediately.", Color(200, 220, 255)
+            text, col = "OK keeps the shield up. Immunity, Containment, the frequencies and the key apply immediately.", Color(200, 220, 255)
         end
         if (Hint:GetText() ~= text) then
             Hint:SetText(text)
@@ -543,7 +596,7 @@ function VGUI:Init()
     local MenuButtonClose = vgui.Create("DButton")
     MenuButtonClose:SetParent(DermaPanel)
     MenuButtonClose:SetText("Cancel")
-    MenuButtonClose:SetPos(270, 360)
+    MenuButtonClose:SetPos(270, 385)
     MenuButtonClose:SetSize(Button_size_x, Button_size_y)
     MenuButtonClose:SetToolTip("Close without changing anything.")
 
@@ -554,7 +607,7 @@ function VGUI:Init()
     local MenuButtonCreate = vgui.Create("DButton")
     MenuButtonCreate:SetParent(DermaPanel)
     MenuButtonCreate:SetText("OK")
-    MenuButtonCreate:SetPos(185, 360)
+    MenuButtonCreate:SetPos(185, 385)
     MenuButtonCreate:SetSize(Button_size_x, Button_size_y)
 
     MenuButtonCreate.DoClick = function(btn)
@@ -588,7 +641,7 @@ function VGUI:Init()
         LocalPlayer():ConCommand("SC_Angle" .. e:EntIndex() .. " " .. VGUI.Angle_x:GetValue() .. " " .. VGUI.Angle_y:GetValue() .. " " .. VGUI.Angle_z:GetValue())
         LocalPlayer():ConCommand("SC_Pos" .. e:EntIndex() .. " " .. VGUI.Pos_x:GetValue() .. " " .. VGUI.Pos_y:GetValue() .. " " .. VGUI.Pos_z:GetValue())
         LocalPlayer():ConCommand("SC_Visual_Col" .. e:EntIndex() .. " " .. Col:GetColor().r .. " " .. Col:GetColor().g .. " " .. Col:GetColor().b)
-        LocalPlayer():ConCommand("SC_Apply" .. e:EntIndex() .. " " .. Power:GetValue() .. " " .. Imm .. " " .. Draw .. " " .. Atl .. " " .. NumPad.NumPad1:GetValue() .. " " .. ANC .. " " .. Cont)
+        LocalPlayer():ConCommand("SC_Apply" .. e:EntIndex() .. " " .. Power:GetValue() .. " " .. Imm .. " " .. Draw .. " " .. Atl .. " " .. NumPad.NumPad1:GetValue() .. " " .. ANC .. " " .. Cont .. " " .. math.Round(Frequency:GetValue()) .. " " .. math.Round(FireFrequency:GetValue()) .. " " .. (RisingEdge:GetChecked() and 1 or 0))
         applied = true
         DermaPanel:Close()
     end

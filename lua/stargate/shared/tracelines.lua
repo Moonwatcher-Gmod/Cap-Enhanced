@@ -201,14 +201,7 @@ function StarGate.Trace:New(start, dir, ignore)
                 local in_box = false
 
                 if (class == "shield_core_buble") then
-                    if (e.ContainsPoint) then
-                        -- Exact test against the visible shape. IsInShieldCore uses the trace size, ~28% bigger,
-                        -- so shots whose start landed in that outer band counted as "from inside" and passed.
-                        in_box = e:ContainsPoint(start)
-                        if (e.ShShap == 2) then in_box = not in_box end -- The box code below expects IsInShieldCore's inverted value
-                    else
-                        in_box = StarGate.IsInShieldCore(e, start)
-                    end
+                    in_box = e:ContainsPoint(start) -- Exact test against the visible shape
                 elseif (class == "shield") then
                     in_box = (e:GetPos():Distance(start) < v.Max.x) -- in sphere! Not box!!! @ AlexALX
                 else
@@ -224,22 +217,15 @@ function StarGate.Trace:New(start, dir, ignore)
                     -- We need to check to what side the start pos is the nearest and if the normal (to that side where we checking it) isn't zero
                     -- go ahead with my method @Mad
                     if (class == "shield_core_buble") then
-                        -- check, if we intersecting bounding box - save cpu if we are not
-                        if StarGate.IsRayBoxIntersect(start, trace.HitPos, e) then
-                            local a = not in_box
-                            local dir2 = dir
-
-                            -- fix shoting if we are inside, and not shape - to get hitpos on right side (not opposite)
-                            if in_box then
-                                dir2 = -1 * dir
-                            end
-
-                            -- small fix for box shape, i fucked triangles directions
-                            if (e.ShShap == 2) then
-                                a = in_box
-                            end
-
-                            hit2 = StarGate.RayPhysicsPluckerIntersect(trace, dir2, e, a)
+                        -- Exact intersection with the shape (ellipsoid, box or dome). Used to be a one-sided
+                        -- triangle test against a mesh, with flipped directions to work around the box's winding.
+                        local hitpos, hitnormal = e:TraceIntersect(start, trace.HitPos)
+                        if (hitpos) then
+                            hit2 = {
+                                HitPos = hitpos,
+                                HitNormal = hitnormal,
+                                Fraction = (hitpos - start):Length() / math.max(dir:Length(), 0.001)
+                            }
                         end
                     elseif (class == "tokra_shield") then
                         -- go ahead with my method @Mad

@@ -398,6 +398,11 @@ damage = 10
 # Shield core
 [shield_core]
 atlantis_hit = 50
+# Smallest and biggest size (each axis) for the menu and the Wire "Size" input
+min_size = 100
+max_size = 4096
+# Wire "Size" input: seconds between resizes
+wire_resize_delay = 2
 
 # Ashen defence
 [ashen_defence]

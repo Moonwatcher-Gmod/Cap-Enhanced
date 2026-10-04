@@ -8,9 +8,6 @@ if (SGLanguage!=nil and SGLanguage.GetMessage!=nil) then
 language.Add("shield_core_buble",SGLanguage.GetMessage("ship_core_buble"));
 end
 
-include("modules/sphere.lua")
-include("modules/box.lua")
-include("modules/atlantis.lua")
 include("modules/bullets.lua");
 
 if (StarGate==nil or StarGate.Trace==nil) then return end
@@ -40,9 +37,9 @@ StarGate.Trace:Add("shield_core_buble",
 			local own = values[3];
 			if (type(own) == "table") then own = own[1] end
 			own = IsValid(own) and own:GetNWEntity("SC_Owner", NULL) or NULL;
-			if (IsValid(own) and e:GetNWBool("Immunity",false) and e:GetNWEntity("Own",NULL) == own) then return false end
-			local inside = in_box;
-			if (e:GetNWInt("PhysicModel",1) == 2) then inside = not in_box end -- IsInCuboid returns "outside"
+			-- Trusted shooters (Immunity owner and friends, Allowed Players), sent by the server as entity indexes
+			if (IsValid(own) and string.find(e:GetNWString("TrustedIDs", ""), " " .. own:EntIndex() .. " ", 1, true)) then return false end
+			local inside = in_box; -- Exact: e:ContainsPoint(trace start), see tracelines.lua
 			if (e:IsContainment()) then return inside end -- Containment field: nothing gets out, everything in
 			return not inside;
 		else
@@ -52,68 +49,6 @@ StarGate.Trace:Add("shield_core_buble",
 	end
 );
 
-
-function ENT:Initialize()
-	self.Created = false;
-	self.RayModel = {};
-end
-
-function ENT:Think()
-	if (not self:GetNWBool("DoPhysicClientside", false)) then return end
-	local scale = self:GetNWVector("PhysicScale", Vector(1,1,1));
-	if (not self.Created) then
-		self.Created = true
-		self.BuiltScale = scale
-		self:SetCollisionScale()
-	elseif (self.BuiltScale ~= scale) then -- Resized (smoothly, from the menu): rebuild the traceline model
-		self.BuiltScale = scale
-		self:RebuildRayModel()
-	end
-end
-
-function ENT:RebuildRayModel()
-	local model = self:GetNWInt("PhysicModel", 1);
-	local size = self:GetNWVector("PhysicScale", Vector(1,1,1));
-	local ShieldModel = (model == 2 and BoxModel) or (model == 3 and AtlantisModel) or SphereModel;
-	self.RayModel = {};
-	for _, vertex in pairs(ShieldModel) do
-		table.insert(self.RayModel, Vector(vertex.x*size.x,vertex.y*size.y,vertex.z*size.z));
-	end
-	self.Size = size;
-end
-
-function ENT:SetCollisionScale()
-	local model = self:GetNWInt("PhysicModel", 1);
-	local size = self:GetNWVector("PhysicScale", Vector(1,1,1));
-
-	local vect, vec;
-	local convex = {}
-	local i = 0;
-	local ShieldModel;
-
-	if (model == 1) then ShieldModel = SphereModel;
-	elseif (model == 2) then ShieldModel = BoxModel;
-	elseif (model == 3) then ShieldModel = AtlantisModel; end
-
-	for _, vertex in pairs(ShieldModel) do
-		vec = Vector(vertex.x*size.x,vertex.y*size.y,vertex.z*size.z);
-		vect = Vertex(vec, 1, 1, Vector( 0, 0, 1 ) )
-		table.insert(convex, vect);
-		table.insert(self.RayModel, vec);
-	end
-
-	if (table.getn(convex) == 0) then return end //safefail
-
-	self.Entity:PhysicsFromMesh(convex);
-	local phys = self.Entity:GetPhysicsObject();
-	if (IsValid(phys)) then
-		phys:EnableCollisions(false);
-		phys:EnableMotion(false);
-	end
-
-	self.ShShap = model;
-	self.Size = size;
-end
 
 --################# "Always show Bubble": drawn every frame for as long as the shield is up.
 -- This used to rely on the switch-on effect staying alive, which players who weren't nearby at that
@@ -349,6 +284,59 @@ function ENT:DrawBeamVeins()
 	render.DrawSprite(self:LocalToWorld(lhit), glow, glow, Color(col.x, math.min(255, col.y + 60), math.min(255, col.z + 40), 255*fade));
 end
 
+--################# Impact ripples: a ring expanding along the shield's surface from where it was hit
+local MatRipple = Material("trails/laser");
+local RIPPLE_TIME = 0.7 -- Seconds a ripple lives
+local RIPPLE_POINTS = 36 -- Points around a ring
+local RIPPLE_MAX = 10 -- Ripples at once per shield
+local RIPPLE_REPEAT = 0.15 -- Seconds before the same spot (e.g. a beam) starts a new one
+
+function ENT:AddRipple(pos, strength)
+	self.Ripples = self.Ripples or {};
+	local lp = self:WorldToLocal(pos);
+	local now = CurTime();
+	for _, rip in ipairs(self.Ripples) do
+		if (now - rip.Start < RIPPLE_REPEAT and rip.Pos:Distance(lp) < 50) then return end
+	end
+	if (#self.Ripples >= RIPPLE_MAX) then table.remove(self.Ripples, 1) end
+	table.insert(self.Ripples, {Pos = lp, Start = now, Size = math.Clamp(60 + (strength or 1)*12, 60, 450)});
+end
+
+function ENT:DrawRipples()
+	local ripples = self.Ripples;
+	if (not ripples or #ripples == 0) then return end
+	local r = self:GetShapeRadii();
+	local shape = self:GetNWInt("PhysicModel",1);
+	local box, dome = (shape == 2), (shape == 3);
+	local col = self:GetNWVector("Col", Vector(170,189,255));
+	local now = CurTime();
+	render.SetMaterial(MatRipple);
+	for i = #ripples, 1, -1 do
+		local rip = ripples[i];
+		local age = (now - rip.Start)/RIPPLE_TIME;
+		if (age >= 1) then
+			table.remove(ripples, i);
+		else
+			local dist = rip.Size*(1 - (1 - age)^2); -- Fast at first, slowing down
+			local alpha = 255*(1 - age);
+			local width = 4 + 10*(1 - age);
+			local p, n = ProjectToSurface(rip.Pos, r, box);
+			local t1 = n:Cross(math.abs(n.z) < 0.9 and Vector(0,0,1) or Vector(1,0,0)):GetNormalized();
+			local t2 = n:Cross(t1);
+			local prev;
+			for k = 0, RIPPLE_POINTS do
+				local a = k/RIPPLE_POINTS*math.pi*2;
+				local q = ProjectToSurface(p + (t1*math.cos(a) + t2*math.sin(a))*dist, r, box);
+				local w = (not dome or q.z >= 0) and self:LocalToWorld(q) or nil; -- Nothing below the dome's base
+				if (prev and w) then
+					render.DrawBeam(prev, w, width, 0, 1, Color(math.min(255, col.x + 60), math.min(255, col.y + 60), 255, alpha));
+				end
+				prev = w;
+			end
+		end
+	end
+end
+
 function ENT:OnRemove()
 	if (IsValid(self.BubbleModel)) then self.BubbleModel:Remove() end
 end
@@ -372,6 +360,7 @@ hook.Add("PostDrawTranslucentRenderables","StarGate.ShieldCore.Effects",function
 	for _,e in ipairs(ents.FindByClass("shield_core_buble")) do
 		e:DrawRisingEdge();
 		e:DrawBeamVeins();
+		e:DrawRipples();
 	end
 	render.OverrideDepthEnable(false);
 end)

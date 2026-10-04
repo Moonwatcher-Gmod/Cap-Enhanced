@@ -134,14 +134,9 @@ function StarGate.FindShield(ent)
     return gate
 end
 
+-- Is an entity inside a shield core's visible shape? (Kept for other addons, see StarGate.IsInShieldCore)
 function StarGate.IsInsideShieldCore(ent, core)
-    if (core.ShShap == 1) then
-        return StarGate.IsInEllipsoid(ent:GetPos(), core, core.Size)
-    elseif (core.ShShap == 2) then
-        return not StarGate.IsInCuboid(ent:GetPos(), core, core.Size) -- why NOT?? onclient it work correct, strange.
-    elseif (core.ShShap == 3) then
-        return StarGate.IsInAltantisoid(ent:GetPos(), core, core.Size)
-    end
+    return core.ContainsPoint ~= nil and core:ContainsPoint(ent:GetPos())
 end
 
 -- added by AlexALX for nuke explosions
@@ -160,7 +155,7 @@ function StarGate.IsInShield(ent)
                 local Size = 200
                 if (sh_dist <= Size) then return true end
             else
-                -- Exact visible shape, only where it has risen to (IsInsideShieldCore uses the ~28% bigger trace size)
+                -- Exact visible shape, only where it has risen to
                 if (v.ProtectsPoint and v:ProtectsPoint(ent:LocalToWorld(ent:OBBCenter()))) then return true end
             end
         end
