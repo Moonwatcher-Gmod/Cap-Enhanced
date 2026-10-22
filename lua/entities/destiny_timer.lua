@@ -205,10 +205,12 @@ if SERVER then
     -----------------------------------WIRE----------------------------------
     function ENT:TriggerInput(variable, value)
         if (variable == "Count") then
-            if (self.WireCount == 0 and self.Count) then
-                self.WireCount = value
-                self:EmitSound(self.Sounds.Start, 500, math.random(90, 110))
-                self.WirePause = false
+            if(value > 0) then
+                if (self.WireCount == 0 and self.Count) then
+                    self.WireCount = value
+                    --self:EmitSound(self.Sounds.Start, 500, math.random(90, 110))
+                    self.WirePause = false
+                end
             end
         elseif (variable == "Pause") then
             self.WirePause = util.tobool(value)
