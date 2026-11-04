@@ -306,11 +306,14 @@ function ENT:PrepareTeleport(t)
 	-- ######### Calculate the heigh of the object, so it won't get stuck on the other sides ground
 	-- FIXME: Seemed sometimes not to work properly. Invent a new check!
 	local height = g[1]:BoundingRadius();
+	local ignore = {e};
+	for _,v in pairs(t.Attached) do table.insert(ignore,v) end
+	for _,v in pairs(table.Copy(ignore)) do
+		for _,ply in pairs(self:GetVehicleOccupants(v)) do table.insert(ignore,ply) end
+	end
 	local dir = Vector(0,0,height);
 	local trace={
-		-- On our side
-		util.QuickTrace(p[1],-1*dir,g[1]:GetTraceIgnoredEntities(e)),
-		-- On the other event horizon
+		util.QuickTrace(p[1],-1*dir,g[1]:GetTraceIgnoredEntities(unpack(ignore))),
 		util.QuickTrace(ret.Entity.Position.New+dir,-2*dir,g[2]:GetTraceIgnoredEntities()),
 	}
 	if(trace[1].Hit and trace[2].Hit) then
@@ -374,6 +377,11 @@ function ENT:GetEntitiesForTeleport(e)
 			end
 		end
 		return {Entity=e,Attached=entities};
+	end
+	local debug = GetConVar("stargate_wormhole_debug");
+	if (debug and debug:GetBool() and not e:IsPlayer()) then
+		local phys = e:GetPhysicsObject();
+		print("[Wormhole] not teleportable:",e,"itself, frozen:",tostring(IsValid(phys) and not phys:IsMoveable()),"parented:",tostring(IsValid(e:GetParent())));
 	end
 	return false;
 end
@@ -545,6 +553,14 @@ function ENT:Teleport(e,block,attached)
 				local ent = self:TeleportEntity(v,e,entities.Entity);
 				immunity[ent] = true;
 				ent.__StargateTeleport = immunity;
+			end
+			-- Every part has arrived at the other side now. A part put down past its EH never touches it, and the
+			-- others waited for it forever, so the last one out stayed clipped. Touching it clears this again
+			local target = self.Target;
+			if (IsValid(target) and target.Left) then
+				for ent,_ in pairs(immunity) do
+					if (isentity(ent) and IsValid(ent)) then target.Left[ent] = true end
+				end
 			end
 		end
 	end

@@ -187,6 +187,10 @@ function ENT:Initialize()
 	self.AllBuffer = {};
 	self.ClipBuffer = {};
 	self.GravBuffer = {};
+	self.SpinBuffer = {};
+	self.Touching = setmetatable({},{__mode="k"});
+	self.Left = setmetatable({},{__mode="k"});
+	self.Released = setmetatable({},{__mode="k"});
 	self.RoutingPaused = false
 	self.Opened = false;
 	self.ValidOpen = false;
@@ -740,6 +744,8 @@ function ENT:StartTouch(e)
 	if (self.Instancing) then
 		if e:GetInstance() != self:GetInstance() then return end
 	end
+	self.Left[e] = nil;
+	self.Released[e] = nil;
 
  	--if (e:GetClass() == "kino_ball") then self:StartTouchPlayersNPCs(e) end
 	if self.ModelClip then
@@ -774,6 +780,7 @@ function ENT:Touch(e)
 	if (self.Instancing) then
 		if e:GetInstance() != self:GetInstance() then return end
 	end
+	if (IsValid(e)) then self.Touching[e] = true end
 
 	local class = e:GetClass();
 	if self.ModelClip then
@@ -1008,6 +1015,10 @@ end
 --################# Stops being in the eventhorizon @aVoN,RononDex
 function ENT:EndTouch(e)
 
+	if(IsValid(e)) then
+		self.Touching[e] = nil;
+		self.Left[e] = true;
+	end
 	if(self.ShuttingDown) then return end; -- We are shutting down
 	if(not IsValid(e)) then return end; -- Not valid or ignore
 	if(e.__EHTransit) then return end; -- Already in the wormhole
@@ -1156,7 +1167,8 @@ function ENT:EndTouch(e)
 		if(not attached) then DebugPrint("EndTouch: not teleportable (see the part rejected above)",e) end
 		if(attached) then
 			for _,v in pairs(attached.Attached) do
-				if((not lvs and not v.___InBuffer) or self.Holding[v]) then
+				-- Still touching the EH means not all the way in, even when its center already is (a long prop)
+				if((not lvs and (not v.___InBuffer or self.Touching[v])) or self.Holding[v]) then
 					DebugPrint("EndTouch: waiting for part",v,"of",e,"in buffer:",tostring(v.___InBuffer),"held:",tostring(self.Holding[v]));
 					return;
 				end
@@ -1324,6 +1336,13 @@ end
 local KeyValue1 = {"xfriction","yfriction","zfriction","forcelimit","torquelimit"};
 local MaxValue = {"xmax","ymax","zmax"};
 local MinValue = {"xmin","ymin","zmin"};
+--Hold spin
+local function HeldSpin(phys)
+	local spin = phys:GetAngleVelocity();
+	if(spin:Length() < 30) then return Vector(0,0,0) end
+	return spin;
+end
+
 --############### What happens when we first touch the EH? Clip maybe? @RononDex
 function BUFFER:StartTouch(EventHorizon,e)
 	if(not IsValid(e) or self:ClipShouldIgnore(e,true)) then return end; -- Not valid or ignore
@@ -1337,8 +1356,21 @@ function BUFFER:StartTouch(EventHorizon,e)
 	local dir = (e:GetPos()-EventHorizon:GetPos()):GetNormalized();
 	--print(EventHorizon:GetForward():DotProduct(dir))
 
+	local inherit;
+	if (attached and not e.LVS) then
+		for _,v in pairs(attached.Attached) do
+			if (IsValid(v) and EventHorizon.AllBuffer[v:EntIndex()] and v.dir) then
+				inherit = v.dir;
+				break;
+			end
+		end
+	end
 
-	if(EventHorizon:GetForward():DotProduct(dir) < 0 and e.___dir==nil) then
+	if (inherit) then
+		e.dir = inherit;
+		if (inherit == 1) then EventHorizon.Buffer[e:EntIndex()] = e end
+		e.___dir = nil;
+	elseif(EventHorizon:GetForward():DotProduct(dir) < 0 and e.___dir==nil) then
 		e.dir = -1;
 	else
 		e.dir = 1;
@@ -1347,6 +1379,14 @@ function BUFFER:StartTouch(EventHorizon,e)
 	end
 
 	EventHorizon.AllBuffer[e:EntIndex()] = e
+
+	-- Props keep the spin they had when they touched the EH (see BUFFER:Touch)
+	if(e:GetClass():find("^prop_physics") and EventHorizon.SpinBuffer[e:EntIndex()] == nil) then
+		local phys = e:GetPhysicsObject();
+		if(IsValid(phys)) then
+			EventHorizon.SpinBuffer[e:EntIndex()] = HeldSpin(phys);
+		end
+	end
     /*if (IsValid(e:GetParent())) then
 		table.insert(e:GetParent().___Parents,e);
 	end */
@@ -1435,6 +1475,21 @@ function BUFFER:Touch(EventHorizon,e)
 	if (e.___LastCurTime!=nil and e.___LastCurTime==CurTime()) then return end -- PREVENT FUCKING DISCONNECT ON PAUSE IN SP WHEN SOMETHING TOUCH EH!!! Damn it...
 	e.___LastCurTime = CurTime();
 
+	-- Hold the spin a prop entered with.
+	local spin = EventHorizon.SpinBuffer[e:EntIndex()];
+	if(spin ~= nil) then
+		local phys = e:GetPhysicsObject();
+		if(e:IsPlayerHolding()) then
+			EventHorizon.SpinBuffer[e:EntIndex()] = false;
+		else
+			if(spin == false) then
+				spin = HeldSpin(phys);
+				EventHorizon.SpinBuffer[e:EntIndex()] = spin;
+			end
+			phys:AddAngleVelocity(spin-phys:GetAngleVelocity());
+		end
+	end
+
 	-- Draw the enter effect every 20th frame, @Deathmaker
 	if (e.___DrawEnterEffectTime!=nil and e.___DrawEnterEffectTime>20) then
 		EventHorizon:EnterEffectEntity(e)
@@ -1479,6 +1534,10 @@ function ENT:CleanBufferVars(e)
 	self.AllBuffer[e:EntIndex()] = nil
 	self.ClipBuffer[e:EntIndex()] = nil
 	self.GravBuffer[e:EntIndex()] = nil
+	self.SpinBuffer[e:EntIndex()] = nil
+	self.Touching[e] = nil
+	self.Left[e] = nil
+	self.Released[e] = true
 	e:SetNWBool("PhysBuffered",false);
 	e:SetNWInt("PhysBufferedDir",0);
 	e.gate = nil;
@@ -1507,6 +1566,10 @@ function BUFFER:EndTouch(EventHorizon,e,ignore,tdir)
 
 	if(not(IsValid(e)) or e.__EHTransit) then return end;
 	if(not IsValid(EventHorizon)) then return end;
+	if(not ignore and EventHorizon.Released[e]) then
+		DebugPrint("clip end skipped, already teleported away:",e);
+		return;
+	end
 	local attached = EventHorizon:GetEntitiesForTeleport(e);
 	if(self:ClipShouldIgnore(e,true)) then return end;
     local notouch = false;
@@ -1525,56 +1588,15 @@ function BUFFER:EndTouch(EventHorizon,e,ignore,tdir)
 		end
 	end
 
-	//print_r(EventHorizon.ClipBuffer)
-	--if (attached==false) then return end
+	-- A contraption ends clipping as one: while any part still touches us, or hasn't got here yet, a part leaving
 	if(attached and not ignore) then
 		for _,v in pairs(attached.Attached) do
-
-			-- less buggy, but still...
 			if (IsValid(v) and IsValid(v:GetPhysicsObject()) and v:GetSolid()!=SOLID_NONE) then
-				--print_r(v)
-				--print("-----");
-				--print_r(v,v.dir,tdir,EventHorizon.ClipBuffer[v:EntIndex()],EventHorizon.AllBuffer[v:EntIndex()])
-				--print("-----/");
-				local tvdir = 0;
-				local dir = (v:GetPos()-EventHorizon:GetPos()):GetNormalized(); --(EventHorizon:GetVelocity()-e:GetVelocity()):GetNormalized();
-				if(EventHorizon:GetForward():DotProduct(dir) < 0) then
-					tvdir = -1;
-				else
-					tvdir = 1;
-				end
-				if (tdir==1 and tvdir!=tdir and not EventHorizon.ClipBuffer[v:EntIndex()]) then
-					EventHorizon.ClipBuffer[v:EntIndex()] = v
-					v.___InBuffer = true;
-					--return
-				elseif (tdir==1 and tvdir==tdir and EventHorizon.ClipBuffer[v:EntIndex()]) then
-					EventHorizon.ClipBuffer[v:EntIndex()] = nil
-					v.___InBuffer = nil;
-					--return
-				elseif (tdir==-1 and tvdir!=tdir and not EventHorizon.AllBuffer[v:EntIndex()]) then
-					EventHorizon.AllBuffer[v:EntIndex()] = v
-					v.___InBuffer = nil;
-					self:EndTouch(EventHorizon,v,true,tdir);
-					--return
-				--elseif (tdir==-1 and tvdir==tdir and not EventHorizon.ClipBuffer[v:EntIndex()]) then
-					--EventHorizon.ClipBuffer[v:EntIndex()] = v
-					--v.___InBuffer = true;
-					--self:EndTouch(EventHorizon,v,true,tdir);
-					--return
-				end
-			end
-
-		end
-
-		for _,v in pairs(attached.Attached) do
-
-			if (IsValid(v) and IsValid(v:GetPhysicsObject()) and v:GetSolid()!=SOLID_NONE) then
-				if (v.dir==tdir and not EventHorizon.ClipBuffer[v:EntIndex()]) then
-					EventHorizon.ClipBuffer[v:EntIndex()] = v
-					return
-				elseif (v.dir!=tdir and EventHorizon.AllBuffer[v:EntIndex()]) then
-					EventHorizon.ClipBuffer[v:EntIndex()] = nil
-					notouch = true;
+				local arrived = EventHorizon.AllBuffer[v:EntIndex()] or EventHorizon.Left[v];
+				if (EventHorizon.Touching[v] or not arrived) then
+					EventHorizon.ClipBuffer[e:EntIndex()] = e;
+					DebugPrint("clip end of",e,"waits for part",v,"touching:",tostring(EventHorizon.Touching[v] == true),"arrived:",tostring(arrived ~= nil));
+					return;
 				end
 			end
 		end
@@ -1594,6 +1616,7 @@ function BUFFER:EndTouch(EventHorizon,e,ignore,tdir)
 	EventHorizon.Buffer[e:EntIndex()] = nil
 	EventHorizon.AllBuffer[e:EntIndex()] = nil
 	EventHorizon.ClipBuffer[e:EntIndex()] = nil
+	EventHorizon.SpinBuffer[e:EntIndex()] = nil
 	e:SetNWBool("PhysBuffered",false);
 	e:SetNWInt("PhysBufferedDir",0);
 	e.gate = nil;
@@ -1606,6 +1629,7 @@ function BUFFER:EndTouch(EventHorizon,e,ignore,tdir)
 	umsg.Start("StarGate.EventHorizon.ClipStop");
 		umsg.Entity(e);
 	umsg.End();
+	DebugPrint("clip ended:",e,"gravity back:",tostring(not notouch));
 
 	if (not notouch) then
 		if(IsValid(e:GetPhysicsObject())) then
