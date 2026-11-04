@@ -43,7 +43,8 @@ hook.Add("EntityRemoved","StarGate.EH.WormholeDebug",function(e)
 	if (not WormholeDebug:GetBool()) then return end
 	if (e.__EHTransit or (e.__EHDebugUntil or 0) > CurTime()) then
 		print("[Wormhole] REMOVED",e,"in transit:",tostring(e.__EHTransit ~= nil));
-		print(debug.traceback());
+		-- Who removed it only matters while it travels; after arriving it's usually just exploding or being deleted
+		if (e.__EHTransit) then print(debug.traceback()) end
 	end
 end);
 
@@ -186,6 +187,10 @@ function ENT:Initialize()
 	self.AllBuffer = {};
 	self.ClipBuffer = {};
 	self.GravBuffer = {};
+	self.SpinBuffer = {};
+	self.Touching = setmetatable({},{__mode="k"});
+	self.Left = setmetatable({},{__mode="k"});
+	self.Released = setmetatable({},{__mode="k"});
 	self.RoutingPaused = false
 	self.Opened = false;
 	self.ValidOpen = false;
@@ -739,6 +744,8 @@ function ENT:StartTouch(e)
 	if (self.Instancing) then
 		if e:GetInstance() != self:GetInstance() then return end
 	end
+	self.Left[e] = nil;
+	self.Released[e] = nil;
 
  	--if (e:GetClass() == "kino_ball") then self:StartTouchPlayersNPCs(e) end
 	if self.ModelClip then
@@ -773,6 +780,7 @@ function ENT:Touch(e)
 	if (self.Instancing) then
 		if e:GetInstance() != self:GetInstance() then return end
 	end
+	if (IsValid(e)) then self.Touching[e] = true end
 
 	local class = e:GetClass();
 	if self.ModelClip then
@@ -1007,6 +1015,10 @@ end
 --################# Stops being in the eventhorizon @aVoN,RononDex
 function ENT:EndTouch(e)
 
+	if(IsValid(e)) then
+		self.Touching[e] = nil;
+		self.Left[e] = true;
+	end
 	if(self.ShuttingDown) then return end; -- We are shutting down
 	if(not IsValid(e)) then return end; -- Not valid or ignore
 	if(e.__EHTransit) then return end; -- Already in the wormhole
@@ -1053,8 +1065,14 @@ function ENT:EndTouch(e)
 		end
 	end
 
+	-- LVS vehicles go through as one unit: only the vehicle itself leaving the EH teleports it, not its wheels
+	local lvs = self:GetLVSBody(self:GetEntitiesForTeleport(e));
+	if (lvs and lvs ~= e) then return end
+	DebugPrint("EndTouch",e,"exit side:",temp_dir,"entry side:",tostring(e.dir),"LVS:",tostring(lvs ~= nil));
+
 	-- If the ent came out the way it was going in, don't destroy/teleport
 	if(e.___EventHorizon != self or temp_dir != e.dir) then
+		DebugPrint("EndTouch: left the way it came",e,"own EH:",tostring(e.___EventHorizon == self),"exit side:",temp_dir,"entry side:",tostring(e.dir));
 		e.___InBuffer = false;
 		e.___EventHorizon = nil;
 		return;
@@ -1146,9 +1164,14 @@ function ENT:EndTouch(e)
 		end
 		--################# Get attachments, mainly for the hook below but we need it anyway
 		local attached = self:GetEntitiesForTeleport(e);
+		if(not attached) then DebugPrint("EndTouch: not teleportable (see the part rejected above)",e) end
 		if(attached) then
 			for _,v in pairs(attached.Attached) do
-				if(not v.___InBuffer or self.Holding[v]) then return end;
+				-- Still touching the EH means not all the way in, even when its center already is (a long prop)
+				if((not lvs and (not v.___InBuffer or self.Touching[v])) or self.Holding[v]) then
+					DebugPrint("EndTouch: waiting for part",v,"of",e,"in buffer:",tostring(v.___InBuffer),"held:",tostring(self.Holding[v]));
+					return;
+				end
 			end
 			local allow_teleport = hook.Call("StarGate.Teleport",GAMEMODE,e,self.Entity,attached,blocked);
 			if(allow_teleport ~= nil and not allow_teleport) then return end; -- Someone does not want to teleport us! Shame on him
@@ -1313,6 +1336,13 @@ end
 local KeyValue1 = {"xfriction","yfriction","zfriction","forcelimit","torquelimit"};
 local MaxValue = {"xmax","ymax","zmax"};
 local MinValue = {"xmin","ymin","zmin"};
+--Hold spin
+local function HeldSpin(phys)
+	local spin = phys:GetAngleVelocity();
+	if(spin:Length() < 30) then return Vector(0,0,0) end
+	return spin;
+end
+
 --############### What happens when we first touch the EH? Clip maybe? @RononDex
 function BUFFER:StartTouch(EventHorizon,e)
 	if(not IsValid(e) or self:ClipShouldIgnore(e,true)) then return end; -- Not valid or ignore
@@ -1326,8 +1356,21 @@ function BUFFER:StartTouch(EventHorizon,e)
 	local dir = (e:GetPos()-EventHorizon:GetPos()):GetNormalized();
 	--print(EventHorizon:GetForward():DotProduct(dir))
 
+	local inherit;
+	if (attached and not e.LVS) then
+		for _,v in pairs(attached.Attached) do
+			if (IsValid(v) and EventHorizon.AllBuffer[v:EntIndex()] and v.dir) then
+				inherit = v.dir;
+				break;
+			end
+		end
+	end
 
-	if(EventHorizon:GetForward():DotProduct(dir) < 0 and e.___dir==nil) then
+	if (inherit) then
+		e.dir = inherit;
+		if (inherit == 1) then EventHorizon.Buffer[e:EntIndex()] = e end
+		e.___dir = nil;
+	elseif(EventHorizon:GetForward():DotProduct(dir) < 0 and e.___dir==nil) then
 		e.dir = -1;
 	else
 		e.dir = 1;
@@ -1336,6 +1379,14 @@ function BUFFER:StartTouch(EventHorizon,e)
 	end
 
 	EventHorizon.AllBuffer[e:EntIndex()] = e
+
+	-- Props keep the spin they had when they touched the EH (see BUFFER:Touch)
+	if(e:GetClass():find("^prop_physics") and EventHorizon.SpinBuffer[e:EntIndex()] == nil) then
+		local phys = e:GetPhysicsObject();
+		if(IsValid(phys)) then
+			EventHorizon.SpinBuffer[e:EntIndex()] = HeldSpin(phys);
+		end
+	end
     /*if (IsValid(e:GetParent())) then
 		table.insert(e:GetParent().___Parents,e);
 	end */
@@ -1371,13 +1422,18 @@ function BUFFER:StartTouch(EventHorizon,e)
 		end
 	end
 
+	-- An LVS vehicle decides its own direction. Its track wheels have no collision bounds, so they first touch
+	-- the EH with their center already behind it and would mark the whole tank as entering from the back
+	local lvs = EventHorizon:GetLVSBody(attached);
 	if(attached) then
 		for _,v in pairs(attached.Attached) do
 			if (IsValid(v)) then
 				local phys = v:GetPhysicsObject(); -- Was checked before it was defined, so this never ran
 				if(IsValid(phys) and v:GetSolid()!=SOLID_NONE) then
-					v.dir = e.dir
-					v:SetNWInt("PhysBufferedDir",e.dir);
+					if (v ~= lvs) then
+						v.dir = e.dir
+						v:SetNWInt("PhysBufferedDir",e.dir);
+					end
 					if (EventHorizon.GravBuffer[v:EntIndex()] == nil) then
 						EventHorizon.GravBuffer[v:EntIndex()] = phys:IsGravityEnabled();
 					end
@@ -1387,7 +1443,10 @@ function BUFFER:StartTouch(EventHorizon,e)
 		end
 	end
 
-	if(e:GetPhysicsObject() ~= nil and game.GetWorld():GetPhysicsObject() ~= nil) then
+	-- No world collision while clipping. Not for driveable HL2 vehicles (airboat, jeep): their vehicle physics
+	-- pulls them down even with gravity switched off above, so they sank (partly) through the floor
+	local hl2vehicle = e:IsVehicle() and e:GetClass() ~= "prop_vehicle_prisoner_pod";
+	if(not hl2vehicle and e:GetPhysicsObject() ~= nil and game.GetWorld():GetPhysicsObject() ~= nil) then
 		e.EventHorizonNoCollide = ents.Create("phys_ragdollconstraint");
 		e.EventHorizonNoCollide:SetKeyValue("spawnflags",3);
 		for _,v in pairs(MaxValue) do
@@ -1415,6 +1474,21 @@ function BUFFER:Touch(EventHorizon,e)
 	if(e:IsPlayer()) then return end
 	if (e.___LastCurTime!=nil and e.___LastCurTime==CurTime()) then return end -- PREVENT FUCKING DISCONNECT ON PAUSE IN SP WHEN SOMETHING TOUCH EH!!! Damn it...
 	e.___LastCurTime = CurTime();
+
+	-- Hold the spin a prop entered with.
+	local spin = EventHorizon.SpinBuffer[e:EntIndex()];
+	if(spin ~= nil) then
+		local phys = e:GetPhysicsObject();
+		if(e:IsPlayerHolding()) then
+			EventHorizon.SpinBuffer[e:EntIndex()] = false;
+		else
+			if(spin == false) then
+				spin = HeldSpin(phys);
+				EventHorizon.SpinBuffer[e:EntIndex()] = spin;
+			end
+			phys:AddAngleVelocity(spin-phys:GetAngleVelocity());
+		end
+	end
 
 	-- Draw the enter effect every 20th frame, @Deathmaker
 	if (e.___DrawEnterEffectTime!=nil and e.___DrawEnterEffectTime>20) then
@@ -1451,10 +1525,19 @@ function BUFFER:Touch(EventHorizon,e)
 end
 
 function ENT:CleanBufferVars(e)
+	-- The clip buffer switched gravity off; give it back or a part that never got its EndTouch floats forever
+	local grav = self.GravBuffer[e:EntIndex()];
+	if (grav ~= nil and IsValid(e:GetPhysicsObject())) then
+		e:GetPhysicsObject():EnableGravity(grav);
+	end
 	self.Buffer[e:EntIndex()] = nil
 	self.AllBuffer[e:EntIndex()] = nil
 	self.ClipBuffer[e:EntIndex()] = nil
 	self.GravBuffer[e:EntIndex()] = nil
+	self.SpinBuffer[e:EntIndex()] = nil
+	self.Touching[e] = nil
+	self.Left[e] = nil
+	self.Released[e] = true
 	e:SetNWBool("PhysBuffered",false);
 	e:SetNWInt("PhysBufferedDir",0);
 	e.gate = nil;
@@ -1483,9 +1566,21 @@ function BUFFER:EndTouch(EventHorizon,e,ignore,tdir)
 
 	if(not(IsValid(e)) or e.__EHTransit) then return end;
 	if(not IsValid(EventHorizon)) then return end;
+	if(not ignore and EventHorizon.Released[e]) then
+		DebugPrint("clip end skipped, already teleported away:",e);
+		return;
+	end
 	local attached = EventHorizon:GetEntitiesForTeleport(e);
 	if(self:ClipShouldIgnore(e,true)) then return end;
     local notouch = false;
+
+	-- LVS vehicles clip as one unit: their (often hidden) wheels wait for the vehicle itself to leave the EH,
+	-- which then ends the clipping and restores gravity of every part below
+	local lvs = EventHorizon:GetLVSBody(attached);
+	if (lvs and not ignore) then
+		if (lvs ~= e) then return end
+		ignore = true;
+	end
 
 	for k,v in pairs (EventHorizon.ClipBuffer) do
 		if (not v:IsValid()) then
@@ -1493,56 +1588,15 @@ function BUFFER:EndTouch(EventHorizon,e,ignore,tdir)
 		end
 	end
 
-	//print_r(EventHorizon.ClipBuffer)
-	--if (attached==false) then return end
+	-- A contraption ends clipping as one: while any part still touches us, or hasn't got here yet, a part leaving
 	if(attached and not ignore) then
 		for _,v in pairs(attached.Attached) do
-
-			-- less buggy, but still...
 			if (IsValid(v) and IsValid(v:GetPhysicsObject()) and v:GetSolid()!=SOLID_NONE) then
-				--print_r(v)
-				--print("-----");
-				--print_r(v,v.dir,tdir,EventHorizon.ClipBuffer[v:EntIndex()],EventHorizon.AllBuffer[v:EntIndex()])
-				--print("-----/");
-				local tvdir = 0;
-				local dir = (v:GetPos()-EventHorizon:GetPos()):GetNormalized(); --(EventHorizon:GetVelocity()-e:GetVelocity()):GetNormalized();
-				if(EventHorizon:GetForward():DotProduct(dir) < 0) then
-					tvdir = -1;
-				else
-					tvdir = 1;
-				end
-				if (tdir==1 and tvdir!=tdir and not EventHorizon.ClipBuffer[v:EntIndex()]) then
-					EventHorizon.ClipBuffer[v:EntIndex()] = v
-					v.___InBuffer = true;
-					--return
-				elseif (tdir==1 and tvdir==tdir and EventHorizon.ClipBuffer[v:EntIndex()]) then
-					EventHorizon.ClipBuffer[v:EntIndex()] = nil
-					v.___InBuffer = nil;
-					--return
-				elseif (tdir==-1 and tvdir!=tdir and not EventHorizon.AllBuffer[v:EntIndex()]) then
-					EventHorizon.AllBuffer[v:EntIndex()] = v
-					v.___InBuffer = nil;
-					self:EndTouch(EventHorizon,v,true,tdir);
-					--return
-				--elseif (tdir==-1 and tvdir==tdir and not EventHorizon.ClipBuffer[v:EntIndex()]) then
-					--EventHorizon.ClipBuffer[v:EntIndex()] = v
-					--v.___InBuffer = true;
-					--self:EndTouch(EventHorizon,v,true,tdir);
-					--return
-				end
-			end
-
-		end
-
-		for _,v in pairs(attached.Attached) do
-
-			if (IsValid(v) and IsValid(v:GetPhysicsObject()) and v:GetSolid()!=SOLID_NONE) then
-				if (v.dir==tdir and not EventHorizon.ClipBuffer[v:EntIndex()]) then
-					EventHorizon.ClipBuffer[v:EntIndex()] = v
-					return
-				elseif (v.dir!=tdir and EventHorizon.AllBuffer[v:EntIndex()]) then
-					EventHorizon.ClipBuffer[v:EntIndex()] = nil
-					notouch = true;
+				local arrived = EventHorizon.AllBuffer[v:EntIndex()] or EventHorizon.Left[v];
+				if (EventHorizon.Touching[v] or not arrived) then
+					EventHorizon.ClipBuffer[e:EntIndex()] = e;
+					DebugPrint("clip end of",e,"waits for part",v,"touching:",tostring(EventHorizon.Touching[v] == true),"arrived:",tostring(arrived ~= nil));
+					return;
 				end
 			end
 		end
@@ -1562,6 +1616,7 @@ function BUFFER:EndTouch(EventHorizon,e,ignore,tdir)
 	EventHorizon.Buffer[e:EntIndex()] = nil
 	EventHorizon.AllBuffer[e:EntIndex()] = nil
 	EventHorizon.ClipBuffer[e:EntIndex()] = nil
+	EventHorizon.SpinBuffer[e:EntIndex()] = nil
 	e:SetNWBool("PhysBuffered",false);
 	e:SetNWInt("PhysBufferedDir",0);
 	e.gate = nil;
@@ -1574,6 +1629,7 @@ function BUFFER:EndTouch(EventHorizon,e,ignore,tdir)
 	umsg.Start("StarGate.EventHorizon.ClipStop");
 		umsg.Entity(e);
 	umsg.End();
+	DebugPrint("clip ended:",e,"gravity back:",tostring(not notouch));
 
 	if (not notouch) then
 		if(IsValid(e:GetPhysicsObject())) then
@@ -1958,10 +2014,45 @@ local function RestoreFromTransit(rec)
 			if (rec.PhysVel) then phys:SetVelocity(rec.PhysVel) end
 			if (rec.PhysAngVel) then phys:AddAngleVelocity(rec.PhysAngVel) end
 		end
+		for _,wheel in ipairs(rec.Wheels or {}) do
+			if (IsValid(wheel)) then
+				wheel:EnableMotion(true);
+				wheel:Wake();
+				if (rec.PhysVel) then wheel:SetVelocity(rec.PhysVel) end -- Rolling along with the body
+			end
+		end
 	else
 		ent:SetMoveType(rec.MoveType);
 		ent:SetSolid(rec.Solid);
 	end
+end
+
+--################# Players sitting in a vehicle that travels: they can't get out, get hurt or be seen while in the wormhole
+hook.Add("CanExitVehicle","StarGate.EH.WormHoleNoExit",function(veh,ply)
+	if (ply.__EHTransit) then return false end
+end)
+
+local function SuspendOccupant(ply,eh)
+	local rec = {God=ply:HasGodMode(),Color=ply:GetColor(),RenderMode=ply:GetRenderMode()};
+	ply.__EHTransit = eh;
+	ply.DisableSuicide = true;
+	ply:GodEnable();
+	ply:SetRenderMode(RENDERMODE_TRANSALPHA);
+	ply:SetColor(Color(0,0,0,0));
+	return rec;
+end
+
+local function RestoreOccupants(trip)
+	for ply,rec in pairs(trip.Occupants) do
+		if (IsValid(ply)) then
+			ply.__EHTransit = nil;
+			ply.DisableSuicide = nil;
+			ply:SetColor(rec.Color);
+			ply:SetRenderMode(rec.RenderMode);
+			if (rec.God) then ply:GodEnable() else ply:GodDisable() end
+		end
+	end
+	trip.Occupants = {};
 end
 
 --################# The gate closed (or the wormhole broke) while something was travelling: it is lost
@@ -1975,6 +2066,18 @@ local function FailTransit(trip)
 	trip.Done = true;
 
 	SendWormholeMessage("Lib.EventHorizon.WormHoleReset",trip.ScreenPlayers);
+	-- Kill the people in vehicles before the vehicles are removed, or they get dropped at the gate
+	local occupants = trip.Occupants;
+	RestoreOccupants(trip);
+	for ply,_ in pairs(occupants) do
+		if (IsValid(ply) and ply:Alive()) then
+			ply:StripWeapons();
+			ply:KillSilent();
+			umsg.Start("StarGate.EventHorizon.PlayerKill");
+			umsg.Entity(ply);
+			umsg.End();
+		end
+	end
 	for ent,rec in pairs(trip.Records) do
 		if (IsValid(ent)) then
 			if (ent:IsPlayer()) then
@@ -2054,6 +2157,18 @@ function ENT:SuspendForTransit(rec)
 		phys:EnableMotion(false);
 		ent:SetCollisionGroup(COLLISION_GROUP_IN_VEHICLE);
 		rec.Frozen = true;
+		-- HL2 vehicle wheels are separate physics objects: left free they drop to full suspension travel while
+		-- the body waits, end up below the ground on arrival and the suspension throws the vehicle up
+		if (ent:IsVehicle() and ent.GetWheelCount) then
+			rec.Wheels = {};
+			for i=0,(ent:GetWheelCount() or 0)-1 do
+				local wheel = ent:GetWheel(i);
+				if (IsValid(wheel)) then
+					wheel:EnableMotion(false);
+					table.insert(rec.Wheels,wheel);
+				end
+			end
+		end
 	else
 		ent:SetSolid(SOLID_NONE);
 		ent:SetMoveType(MOVETYPE_NONE);
@@ -2089,6 +2204,7 @@ function ENT:DoWormHole(v,block,attached,bcfd,totalkill)
 		Gates={parent,self.Target:GetParent()},
 		EntryPos=v:GetPos(),
 		Records={},
+		Occupants={},
 		ScreenPlayers={},
 	};
 
@@ -2105,12 +2221,20 @@ function ENT:DoWormHole(v,block,attached,bcfd,totalkill)
 			table.insert(trip.ScreenPlayers,ent);
 		elseif (WORMHOLE_SHIPS[ent:GetClass()] and IsValid(ent.Pilot)) then
 			table.insert(trip.ScreenPlayers,ent.Pilot);
-		elseif (ent:IsVehicle() and IsValid(ent:GetDriver())) then
-			table.insert(trip.ScreenPlayers,ent:GetDriver());
+		else
+			for _,ply in pairs(self:GetVehicleOccupants(ent)) do
+				if (IsValid(ply) and not trip.Occupants[ply] and not trip.Records[ply]) then
+					trip.Occupants[ply] = true;
+					table.insert(trip.ScreenPlayers,ply);
+				end
+			end
 		end
 	end
 	for _,rec in pairs(trip.Records) do
 		self:SuspendForTransit(rec);
+	end
+	for ply,_ in pairs(trip.Occupants) do
+		trip.Occupants[ply] = SuspendOccupant(ply,self.Entity);
 	end
 
 	local atlantis = StarGate.CFG:Get("stargate","atlantisWormhole",false) == true;
@@ -2121,7 +2245,7 @@ function ENT:DoWormHole(v,block,attached,bcfd,totalkill)
 	trip.TimerName = "StarGate.EH.WormHole."..self.Entity:EntIndex().."."..TransitCounter;
 	self.Transits[trip.TimerName] = trip;
 
-	DebugPrint("entered",v,"speed:",math.floor(v:GetVelocity():Length()),"parts:",table.Count(trip.Records),"travel time:",atlantis and WORMHOLE_TRANSIT_TIME_ATLANTIS or WORMHOLE_TRANSIT_TIME);
+	DebugPrint("entered",v,"pos:",tostring(v:GetPos()),"ang:",tostring(v:GetAngles()),"speed:",math.floor(v:GetVelocity():Length()),"parts:",table.Count(trip.Records),"travel time:",atlantis and WORMHOLE_TRANSIT_TIME_ATLANTIS or WORMHOLE_TRANSIT_TIME);
 	if (WORMHOLE_INSTANT[trip.Class]) then
 		self:FinishTransit(trip);
 		return;
@@ -2176,6 +2300,7 @@ function ENT:FinishTransit(trip)
 	for _,rec in pairs(trip.Records) do
 		RestoreFromTransit(rec);
 	end
+	RestoreOccupants(trip); -- Before the teleport, so a blocked gate can kill them
 
 	-- A dead player (killed by an admin, etc.) just gets his state back
 	if (base:IsPlayer() and not base:Alive()) then
@@ -2194,12 +2319,12 @@ function ENT:FinishTransit(trip)
 	end
 
 	if (not base:IsPlayer()) then
-		DebugPrint("arriving",base,"blocked:",tostring(block),"speed after restore:",math.floor(base:GetVelocity():Length()),"stored speed:",math.floor(trip.Records[base].Vel:Length()));
+		DebugPrint("arriving",base,"blocked:",tostring(block),"speed after restore:",math.floor(base:GetVelocity():Length()),"stored speed:",math.floor(trip.Records[base].Vel:Length()),"ang:",tostring(base:GetAngles()));
 		base.__EHDebugUntil = CurTime() + 3;
 	end
 	self:Teleport(base,block,attached);
 	if (not base:IsPlayer()) then
-		DebugPrint("teleported",base,"valid:",tostring(IsValid(base)),"pos:",IsValid(base) and tostring(base:GetPos()) or "-","speed:",IsValid(base) and math.floor(base:GetVelocity():Length()) or "-");
+		DebugPrint("teleported",base,"valid:",tostring(IsValid(base)),"pos:",IsValid(base) and tostring(base:GetPos()) or "-","speed:",IsValid(base) and math.floor(base:GetVelocity():Length()) or "-","ang:",IsValid(base) and tostring(base:GetAngles()) or "-");
 		timer.Simple(0.1,function()
 			DebugPrint("0.1s later",base,"valid:",tostring(IsValid(base)),"pos:",IsValid(base) and tostring(base:GetPos()) or "-","speed:",IsValid(base) and math.floor(base:GetVelocity():Length()) or "-");
 		end);

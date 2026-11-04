@@ -58,6 +58,85 @@ function ENT:Allowed(e,allow_parented)
 	return false;
 end
 
+--################# LVS (Luna's Vehicle Script) vehicles are plain SENTs with ENT.LVS = true, not real vehicles
+-- Frozen helpers an LVS vehicle constrains to its wheels (steering plates/handlers). They are rotation-only
+-- ballsockets which never move or touch the event horizon, so they stay behind instead of blocking the teleport
+local function IsLVSHelper(e)
+	if (e.LVS) then return false end
+	if (e:GetClass():sub(1,4) == "lvs_") then return true end
+	local owner = e:GetOwner();
+	return IsValid(owner) and owner.LVS == true;
+end
+
+--################# Players sitting in a vehicle: the driver of a real vehicle or everyone in an LVS
+function ENT:GetVehicleOccupants(e)
+	if (e.LVS and e.GetEveryone) then return e:GetEveryone() end
+	if (e:IsVehicle() and IsValid(e:GetDriver())) then return {e:GetDriver()} end
+	return {};
+end
+
+--################# The LVS vehicle of a contraption (from GetEntitiesForTeleport), if there is one
+function ENT:GetLVSBody(attached)
+	if (not attached) then return end
+	if (attached.Entity.LVS) then return attached.Entity end
+	for _,v in pairs(attached.Attached) do
+		if (v.LVS) then return v end
+	end
+end
+
+--################# Physics objects know their real velocity: the entity's lags behind (right after a wormhole
+-- transit it is still the frozen one), and the rotated exit velocity would be calculated from that
+local function GetTeleportVelocity(e)
+	local phys = e:GetPhysicsObject();
+	if (e:GetMoveType() == MOVETYPE_VPHYSICS and IsValid(phys)) then return phys:GetVelocity() end
+	return e:GetVelocity();
+end
+
+--################# LVS planes and cars steer towards where the driver looks, so after a turn through the gate
+-- the view has to face forward again or they turn straight back. AlignView is what LVS does on entering
+local function AlignLVSView(e)
+	if (not e.AlignView) then return end
+	e.StoredEyeAngles = nil; -- Freelook target, still in the old direction
+	local driver = e:GetDriver();
+	for _,ply in pairs(e:GetEveryone()) do
+		e:AlignView(ply,ply ~= driver);
+	end
+end
+
+--################# Teleports through the engine's own Teleport() (what map teleporters use) instead of SetPos/SetAngles.
+-- Only that moves the wheels of HL2 vehicles along: with SetPos they stayed at the old gate, the suspension pulled
+-- them across the map in one tick and the vehicle got flipped
+local function EngineTeleport(e,pos,ang)
+	local tp = ents.Create("point_teleport");
+	if (not IsValid(tp)) then return false end
+	local name = e:GetName();
+	local tmp = "stargate_eh_teleport_"..e:EntIndex();
+	e:SetName(tmp);
+	tp:SetPos(pos);
+	tp:SetAngles(ang);
+	tp:SetKeyValue("target",tmp);
+	tp:Spawn();
+	tp:Activate(); -- Stores the position and angles to teleport to
+	tp:Input("Teleport");
+	tp:Remove();
+	e:SetName(name);
+	return e:GetPos():Distance(pos) < 1; -- Didn't work? Then do it the old way
+end
+
+--################# Debugging (stargate_wormhole_debug 1): where the wheels of an HL2 vehicle are compared to the ground
+local function DebugWheels(e,bones,label)
+	local debug = GetConVar("stargate_wormhole_debug");
+	if (not debug or not debug:GetBool() or not IsValid(e)) then return end
+	for i,v in ipairs(bones) do
+		if (v.Angles and IsValid(v.Entity)) then -- Only wheels have angles stored
+			local wpos = v.Entity:GetPos();
+			local tr = util.TraceLine({start=wpos+Vector(0,0,50),endpos=wpos-Vector(0,0,200),filter=e});
+			if (e:WorldToLocal(wpos):Distance(v.Position) > 20) then print("[Wormhole]",label,"wheel",i,"IS NOT WHERE IT SHOULD BE") end
+			print("[Wormhole]",label,"wheel",i,"on vehicle before:",tostring(v.Position),"now:",tostring(e:WorldToLocal(wpos)),"above ground:",tr.Hit and math.Round(wpos.z-tr.HitPos.z,1) or "none",tr.Hit and tostring(tr.Entity) or "");
+		end
+	end
+end
+
 --################# Bones for vehicle teleportation @aVoN
 function ENT:GetBones(e,pos)
 	-- And as well, get the bones of an object
@@ -70,6 +149,21 @@ function ENT:GetBones(e,pos)
 					Entity=bone,
 					Position=e:WorldToLocal(bone:GetPos()),
 					Velocity=e:WorldToLocal(pos+bone:GetVelocity()),
+				});
+			end
+		end
+	end
+	-- The wheels of HL2 vehicles (jeep) belong to the vehicle physics, not the entity. Move them along too, or
+	-- after the turn through the gate they get pulled back into place and throw the vehicle around
+	if(e:IsVehicle() and e.GetWheelCount) then
+		for i=0,(e:GetWheelCount() or 0)-1 do
+			local wheel = e:GetWheel(i);
+			if(IsValid(wheel)) then
+				table.insert(bones,{
+					Entity=wheel,
+					Position=e:WorldToLocal(wheel:GetPos()),
+					Angles=e:WorldToLocalAngles(wheel:GetAngles()),
+					Velocity=e:WorldToLocal(pos+wheel:GetVelocity()),
 				});
 			end
 		end
@@ -162,7 +256,7 @@ function ENT:PrepareTeleport(t)
 	local lenght = self:GetEntityLenght(e,p[1],fwd,0);
 	-- ######### Calculate new positions,angles and velocity for attached
 	for _,v in pairs(t.Attached) do
-		local vel = v:GetVelocity();
+		local vel = GetTeleportVelocity(v);
 		local ang = v:GetAngles();
 		local pos = v:GetPos();
 		local data = {
@@ -189,7 +283,7 @@ function ENT:PrepareTeleport(t)
 	-- No we don't do. Why? I found out, constraints are at the same placer - always. so, don't change them
 	-- ######### Now change the base-entity itself
 	local rotation_matrix = MMatrix.RotationMatrix(g[2]:GetUp(),180); -- It will rotate the new positions and velocity correctly to the enter/exit positions.
-	local vel = e:GetVelocity();
+	local vel = GetTeleportVelocity(e);
 	local ang = e:GetAngles();
 	local new_pos = g[1]:WorldToLocal(p[1]); new_pos.x = 0; -- Making the x coordinate = 0 makes the prop getting teleported directly on the EH!
 	ret.Entity={
@@ -212,11 +306,14 @@ function ENT:PrepareTeleport(t)
 	-- ######### Calculate the heigh of the object, so it won't get stuck on the other sides ground
 	-- FIXME: Seemed sometimes not to work properly. Invent a new check!
 	local height = g[1]:BoundingRadius();
+	local ignore = {e};
+	for _,v in pairs(t.Attached) do table.insert(ignore,v) end
+	for _,v in pairs(table.Copy(ignore)) do
+		for _,ply in pairs(self:GetVehicleOccupants(v)) do table.insert(ignore,ply) end
+	end
 	local dir = Vector(0,0,height);
 	local trace={
-		-- On our side
-		util.QuickTrace(p[1],-1*dir,g[1]:GetTraceIgnoredEntities(e)),
-		-- On the other event horizon
+		util.QuickTrace(p[1],-1*dir,g[1]:GetTraceIgnoredEntities(unpack(ignore))),
 		util.QuickTrace(ret.Entity.Position.New+dir,-2*dir,g[2]:GetTraceIgnoredEntities()),
 	}
 	if(trace[1].Hit and trace[2].Hit) then
@@ -273,11 +370,18 @@ function ENT:GetEntitiesForTeleport(e)
 				if(v ~= e and not IsValid(v:GetParent())) then -- test fix for not teleport parents by AlexALX (ent should be teleported with its parent automatically)
 					table.insert(entities,v);
 				end
-			else
+			elseif(not IsLVSHelper(v)) then
+				local debug = GetConVar("stargate_wormhole_debug");
+				if (debug and debug:GetBool()) then print("[Wormhole] not teleportable:",e,"because of part",v) end
 				return false;
 			end
 		end
 		return {Entity=e,Attached=entities};
+	end
+	local debug = GetConVar("stargate_wormhole_debug");
+	if (debug and debug:GetBool() and not e:IsPlayer()) then
+		local phys = e:GetPhysicsObject();
+		print("[Wormhole] not teleportable:",e,"itself, frozen:",tostring(IsValid(phys) and not phys:IsMoveable()),"parented:",tostring(IsValid(e:GetParent())));
 	end
 	return false;
 end
@@ -304,7 +408,9 @@ function ENT:TeleportEntity(t,base,basedata)
 				e[v] = function() end; -- Dummy
 			end
 		end
-		timer.Simple(0.2,
+		-- Back on the next tick: it only has to cover the teleport itself. 0.2s let fast shots (staff blasts at
+		-- 8000 u/s cover 1600 units in that time) hit the ground with no PhysicsCollide and bounce off instead
+		timer.Simple(0,
 			function()
 				if(IsValid(e)) then
 					for k,v in pairs(backup) do
@@ -338,20 +444,32 @@ function ENT:TeleportEntity(t,base,basedata)
 		e:SetVelocity(vel.New-vel.Old);
 	-- ######### Vehicle teleport
 	elseif(e:IsVehicle()) then
+		local delta = ang.Delta;
 		local ang = ang.New + Angle(0,180,0);
 		-- This is a workaround: Vehicles should never have a pitch or roll if entering or exiting a gate (prevents them from spawning in ground and bug around)
-		ang.r = 0;
-		ang.p = 0;
+		-- Only when the gates are tilted differently though: between upright gates, levelling a vehicle that was
+		-- bouncing on its suspension swung one end into the ground and the jeep got thrown around
+		if(math.abs(math.NormalizeAngle(delta.p)) > 1 or math.abs(math.NormalizeAngle(delta.r)) > 1) then
+			ang.r = 0;
+			ang.p = 0;
+		end
 		self:CleanBufferVars(e)
 		e.___dir = 1;
-		e:SetPos(pos.New);
-		e:SetAngles(ang);
+		if(not (e.GetWheelCount and (e:GetWheelCount() or 0) > 0 and EngineTeleport(e,pos.New,ang))) then
+			e:SetPos(pos.New);
+			e:SetAngles(ang);
+		end
 		-- ######### Move the bones of the entity
 		if(bones) then
 			for _,v in pairs(bones) do
-				v.Entity:SetPos(e:LocalToWorld(v.Position));
+				-- Wheels (they have angles stored) can't be moved from Lua, EngineTeleport took them along
+				if(not v.Angles) then
+					v.Entity:SetPos(e:LocalToWorld(v.Position));
+				end
 				v.Entity:SetVelocity(e:LocalToWorld(v.Velocity)-e:GetPos());
 			end
+			DebugWheels(e,bones,"placed");
+			timer.Simple(0,function() DebugWheels(e,bones,"next tick") end);
 		end
 	-- ######### normal Entity teleport (The "rest")
 	else
@@ -376,15 +494,23 @@ function ENT:TeleportEntity(t,base,basedata)
 		end
 		if(e:IsNPC()) then ang.Delta.p = 0 ang.Delta.r = 0 end -- Remove roll and pitch from NPCs
 		e:SetAngles(ang.Old + ang.Delta + Angle(0,180,0));
+		if(e.LVS) then AlignLVSView(e) end
 
-		e:SetVelocity(-1*vel.Old+vel.New) -- Substract old velocity and add the new
+		if(e:GetMoveType() == MOVETYPE_VPHYSICS and phys:IsValid()) then
+			-- Physics entities: set the exit velocity on the physics object itself. The way below leaves the entry
+			-- velocity in (SetVelocity doesn't change it) and the force then cancels it out: turned around by the
+			-- gate, props stopped dead and ships drifted backwards into the event horizon
+			phys:SetVelocity(vel.New);
+		else
+			e:SetVelocity(-1*vel.Old+vel.New) -- Substract old velocity and add the new
 
-		--e:SetVelocity(vel.Old-vel.Old)
-		-- Because this doesn't have always an effect, we also apply force
-		if(phys:IsValid()) then
-			local ma = phys:GetMass();
-			--print(e:GetVelocity())
-			timer.Simple(0.05,function() if phys:IsValid() then phys:ApplyForceCenter(vel.New*ma) end end); -- Apply power so it has velocity again
+			--e:SetVelocity(vel.Old-vel.Old)
+			-- Because this doesn't have always an effect, we also apply force
+			if(phys:IsValid()) then
+				local ma = phys:GetMass();
+				--print(e:GetVelocity())
+				timer.Simple(0.05,function() if phys:IsValid() then phys:ApplyForceCenter(vel.New*ma) end end); -- Apply power so it has velocity again
+			end
 		end
 
 		-- ######### Move the bones of the entity
@@ -428,6 +554,14 @@ function ENT:Teleport(e,block,attached)
 				immunity[ent] = true;
 				ent.__StargateTeleport = immunity;
 			end
+			-- Every part has arrived at the other side now. A part put down past its EH never touches it, and the
+			-- others waited for it forever, so the last one out stayed clipped. Touching it clears this again
+			local target = self.Target;
+			if (IsValid(target) and target.Left) then
+				for ent,_ in pairs(immunity) do
+					if (isentity(ent) and IsValid(ent)) then target.Left[ent] = true end
+				end
+			end
 		end
 	end
 end
@@ -445,18 +579,15 @@ function ENT:DestroyEntity(e)
 			umsg.End();
 		end
 	else
-		if(e:IsVehicle()) then
-			-- If it's a vehicle, kill the driver of it
-			for _,v in pairs(player.GetAll()) do
-				if(v:GetParent() == e) then
-					if (not v:HasGodMode()) then
-						v:StripWeapons();
-						v:KillSilent();
-						umsg.Start("StarGate.EventHorizon.PlayerKill");
-						umsg.Entity(v);
-						umsg.End();
-					end
-					break;
+		if(e:IsVehicle() or e.LVS) then
+			-- If it's a vehicle, kill everyone sitting in it
+			for _,v in pairs(self:GetVehicleOccupants(e)) do
+				if (IsValid(v) and not v:HasGodMode()) then
+					v:StripWeapons();
+					v:KillSilent();
+					umsg.Start("StarGate.EventHorizon.PlayerKill");
+					umsg.Entity(v);
+					umsg.End();
 				end
 			end
 		elseif(e:GetClass() == "rpg_missile") then -- RPG Missile? Stop annoying looping sound
