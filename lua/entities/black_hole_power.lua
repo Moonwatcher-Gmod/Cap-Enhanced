@@ -109,7 +109,7 @@ if SERVER then
 
     function ENT:CheckBlackhole()
         for _,ent in ents.Iterator() do --this should only trigger every 1s so shouldn't be bad
-            if(ent.IsStargate and ent:GetClass() ~= "stargate_supergate") then
+            if(ent.IsStargate and ent:GetClass() ~= "stargate_supergate" and ent:GetClass() ~= "stargate_orlin") then
                 local entities = ents.FindInSphere(ent:GetPos(),2000)
                 local tab = {}
 
