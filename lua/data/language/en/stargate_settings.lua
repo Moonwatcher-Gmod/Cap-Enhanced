@@ -255,6 +255,8 @@ sg_sets[stargate][res_classes] = Allowed resource classes
 sg_sets[stargate][res_classes][desc] = Allowed resource classes to transfer, separate by comma, keep empty to allow any resources\nexample usage: water,oxygen,heavy water
 sg_sets[stargate][doWormholeSequence] = Wormhole Sequence
 sg_sets[stargate][doWormholeSequence][desc] = Do traversal sequence and delay
+sg_sets[stargate][atlantisWormhole] = Atlantis Wormhole Transition
+sg_sets[stargate][atlantisWormhole][desc] = Use the Atlantis wormhole video and sound (5 seconds) instead of the classic transition (3.2 seconds)
 sg_sets[stargate][nox_bypass] = Nox Hands Bypass
 sg_sets[stargate][nox_bypass][desc] = Allow admins with Nox Hands equipped to bypass an iris completely
 // Stargate gatespawner config

@@ -432,7 +432,7 @@ function ENT.Sequence:OnButtonChevron(lightup, dialchev, address, symbol, fail, 
 			if (dialchev != 7) then
 				action:Add({f=self.SetChevrons,v={self,dialchev,1},d=0.1}); -- Wire
 				if (self.chev_destroyed and not self.chev_destroyed[dialchev]) then
-					action:Add({f=self.EmitSound,v={self.Entity,self.ButtChevSounds[math.random(1,table.getn(self.ButtChevSounds))],90,math.random(97,103)},d=0}); -- Chevron lights up
+					action:Add({f=self.EmitSound,v={self.Entity,self.ButtChevSounds[math.random(1,#self.ButtChevSounds)],90,math.random(97,103)},d=0}); -- Chevron lights up
 				end
 			else
 				action:Add({f=self.SetChevrons,v={self,dialchev,1},d=0}); -- Wire

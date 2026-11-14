@@ -69,6 +69,8 @@
 #### Stargate config
 [stargate]
 doWormholeSequence = true
+# Use the Atlantis wormhole transition (5 second video and sound) instead of the classic one (3.2 seconds)?
+atlantisWormhole = true
 nox_bypass = true
 # Autoclose gates, after you left it?
 autoclose=true
@@ -396,6 +398,11 @@ damage = 10
 # Shield core
 [shield_core]
 atlantis_hit = 50
+# Smallest and biggest size (each axis) for the menu and the Wire "Size" input
+min_size = 100
+max_size = 4096
+# Wire "Size" input: seconds between resizes
+wire_resize_delay = 2
 
 # Ashen defence
 [ashen_defence]

@@ -755,7 +755,7 @@ function ENT:TriggerInputDefault(k,v,mobile,mdhd)
 	elseif(k == "Close") then
 		if (v >= 1) then
 			if (self.WireManualDial) then
-				local n = table.getn(self.WireDialledAddress);
+				local n = #self.WireDialledAddress;
 				local action = self.Sequence:New();
 				action = self.Sequence:OnButtonDialFail(n,true);
 				action = action + self.Sequence:DialFail(nil,true);

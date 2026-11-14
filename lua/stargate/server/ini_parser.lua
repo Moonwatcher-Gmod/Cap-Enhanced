@@ -117,7 +117,7 @@ function INIParser:parse(no_msg)
                     local node = line:sub(2, node_end - 1) -- Get single node name
                     nodes[node] = nodes[node] or {}
                     cur_node = node
-                    cur_node_index = table.getn(nodes[node]) + 1
+                    cur_node_index = #nodes[node] + 1
                 else
                     Msg("INIParser:parse - Parse error in file " .. self.file .. " at line " .. k .. " near \"" .. line .. "\": Expected node!\n")
                     self = nil
@@ -133,7 +133,7 @@ function INIParser:parse(no_msg)
                 else
                     local data = string.Explode("=", line)
                     -- This is needed, because garry missed to add a limit to string.Explode
-                    local table_count = table.getn(data)
+                    local table_count = #data
 
                     if (table_count > 2) then
                         for k = 3, table_count do

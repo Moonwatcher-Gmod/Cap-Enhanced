@@ -287,6 +287,7 @@ if SERVER then
                 -- Do not explode on shields!
                 if (not e.NoCollide or e:GetClass() == "worldspawn") then
                     self:Blast(pos)
+                    self.ShieldExploded = true -- Don't explode again in CAPOnShieldTouch
                 end
 
                 self:StartRemoving(delay_deletion)
@@ -302,6 +303,18 @@ if SERVER then
                 end)
             end
         end
+    end
+
+    --################# Hitting a shield (regular shield or shield core): explode on its surface
+    -- (Called by StarGate.ShieldOnTouch. The shield core puts fast shots back on its surface first.)
+    function ENT:CAPOnShieldTouch(shield)
+        if (self.ShieldExploded) then return end
+        self.ShieldExploded = true
+        -- DO NOT CALL THE TOUCH OR THE PHYSICS AGAIN!
+        self.PhysicsUpdate = function() end
+        self.StartTouch = function() end
+        self:Blast(self.Entity:GetPos())
+        self:StartRemoving(true)
     end
 
     function ENT:PhysicsCollide(data)

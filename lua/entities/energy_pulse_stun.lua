@@ -437,7 +437,11 @@ if SERVER then
     --################### Destroys this entity without fearing to crash! @aVoN
     function ENT:Destroy()
         self.PhysicsCollide = function() end -- Dummy
-        self.Touch = self.PhysicsCollide
+        -- Everything does nothing from now on. (These all pointed at PhysicsCollide, whose dummy line above was
+        -- commented out, so Think called PhysicsCollide() with no collision data until the removal: Lua error.)
+        local dummy = function() end
+        self.PhysicsCollide = dummy
+        self.Touch = dummy
         self.StartTouch = self.Touch
         self.EndTouch = self.Touch
         self.Think = self.Touch

@@ -34,7 +34,7 @@ function EFFECT:Think()
 			local CannotSpawn = {}
 			local draw = StarGate.VisualsWeapons("cl_gate_nuke_shieldrings")
 			if draw then
-				CannotSpawn = StarGate.ArePointsInsideAShield(spawn, 200)
+				CannotSpawn = StarGate.ArePointsInsideAShield(spawn, self.StartPos)
 			end
 		end
 	end

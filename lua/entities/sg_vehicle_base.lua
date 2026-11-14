@@ -344,7 +344,7 @@ function ENT.FixAngles(self,pos,ang,vel,old_pos,old_ang,old_vel,ang_delta)
 end
 
 -- damn, this not work with mask...
-for k,v in pairs({sg_vehicle_dart,"sg_vehicle_gate_glider","sg_vehicle_glider","sg_vehicle_shuttle","sg_vehicle_f302","sg_vehicle_teltac"}) do
+for k,v in pairs({"sg_vehicle_dart","sg_vehicle_gate_glider","sg_vehicle_glider","sg_vehicle_shuttle","sg_vehicle_f302","sg_vehicle_teltac"}) do
 	StarGate.Teleport:Add(v,ENT.FixAngles);
 end
 

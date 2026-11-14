@@ -431,7 +431,7 @@ function ENT:OnButtActivateStargate(inbound)
 			busy = true;
 
 		end
-		action = self.Sequence:OnButtonDialFail(table.getn(self.DialledAddress)-1,true,busy);
+		action = self.Sequence:OnButtonDialFail(#self.DialledAddress-1,true,busy);
 		action = action + self.Sequence:DialFail(nil,true);
 		self:RunActions(action);
 	else
@@ -476,7 +476,7 @@ function ENT:OnButtActivateStargate(inbound)
 						if (IsValid(e) and self:CheckEnergy() and e.IsStargate and (e.IsOpen or e.Dialling == true or e:IsBlocked(nil,nil,true)) and not inbound or self:IsSelfDial()) then
 							busy = true;
 						end
-						action = self.Sequence:OnButtonDialFail(table.getn(self.DialledAddress)-1,true,busy);
+						action = self.Sequence:OnButtonDialFail(#self.DialledAddress-1,true,busy);
 						action = action + self.Sequence:DialFail(nil,true);
 						fail = true;
 					end

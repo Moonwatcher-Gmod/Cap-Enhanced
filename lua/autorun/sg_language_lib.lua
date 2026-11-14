@@ -116,7 +116,7 @@ function LANGParser:parse()
             nodes[cur_node] = nodes[cur_node] or {}
             local data = string.Explode("=", line)
             -- This is needed, because garry missed to add a limit to string.Explode
-            local table_count = table.getn(data)
+            local table_count = #data
 
             if (table_count > 2) then
                 for k = 3, table_count do

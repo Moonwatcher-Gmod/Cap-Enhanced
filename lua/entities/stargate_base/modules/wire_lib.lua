@@ -32,7 +32,7 @@ end
 
 --################# Encode chevron function by AlexALX
 function ENT:EncodeChevron()
-	local n = table.getn(self.WireDialledAddress);
+	local n = #self.WireDialledAddress;
 	local candialg = GetConVar("stargate_candial_groups_wire"):GetInt()
 	local allowed_symbols = 8
 	self.Outbound = true;
@@ -57,7 +57,7 @@ end
 
 --################# Chevron 7 lock function by AlexALX
 function ENT:Chevron7Lock()
-	local n = table.getn(self.WireDialledAddress);
+	local n = #self.WireDialledAddress;
 	local candialg = GetConVar("stargate_candial_groups_wire"):GetInt()
 	local allowed_symbols = 9
 	if (candialg==0 or self:GetLocale()==true) then
@@ -67,7 +67,7 @@ function ENT:Chevron7Lock()
 	if (n < 6 or n >= allowed_symbols or self.RingSymbol=="" or self.RingSymbol!="" and (table.HasValue(self.WireDialledAddress,self.RingSymbol) or not self:CheckWireSymbol(self.RingSymbol))) then
 		local action = self.Sequence:New();
 		if (n >= allowed_symbols) then
-			action = self.Sequence:SeqChevron7Lock(table.getn(self.WireDialledAddress)+1,self.WireDialledAddress,true) + self.Sequence:DialFail(false,true,true);
+			action = self.Sequence:SeqChevron7Lock(#self.WireDialledAddress+1,self.WireDialledAddress,true) + self.Sequence:DialFail(false,true,true);
 		else
 			action = self.Sequence:OnButtonDialFail(n,true);
 			action = action + self.Sequence:DialFail(nil,true);
@@ -118,7 +118,7 @@ function ENT:WireActivateStargate(inbound)
 	self.NoxDialingType = false;
 	if (self.HasRD and not self:CheckEnergy() and not self.Dialling and not inbound) then
 		local action = self.Sequence:New();
-		action = self.Sequence:SeqChevron7Lock(table.getn(self.DialledAddress)-1,self.DialledAddress,true) + self.Sequence:DialFail(false,true,true);
+		action = self.Sequence:SeqChevron7Lock(#self.DialledAddress-1,self.DialledAddress,true) + self.Sequence:DialFail(false,true,true);
 		self:RunActions(action);
 	else
 	-- proper dialing
@@ -163,7 +163,7 @@ function ENT:WireActivateStargate(inbound)
 						busy = true;
 					end
 					self.Target = nil;
-					action = action + self.Sequence:SeqChevron7Lock(table.getn(self.DialledAddress)-1,self.DialledAddress,true,busy) + self.Sequence:DialFail(false,true,true);
+					action = action + self.Sequence:SeqChevron7Lock(#self.DialledAddress-1,self.DialledAddress,true,busy) + self.Sequence:DialFail(false,true,true);
 					fail = true;
 				end
 				if(not DEBUG and not fail) then -- No debug, no instant open

@@ -569,7 +569,7 @@ function SWEP:SecondaryAttack()
             self.Weapon:SetNWInt("csef", 3)
         end
     elseif self.IronSightsPos then
-        local NumberOfScopeZooms = table.getn(self.ScopeZooms)
+        local NumberOfScopeZooms = #self.ScopeZooms
 
         if self.UseScope and self.Weapon:GetNetworkedBool("Scope", false) then
             self.CurScopeZoom = self.CurScopeZoom + 1

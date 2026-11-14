@@ -21,6 +21,11 @@ function EFFECT:Init(data)
 	self.Entity:SetPos(ent:LocalToWorld(self.Pos));
 	self.Entity:SetAngles(ent:GetAngles()+self.Ang);
 	self.Entity:SetRenderMode( RENDERMODE_TRANSALPHA );
+	-- The model is scaled up with a matrix, which doesn't grow its render bounds: without this the
+	-- bubble disappeared whenever its (unscaled) centre left the screen
+	local mn, mx = self.Entity:GetModelBounds();
+	self.Mins, self.Maxs = mn*self.Siz, mx*self.Siz;
+	self.Entity:SetRenderBounds(self.Mins, self.Maxs);
 
 	self.Time = 5;
 	self.LifeTime = CurTime() + self.Time;
@@ -38,7 +43,9 @@ function EFFECT:Init(data)
 end
 
 function EFFECT:Think()
-	if (self.LifeTime==nil or self.LifeTime < CurTime() and self.Status == 0) then return false
+	-- Only the switch on/off animation: once it is done, the shield (shield_core_buble/cl_init.lua) draws
+	-- the "always show" bubble itself. This used to stay alive forever after switching on.
+	if (self.LifeTime==nil or self.LifeTime < CurTime()) then return false
 	else return true end
 end
 
@@ -53,9 +60,7 @@ function EFFECT:Render()
 		mat:Scale(self.Siz)
 		self.Entity:EnableMatrix( "RenderMultiply", mat )
 
-		local mn, mx = self:GetRenderBounds();
-		mn = mn*self.Siz;
-		mx = mx*self.Siz;
+		local mn, mx = self.Mins, self.Maxs;
 
 		local Up = (mx-mn):GetNormal();
 		local Bottom =  self:GetPos() + mn;

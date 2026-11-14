@@ -64,7 +64,6 @@ if SERVER then
 
 
     function ENT:OnRemove()
-        print("stopped")
         if (self.Active) then
             self.Active = false
             --self:EmitSound("ambient/energy/power_off1.wav",75,100,1)

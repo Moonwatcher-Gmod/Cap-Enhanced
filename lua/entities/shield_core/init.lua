@@ -32,7 +32,13 @@ function ENT:Initialize()
 	self.Mod = "models/Madman07/shields/sphere.mdl";
 	self.Anim = false;
 	self.ThinkTime = CurTime()+0.5;
-	self.MenuData = "0 0 0 0 5";
+	self.MenuData = "0 0 0 0 5 0 0 0 0 0";
+	self.RisingEdge = false; -- Rise/lower (with the glowing edge) even without "Always show Bubble"
+	self.AllowedPlayers = {}; -- Wire "Allowed Players"
+	self.Frequency = 0; -- Shield identifiers on this frequency let their contraption through (0 = off)
+	self.FireFrequency = 0; -- Weapons tuned to this frequency hit much softer (0 = off)
+	self.AntiNoclip = false;
+	self.Containment = false;
 
 	self.Entity:SetNWBool("Kill", false);
 	self.Entity:SetNWVector("Size", Vector(100,100,100));
@@ -46,13 +52,22 @@ function ENT:Initialize()
 	self.Strength = 100; -- Start with 100% Strength by default
 	self.EngageEnergy = StarGate.CFG:Get("shield","engage_energy",500); -- This energy will be needed to engage the shield. You will get it back, when the shield collapses
 	self.ConsumeMultiplier = StarGate.CFG:Get("shield","consume_multiplier",1)*100; -- As higher this is, as more energy it will take when enabled
+	-- For the energy estimate in the menu (ENT:EstimateEnergy in shared.lua)
+	self.Entity:SetNWFloat("EnergyConsumeMul", self.ConsumeMultiplier);
+	self.Entity:SetNWFloat("EnergyEngage", self.EngageEnergy);
 	self.RestoreMultiplier = StarGate.CFG:Get("shield","restore_multiplier",1); -- How fast can it restore it's health?
 	self.StrengthConfigMultiplier = StarGate.CFG:Get("shield","strength_multiplier",1); -- Doing this value higher will make the shiels stronger (look at the config)
 
 	self.RestoreThresold = StarGate.CFG:Get("shield","restore_thresold",15); -- Which powerlevel has the shield to reach again until it works again?
 	self:AddResource("energy",1);
-	self:CreateWireInputs("Activate");
-	self:CreateWireOutputs("Active","Strength");
+	self:CreateWireInputs("Activate","Size [VECTOR]","Immunity","Containment","Allowed Players [ARRAY]","Frequency","Fire Frequency");
+	self:CreateWireOutputs("Active","Strength","Energy Use","Covered %","Resizing","Size [VECTOR]","Contained","Hit","Hit Position [VECTOR]","Hit Strength");
+	-- Limits for resizing (the menu sliders and the Wire "Size" input)
+	self.MinSize = StarGate.CFG:Get("shield_core","min_size",100);
+	self.MaxSize = StarGate.CFG:Get("shield_core","max_size",4096);
+	self.WireResizeDelay = StarGate.CFG:Get("shield_core","wire_resize_delay",2);
+	self.Entity:SetNWFloat("MinSize", self.MinSize);
+	self.Entity:SetNWFloat("MaxSize", self.MaxSize);
 	self:SetWire("Strength",self.Strength);
 
 	self.Pressed = false;
@@ -65,55 +80,25 @@ function ENT:Initialize()
 
 	self.PlyOldEyeAngle = Angle(0,0,0);
 
+	-- The menu commands below used to accept anyone: any player could resize, move or reconfigure
+	-- (e.g. enable Immunity on) someone else's shield core from the console. Only the owner, who is
+	-- the only one allowed to open the menu (ENT:TrueUse), may use them now.
+	local core = self;
+	local function MayConfigure(ply)
+		return IsValid(ply) and ply == core.Owner and ply == core.Player;
+	end
+
 	concommand.Add("SC_Apply"..self:EntIndex(),function(ply,cmd,args)
-		self.Player:SetViewEntity(self.Player);
-		--self.Player:SnapEyeAngles(self.PlyOldEyeAngle);
-
-		self.Busy = false;
-		self.Entity:SetNWBool("Kill", true);
-		if IsValid(self.Camera) then self.Camera:Remove() end
-		if IsValid(self.Shield) then self.Shield:Remove() end
-
-		local a = ents.Create("shield_core_buble");
-		a:SetModel("models/hunter/blocks/cube025x025x025.mdl");
-		a:SetPos(self:LocalToWorld(self.Pos));
-		a:SetAngles(self:GetAngles()+self.Ang);
-		a.Parent = self;
-		if CPPI and IsValid(self.Owner) and a.CPPISetOwner then a:CPPISetOwner(self.Owner) end
-		a:SetNWVector("Col",self.Entity:GetNWVector("Col",Vector(100,100,100)));
-
-		a:Spawn();
-		a:Activate();
-
-		constraint.Weld(self.Entity,a,0,0,0,true)
-		a:SetCollisionScale(self.Mod, self.SSize/512);
-		constraint.Weld(self.Entity,a,0,0,0,true)
-		self.Shield = a;
-
-		self:SetMultiplier(tonumber(args[1]));
-		self.Immunity = util.tobool(tonumber(args[2]));
-		self.Draw = util.tobool(tonumber(args[3]));
-		self.Atlantis = util.tobool(tonumber(args[4])) and self.HasResourceDistribution; -- this is working only with power attached, so it need RS
-
-  		numpad.OnDown(self.Owner, tonumber(args[5]), "Toggle_Shield_Core", self.Entity);
-
-		self.MenuData = args[1].." "..args[2].." "..args[3].." "..args[4].." "..args[5];
-		self.Entity:SetNWString("MenuData", self.MenuData);
-
-		// for tracelines
-		self.Shield:SetNWBool("Immunity",self.Immunity);
-		self.Shield:SetNWEntity("Own",self.Owner);
-
-    end);
+		if not MayConfigure(ply) then return end
+		self:ApplyMenu(args);
+	end);
 
 	concommand.Add("SC_Close"..self:EntIndex(),function(ply,cmd,args)
-		self.Player:SetViewEntity(self.Player);
-		--self.Player:SnapEyeAngles(self.PlyOldEyeAngle);
+		if not MayConfigure(ply) then return end
+		self:CloseMenu();
+		self:RestoreMenuSnapshot(); -- Undo the preview changes
 
-		self.Entity:SetNWBool("Kill", true);
-		if IsValid(self.Camera) then self.Camera:Remove() end
-
-		if (not self.Anim) then
+		if (not self.Anim and not (IsValid(self.Shield) and self.Shield.Enabled)) then
 			self.Busy = false;
 			local seq = self:LookupSequence("Close");
 			self:ResetSequence(seq);
@@ -127,21 +112,25 @@ function ENT:Initialize()
     end);
 
 	concommand.Add("SC_Size"..self:EntIndex(),function(ply,cmd,args)
+		if not MayConfigure(ply) then return end
 		self.Entity:SetNWVector("Size", Vector(tonumber(args[1]),tonumber(args[2]),tonumber(args[3])));
 		self.SSize = Vector(tonumber(args[1]),tonumber(args[2]),tonumber(args[3]));
     end);
 
 	concommand.Add("SC_Angle"..self:EntIndex(),function(ply,cmd,args)
+		if not MayConfigure(ply) then return end
 		self.Entity:SetNWAngle("Ang", Angle(tonumber(args[1]),tonumber(args[2]),tonumber(args[3])));
 		self.Ang = Angle(tonumber(args[1]),tonumber(args[2]),tonumber(args[3]));
     end);
 
 	concommand.Add("SC_Pos"..self:EntIndex(),function(ply,cmd,args)
+		if not MayConfigure(ply) then return end
 		self.Entity:SetNWVector("Pos", Vector(tonumber(args[1]),tonumber(args[2]),tonumber(args[3])));
 		self.Pos = Vector(tonumber(args[1]),tonumber(args[2]),tonumber(args[3]))
     end);
 
 	concommand.Add("SC_Visual_Model"..self:EntIndex(),function(ply,cmd,args)
+		if not MayConfigure(ply) then return end
 		if (args[1] == "1") then 	 self.Mod = "models/Madman07/shields/sphere.mdl";
 		elseif (args[1] == "2") then self.Mod = "models/Madman07/shields/box.mdl";
 		elseif (args[1] == "3") then self.Mod = "models/Madman07/shields/atlantis.mdl"; end
@@ -149,6 +138,7 @@ function ENT:Initialize()
     end);
 
 	concommand.Add("SC_Visual_Col"..self:EntIndex(),function(ply,cmd,args)
+		if not MayConfigure(ply) then return end
 		self.Col = Vector(tonumber(args[1]),tonumber(args[2]),tonumber(args[3]));
 		self.Entity:SetNWVector("Col", self.Col);
     end);
@@ -208,7 +198,8 @@ end
 
 function ENT:TrueUse(ply)
 	if(not self.Busy and ply == self.Owner and not self.Pressed)then
-		self:Status(false, true); -- shutdown old shield, close emmiter
+		-- The shield stays up while you edit it; OK compares with how it is now (see ENT:ApplyMenu)
+		self:TakeMenuSnapshot();
 
 		if (not IsValid(self.Camera)) then
 			self.Camera = ents.Create("prop_physics");
@@ -241,10 +232,144 @@ function ENT:TrueUse(ply)
 		ply.ShieldCore = self;
 
 		local fx = EffectData();
-			fx:SetEntity(self.Entity);
+		fx:SetEntity(self.Entity);
+		fx:SetOrigin(self.Entity:GetPos()); -- Effects only reach players near their origin (was 0,0,0)
 		util.Effect("shield_core_preview",fx,true,true);
 
 		//self.Entity:SetNWVector("Col", Vector(170,189,255)); // shield dont want to accept colors after menu creation, lets fix it here
+	end
+end
+
+--################# Menu: editing the shield while it stays up
+
+-- How the shield is before editing (the preview commands below change these while the menu is open)
+function ENT:TakeMenuSnapshot()
+	self.MenuSnapshot = {
+		Size = self.Entity:GetNWVector("Size", Vector(100,100,100)),
+		Ang = self.Entity:GetNWAngle("Ang", Angle(0,0,0)),
+		Pos = self.Entity:GetNWVector("Pos", Vector(0,0,0)),
+		Col = self.Entity:GetNWVector("Col", Vector(170,189,255)),
+		Mod = self.Mod,
+		MenuData = self.MenuData,
+	};
+end
+
+function ENT:RestoreMenuSnapshot()
+	local snap = self.MenuSnapshot;
+	if (not snap) then return end
+	self.SSize, self.Ang, self.Pos, self.Col, self.Mod = snap.Size, snap.Ang, snap.Pos, snap.Col, snap.Mod;
+	self.Entity:SetNWVector("Size", snap.Size);
+	self.Entity:SetNWAngle("Ang", snap.Ang);
+	self.Entity:SetNWVector("Pos", snap.Pos);
+	self.Entity:SetNWVector("Col", snap.Col);
+	self.Entity:SetNWString("Mod", snap.Mod);
+	self.MenuSnapshot = nil;
+end
+
+function ENT:CloseMenu()
+	if IsValid(self.Player) then self.Player:SetViewEntity(self.Player) end
+	self.Busy = false;
+	self.Entity:SetNWBool("Kill", true); -- Ends the preview effect
+	if IsValid(self.Camera) then self.Camera:Remove() end
+end
+
+-- (Re)creates the shield bubble with the current settings. It starts switched off.
+function ENT:BuildShield()
+	if IsValid(self.Shield) then self.Shield:Remove() end
+
+	local a = ents.Create("shield_core_buble");
+	a:SetModel("models/hunter/blocks/cube025x025x025.mdl");
+	a:SetPos(self:LocalToWorld(self.Pos));
+	a:SetAngles(self:GetAngles()+self.Ang);
+	a.Parent = self;
+	if CPPI and IsValid(self.Owner) and a.CPPISetOwner then a:CPPISetOwner(self.Owner) end
+	a:SetNWVector("Col",self.Entity:GetNWVector("Col",Vector(100,100,100)));
+
+	a:Spawn();
+	a:Activate();
+
+	a:SetCollisionScale(self.Mod, self.SSize/512);
+	-- Parented, so the shield follows the generator every frame. It used to be welded, but its physics
+	-- object is frozen, so the weld couldn't carry it and Think snapped it into place every 0.5s.
+	a:SetParent(self.Entity);
+	self.Shield = a;
+end
+
+local function Changed(a, b) -- Menu sliders aren't always exact whole numbers
+	if (isvector(a) or isangle(a)) then
+		return math.abs(a[1]-b[1]) + math.abs(a[2]-b[2]) + math.abs(a[3]-b[3]) > 0.5
+	end
+	return math.abs((tonumber(a) or 0) - (tonumber(b) or 0)) > 0.001
+end
+
+-- OK in the menu. args: strength, immunity, always show, atlantis, key, anti noclip, containment, frequency,
+-- fire frequency, rising edge
+--  * Size: the shield stays up and smoothly resizes
+--  * Immunity, Containment, frequencies, the key: applied straight away
+--  * Anything else (shape, angle, position, colour, strength, always show, atlantis, anti noclip, rising edge):
+--    the shield is rebuilt with the new settings, which switches it off
+function ENT:ApplyMenu(args)
+	self:CloseMenu();
+	local snap = self.MenuSnapshot or {Size = self.SSize, Ang = self.Ang, Pos = self.Pos, Col = self.Col, Mod = self.Mod, MenuData = self.MenuData};
+	self.MenuSnapshot = nil;
+	self.SSize = self.SSize or self.Entity:GetNWVector("Size", Vector(100,100,100));
+	self.Ang = self.Ang or self.Entity:GetNWAngle("Ang", Angle(0,0,0));
+	self.Pos = self.Pos or self.Entity:GetNWVector("Pos", Vector(0,0,0));
+	self.Col = self.Col or self.Entity:GetNWVector("Col", Vector(170,189,255));
+	-- Menu sizes are limited like the Wire input
+	self.SSize = Vector(math.Clamp(self.SSize.x, self.MinSize, self.MaxSize), math.Clamp(self.SSize.y, self.MinSize, self.MaxSize), math.Clamp(self.SSize.z, self.MinSize, self.MaxSize));
+	self.Entity:SetNWVector("Size", self.SSize);
+	for i = 1, 10 do args[i] = args[i] or "0" end
+	local old = string.Explode(" ", snap.MenuData or "0 0 0 0 5 0 0 0 0 0");
+
+	local rebuild = not IsValid(self.Shield) or self.Mod ~= snap.Mod
+		or Changed(self.Ang, snap.Ang) or Changed(self.Pos, snap.Pos) or Changed(self.Col, snap.Col)
+		or Changed(args[1], old[1]) or Changed(args[3], old[3]) or Changed(args[4], old[4]) or Changed(args[6], old[6]) or Changed(args[10], old[10]);
+
+	self:SetMultiplier(tonumber(args[1]));
+	self.Immunity = util.tobool(tonumber(args[2]));
+	self.Draw = util.tobool(tonumber(args[3]));
+	self.Atlantis = util.tobool(tonumber(args[4])) and self.HasResourceDistribution; -- this is working only with power attached, so it need RS
+	self.AntiNoclip = util.tobool(tonumber(args[6])); -- Kick noclipping players out of noclip when they hit the shield
+	self.Containment = util.tobool(tonumber(args[7])); -- Keep things in instead of out
+	self.Frequency = math.Clamp(math.floor(tonumber(args[8]) or 0), 0, 1500);
+	self.FireFrequency = math.Clamp(math.floor(tonumber(args[9]) or 0), 0, 1500);
+	args[8], args[9] = tostring(self.Frequency), tostring(self.FireFrequency);
+	self.RisingEdge = util.tobool(tonumber(args[10]));
+
+	if (Changed(args[5], old[5]) or not self.NumpadSet) then
+		numpad.OnDown(self.Owner, tonumber(args[5]), "Toggle_Shield_Core", self.Entity);
+		self.NumpadSet = true;
+	end
+
+	self.MenuData = table.concat(args, " ", 1, 10);
+	self.Entity:SetNWString("MenuData", self.MenuData);
+
+	if (rebuild) then
+		if (IsValid(self.Shield) and self.Shield.Enabled) then
+			self.Pressed = false; -- Status() ignores calls for 7s after the last toggle
+			self:Status(false);
+		end
+		self:BuildShield();
+	else
+		if (Changed(self.SSize, snap.Size)) then
+			self.Shield:ResizeTo(self.SSize/512);
+		end
+		if (self.Shield.Enabled) then
+			self.Shield:SetContainment(self.Containment);
+		end
+	end
+
+	// for tracelines
+	self.Shield:SetNWBool("Immunity",self.Immunity);
+	self.Shield:SetNWEntity("Own",self.Owner);
+	self:UpdateTrusted();
+end
+
+-- Energy factor for the shield's current size and shape
+function ENT:UpdateSizeCost()
+	if (IsValid(self.Shield) and self.Shield.ShapeScale) then
+		self.ConsumeAmmount = self:GetSizeCostFactor(self.Shield.ShapeScale*512, self.Shield.ShShap or 1);
 	end
 end
 
@@ -286,12 +411,16 @@ function ENT:Status(status,nosound)
 			return
 		end
 		if (status and not self.Shield.Enabled) then
-			local energy = self:GetResource("energy",self.EngageEnergy);
-			self.ConsumeAmmount = math.ceil(((self.Shield.Radius)^2*math.pi*4)/200000); -- Instead of doing this calculation very second, do it here
+			-- Bigger shields cost much more, to run and to switch on (see ENT:GetSizeCostFactor in shared.lua).
+			-- This used the size multiplier as a radius in units, so it always came out as 1.
+			self:UpdateSizeCost();
 			self.ExtraConsume = math.exp(math.Clamp(self.StrengthMultiplier[3]*1.3,0.2,600));
-			if((not self.Depleted or (self.Strength >= self.RestoreThresold)) and self.Strength > 0 and energy >= self.EngageEnergy) then
+			local engage = self.EngageEnergy*self.ConsumeAmmount;
+			local energy = self:GetResource("energy",engage);
+			if((not self.Depleted or (self.Strength >= self.RestoreThresold)) and self.Strength > 0 and energy >= engage) then
 				-- Taking the enagage energy, you will get back later (when turning off the shield)
-				self:ConsumeResource("energy",self.EngageEnergy);
+				self:ConsumeResource("energy",engage);
+				self.EngagedEnergy = engage; -- Given back exactly, even if it was resized meanwhile
 				--Enable shield
 				self.Shield:Status(true);
 				if(not nosound) then
@@ -304,7 +433,8 @@ function ENT:Status(status,nosound)
 			end
 		elseif(not status and self.Shield.Enabled) then
 			-- Give back the energy, we took when it was enagaged
-			self:SupplyResource("energy",self.EngageEnergy);
+			self:SupplyResource("energy",self.EngagedEnergy or self.EngageEnergy);
+			self.EngagedEnergy = nil;
 			-- Disable Shield
 			self.Shield:Status(false);
 			if(not nosound and not self.Depleted) then
@@ -326,10 +456,13 @@ function ENT:Think(ply)
 
 	if (self.ThinkTime < CurTime() and IsValid(self.Shield)) then
 
-		self.Shield:SetPos(self:LocalToWorld(self.Pos));
-		self.Shield:SetAngles(self:GetAngles()+self.Ang);
+		if (self.Shield:GetParent() ~= self.Entity) then -- Parented shields follow by themselves
+			self.Shield:SetPos(self:LocalToWorld(self.Pos));
+			self.Shield:SetAngles(self:GetAngles()+self.Ang);
+		end
 
 		self.ThinkTime = CurTime()+0.5
+		self:WireThink();
 		local enabled = self.Shield.Enabled;
 		if self.Atlantis then	-- infinite strength if we have power
 			self:ShowOutput(enabled, true);
@@ -364,7 +497,8 @@ function ENT:Think(ply)
 				-- Consume energy
 				local energy = self:GetResource("energy");
 
-				-- Make the shield consume more power depending on it's strength
+				-- Make the shield consume more power depending on it's strength and size (follows a resize)
+				self:UpdateSizeCost();
 				local take_energy = (self.ConsumeAmmount or 1)*(self.ExtraConsume or 1)*self.ConsumeMultiplier
 				self:ConsumeResource("energy",math.Clamp(take_energy,1,energy));
 				if(energy <= take_energy) then -- no energy - shut down it
@@ -420,7 +554,16 @@ function ENT:SetMultiplier(n)
 end
 
 --################# Shield got hit - Take strength @aVoN
-function ENT:Hit(strength,normal,pos)
+function ENT:Hit(strength,normal,pos,fireFrequency)
+	-- Weapons on the shield's fire frequency hit much softer (like the regular shield)
+	if (fireFrequency and (self.FireFrequency or 0) ~= 0 and math.abs(self.FireFrequency - fireFrequency) < 50) then
+		strength = (strength or 0)/5;
+	end
+	self:SetWire("Hit", 1);
+	self:SetWire("Hit Position", pos or self.Entity:GetPos());
+	self:SetWire("Hit Strength", math.Round(strength or 0, 2));
+	self.HitPulse = true;
+
 	-- Calculate strenght-taking multiplier: Are we a shield, which is not moving? If so, we are many times stronger than a shield of a ship which is moving.
 	local divisor = 1;
 	if(self.Entity:GetVelocity():Length() < 5) then
@@ -481,6 +624,104 @@ function ENT:TriggerInput(k,v)
 		else
 			self:Status(false);
 		end
+	elseif(k=="Size") then
+		-- Applied in Think, at most once every wire_resize_delay seconds, always as the smooth resize
+		if (isvector(v) and not v:IsZero()) then
+			self.WireSizeTarget = Vector(math.Clamp(v.x, self.MinSize, self.MaxSize), math.Clamp(v.y, self.MinSize, self.MaxSize), math.Clamp(v.z, self.MinSize, self.MaxSize));
+		end
+	elseif(k=="Immunity" or k=="Containment") then
+		self:SetMenuOption(k == "Immunity" and 2 or 7, (v or 0) >= 1);
+	elseif(k=="Frequency" or k=="Fire Frequency") then
+		self:SetMenuOption(k == "Frequency" and 8 or 9, math.Clamp(math.floor(tonumber(v) or 0), 0, 1500));
+	elseif(k=="Allowed Players") then
+		self.AllowedPlayers = {};
+		for _,ply in pairs(istable(v) and v or {}) do
+			if (IsValid(ply) and ply:IsPlayer()) then table.insert(self.AllowedPlayers, ply) end
+		end
+		self:UpdateTrusted();
+	end
+end
+
+-- Tell clients who may shoot through (for beam/bullet effects): Allowed Players, and with Immunity the owner
+-- and his prop protection friends. See ENT:IsTrusted on the shield.
+function ENT:UpdateTrusted()
+	if (not IsValid(self.Shield)) then return end
+	local ids = {};
+	for _,ply in pairs(player.GetAll()) do
+		if (self.Shield:IsTrusted(ply)) then table.insert(ids, ply:EntIndex()) end
+	end
+	local text = " " .. table.concat(ids, " ") .. " ";
+	if (self.Shield:GetNWString("TrustedIDs", "") ~= text) then self.Shield:SetNWString("TrustedIDs", text) end
+end
+
+-- Immunity (2), Containment (7), Frequency (8) and Fire Frequency (9) can change live, from the menu or
+-- Wire. Keeps the menu's data in sync.
+function ENT:SetMenuOption(index, value)
+	local data = string.Explode(" ", self.MenuData or "0 0 0 0 5 0 0 0 0 0");
+	for i = 1, 10 do data[i] = data[i] or "0" end
+	data[index] = (value == true and "1") or (value == false and "0") or tostring(value);
+	self.MenuData = table.concat(data, " ", 1, 10);
+	self.Entity:SetNWString("MenuData", self.MenuData);
+	if (index == 2) then self.Immunity = value
+	elseif (index == 7) then self.Containment = value
+	elseif (index == 8) then self.Frequency = value
+	elseif (index == 9) then self.FireFrequency = value end
+	self:UpdateTrusted();
+	if (IsValid(self.Shield)) then
+		self.Shield:SetNWBool("Immunity", self.Immunity);
+		if (self.Shield.Enabled) then self.Shield:SetContainment(self.Containment) end
+	end
+end
+
+-- Wire size requests and the Wire outputs (called every 0.5s)
+function ENT:WireThink()
+	local shield = self.Shield;
+	if (self.WireSizeTarget and CurTime() >= (self.NextWireResize or 0) and not self.MenuSnapshot and IsValid(shield)) then
+		local target = self.WireSizeTarget;
+		self.WireSizeTarget = nil;
+		local current = self.SSize or self.Entity:GetNWVector("Size", Vector(100,100,100));
+		if (target:Distance(current) > 1) then
+			self.SSize = target;
+			self.Entity:SetNWVector("Size", target);
+			shield:ResizeTo(target/512);
+			self.NextWireResize = CurTime() + self.WireResizeDelay;
+		end
+	end
+
+	self:UpdateTrusted(); -- Prop protection friends can change any time
+
+	local up = IsValid(shield) and shield.Enabled;
+	local energy_use = 0;
+	if (up and self.HasResourceDistribution and not self.Atlantis) then
+		energy_use = (self.ConsumeAmmount or 1)*(self.ExtraConsume or 1)*self.ConsumeMultiplier*2; -- Charged every 0.5s
+	end
+	self:SetWire("Energy Use", math.Round(energy_use));
+	self:SetWire("Size", self.SSize or self.Entity:GetNWVector("Size", Vector(100,100,100)));
+
+	local covered = 0;
+	local contained = 0;
+	if (IsValid(shield) and shield.IsShieldUp and shield:IsShieldUp()) then
+		local level = shield:GetCoverLevel();
+		if (level) then
+			local bottom, top = shield:GetCoverRange();
+			covered = math.Clamp((level - bottom)/math.max(top - bottom, 1), 0, 1)*100;
+		else
+			covered = 100;
+		end
+		if (shield:IsContainment()) then
+			for e,_ in pairs(shield.Contained or {}) do
+				if (IsValid(e)) then contained = contained + 1 end
+			end
+		end
+	end
+	self:SetWire("Covered %", math.floor(covered));
+	self:SetWire("Contained", contained);
+	self:SetWire("Resizing", (IsValid(shield) and shield.ResizeEnd) and 1 or 0);
+
+	if (self.HitPulse) then -- "Hit" is 1 for one update after a hit
+		self.HitPulse = false;
+	else
+		self:SetWire("Hit", 0);
 	end
 end
 

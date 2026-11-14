@@ -91,7 +91,6 @@ else
     local anim = (CurTime()-self.BoxTimer)
     if anim < 0.5 then
       surface.SetAlphaMultiplier(anim*2)
-      print(anim*2)
     elseif anim > 3 then
       surface.SetAlphaMultiplier((3.5-anim)*2)
     else

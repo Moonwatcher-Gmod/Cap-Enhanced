@@ -201,7 +201,7 @@ function StarGate.Trace:New(start, dir, ignore)
                 local in_box = false
 
                 if (class == "shield_core_buble") then
-                    in_box = StarGate.IsInShieldCore(e, start)
+                    in_box = e:ContainsPoint(start) -- Exact test against the visible shape
                 elseif (class == "shield") then
                     in_box = (e:GetPos():Distance(start) < v.Max.x) -- in sphere! Not box!!! @ AlexALX
                 else
@@ -217,22 +217,15 @@ function StarGate.Trace:New(start, dir, ignore)
                     -- We need to check to what side the start pos is the nearest and if the normal (to that side where we checking it) isn't zero
                     -- go ahead with my method @Mad
                     if (class == "shield_core_buble") then
-                        -- check, if we intersecting bounding box - save cpu if we are not
-                        if StarGate.IsRayBoxIntersect(start, trace.HitPos, e) then
-                            local a = not in_box
-                            local dir2 = dir
-
-                            -- fix shoting if we are inside, and not shape - to get hitpos on right side (not opposite)
-                            if in_box then
-                                dir2 = -1 * dir
-                            end
-
-                            -- small fix for box shape, i fucked triangles directions
-                            if (e.ShShap == 2) then
-                                a = in_box
-                            end
-
-                            hit2 = StarGate.RayPhysicsPluckerIntersect(trace, dir2, e, a)
+                        -- Exact intersection with the shape (ellipsoid, box or dome). Used to be a one-sided
+                        -- triangle test against a mesh, with flipped directions to work around the box's winding.
+                        local hitpos, hitnormal = e:TraceIntersect(start, trace.HitPos)
+                        if (hitpos) then
+                            hit2 = {
+                                HitPos = hitpos,
+                                HitNormal = hitnormal,
+                                Fraction = (hitpos - start):Length() / math.max(dir:Length(), 0.001)
+                            }
                         end
                     elseif (class == "tokra_shield") then
                         -- go ahead with my method @Mad
@@ -284,6 +277,11 @@ function StarGate.Trace:New(start, dir, ignore)
                         trace.Entity = e
                         table.insert(traced_entities, table.Copy(trace)) -- Lynix modification
                         --break;
+                    end
+
+                    -- A rising/lowering shield core only blocks where it has risen to (see shield_core_buble/shared.lua)
+                    if (hit2 and e.IsCoveredAt and not e:IsCoveredAt(hit2.HitPos)) then
+                        hit2 = nil
                     end
 
                     if (hit2) then

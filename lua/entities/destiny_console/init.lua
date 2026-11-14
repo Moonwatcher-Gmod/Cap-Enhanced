@@ -90,7 +90,7 @@ function ENT:SpawnButtons()
     local pos = self.Entity:GetPos()
     local ang = self.Entity:GetAngles()
 
-    for i = 1, table.getn(self.ButtModels) do
+    for i = 1, #self.ButtModels do
         local e = ents.Create("prop_dynamic")
         e:SetModel(self.ButtModels[i])
         e:SetParent(self.Entity)

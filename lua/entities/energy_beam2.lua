@@ -130,6 +130,15 @@ if SERVER then
 
                         if (class == "shield" or class == "shield_core_buble" or class == "ship_shield" and (not IsValid(ent.Parent) or not ent.Parent.Depleted)) then
                             ent:Hit(self.Entity, self.StargateTrace.HitPos, 3, self.StargateTrace.HitNormal, self.FireFrequency)
+                            self.HitShield = true
+
+                            if (class == "shield_core_buble") then
+                                -- Clients draw small veins in the beam's colour spreading from here (shield_core_buble/cl_init.lua)
+                                ent:SetNWVector("BeamHitPos", self.StargateTrace.HitPos)
+                                ent:SetNWFloat("BeamHitTime", CurTime())
+                                ent:SetNWVector("BeamVeinColor", (self.Effect == "Asgard") and Vector(70, 150, 255) or Vector(255, 140, 40))
+                                ent:SetNWFloat("BeamVeinScale", (self.Effect == "Asgard") and 0.4 or 0.6) -- Ori/AG3 50% bigger
+                            end
                             self:DoUsualHit()
                             self:SetNWVector("EndPos", self.StargateTrace.HitPos)
                             self.LastStargateTrace = self.StargateTrace
@@ -159,7 +168,8 @@ if SERVER then
                     self.EndPos = self.StargateTrace.HitPos
                     self.Length = self.Length + dist
 
-                    if (not self.WillGoTroughtGates) then
+                    -- No blast on a shield: the shield takes the hit (the blast reached through it)
+                    if (not self.WillGoTroughtGates and not self.HitShield) then
                         util.BlastDamage(self.Entity, self.Entity, self.EndPos, 250, 50)
                     end
                 else

@@ -37,22 +37,19 @@ if SERVER then
                 data[i] = net.ReadInt(32)
             elseif messageType == "Entity" then
                 data[i] = net.ReadEntity()
-            elseif messageType == "table" then
-                data[i] = net.ReadTable()
+            -- Tables are not accepted from clients: net.ReadTable on untrusted
+            -- input can be abused to lag the server, and nothing sends them
             elseif messageType == "boolean" then
                 data[i] = net.ReadBool()
             elseif messageType == "Vector" then
-                data[i] = net.ReadVector() 
+                data[i] = net.ReadVector()
             else
-                print("Unhandled message type server:", messageType)
                 return
             end
         end
 
         if IsValid(receiverEntityID) and receiverEntityID.HandleMessageFromClient then
             receiverEntityID:HandleMessageFromClient(ply, originEntity, receiverEntityID, subject, unpack(data))
-        else
-            print("Invalid or not found server-side receiver entity with ID:", receiverEntityID)
         end
     end)
 

@@ -149,7 +149,7 @@ if SERVER then
             timer.Destroy(self.Entity:EntIndex() .. "Counting")
             self.Entity:Teleport()
         else
-            if (table.getn(self.DialAdress) == 0) then
+            if (#self.DialAdress == 0) then
                 timer.Create(self.Entity:EntIndex() .. "Counting", 3, 1, function()
                     if (IsValid(self)) then
                         self.DialAdress = nil
