@@ -74,6 +74,7 @@ ENT.NoTouchTeleport = {
 	"energy_pulse",
 	"energy_pulse_stun",
 	"drone",
+	"drone_ancient",
 	"npc_satchel",
 	"hunter_flechette",
 	"grenade_helicopter",
@@ -774,6 +775,10 @@ function ENT:StartTouch(e)
 	end
 end
 
+function ENT:IsBehind(e)
+	return self:GetForward():DotProduct((e:GetPos()-self:GetPos()):GetNormalized()) < 0;
+end
+
 --################# Keeps clipping plane up to date @RononDex
 function ENT:Touch(e)
 	if (e.__EHTransit) then return end
@@ -1167,8 +1172,7 @@ function ENT:EndTouch(e)
 		if(not attached) then DebugPrint("EndTouch: not teleportable (see the part rejected above)",e) end
 		if(attached) then
 			for _,v in pairs(attached.Attached) do
-				-- Still touching the EH means not all the way in, even when its center already is (a long prop)
-				if((not lvs and (not v.___InBuffer or self.Touching[v])) or self.Holding[v]) then
+				if((not lvs and (self.Touching[v] or not (v.___InBuffer or self:IsBehind(v)))) or self.Holding[v]) then
 					DebugPrint("EndTouch: waiting for part",v,"of",e,"in buffer:",tostring(v.___InBuffer),"held:",tostring(self.Holding[v]));
 					return;
 				end
@@ -1446,7 +1450,9 @@ function BUFFER:StartTouch(EventHorizon,e)
 	-- No world collision while clipping. Not for driveable HL2 vehicles (airboat, jeep): their vehicle physics
 	-- pulls them down even with gravity switched off above, so they sank (partly) through the floor
 	local hl2vehicle = e:IsVehicle() and e:GetClass() ~= "prop_vehicle_prisoner_pod";
-	if(not hl2vehicle and e:GetPhysicsObject() ~= nil and game.GetWorld():GetPhysicsObject() ~= nil) then
+	-- (IsValid, not ~= nil: a missing physics object is NULL, not nil - e.g. the world's on some maps)
+	local entPhys, worldPhys = e:GetPhysicsObject(), game.GetWorld():GetPhysicsObject()
+	if(not hl2vehicle and IsValid(entPhys) and IsValid(worldPhys)) then
 		e.EventHorizonNoCollide = ents.Create("phys_ragdollconstraint");
 		e.EventHorizonNoCollide:SetKeyValue("spawnflags",3);
 		for _,v in pairs(MaxValue) do
@@ -1458,7 +1464,7 @@ function BUFFER:StartTouch(EventHorizon,e)
 		for _,v in pairs(KeyValue1) do
 			e.EventHorizonNoCollide:SetKeyValue(v,0);
 		end
-		e.EventHorizonNoCollide:SetPhysConstraintObjects(game.GetWorld():GetPhysicsObject(),e:GetPhysicsObject());
+		e.EventHorizonNoCollide:SetPhysConstraintObjects(worldPhys,entPhys);
 		e.EventHorizonNoCollide:Spawn();
 		e.EventHorizonNoCollide:Activate();
 	end
@@ -1592,7 +1598,7 @@ function BUFFER:EndTouch(EventHorizon,e,ignore,tdir)
 	if(attached and not ignore) then
 		for _,v in pairs(attached.Attached) do
 			if (IsValid(v) and IsValid(v:GetPhysicsObject()) and v:GetSolid()!=SOLID_NONE) then
-				local arrived = EventHorizon.AllBuffer[v:EntIndex()] or EventHorizon.Left[v];
+				local arrived = EventHorizon.AllBuffer[v:EntIndex()] or EventHorizon.Left[v] or EventHorizon:IsBehind(v);
 				if (EventHorizon.Touching[v] or not arrived) then
 					EventHorizon.ClipBuffer[e:EntIndex()] = e;
 					DebugPrint("clip end of",e,"waits for part",v,"touching:",tostring(EventHorizon.Touching[v] == true),"arrived:",tostring(arrived ~= nil));
